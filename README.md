@@ -5,15 +5,31 @@
 
 ---
 
-## The Raven Toolchain
+## The Raven Toolchain & Developer Tools
 
-Similar to Java (`javac` + `java` JVM), Raven provides a dedicated, full-scale compiler and virtual machine toolchain:
+Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
-| Tool | Analogous to | Description |
+| Tool / Command | Analogous to | Description |
 |---|---|---|
-| **`ravenc`** | `javac` | **Raven Compiler**: Compiles `.rvn` source code into optimized `.rvc` binary bytecode with compile-time constant folding and dead-code elimination. |
-| **`rvm`** | `java` (JVM) | **Raven Virtual Machine (Corvus Engine)**: High-speed stack-based virtual machine executing pre-compiled `.rvc` bytecode (or compiling on-the-fly). |
-| **`raven`** | `python` / `node` | **Unified CLI**: Multi-purpose frontend for running scripts, launching the interactive REPL, or disassembling code. |
+| **`raven run <file>`** | `go run` / `python` | Execute Raven script with automatic module resolution and instant startup. |
+| **`raven init [name]`** | `go mod init` / `cargo init` | Initialize a new structured Raven project with `raven.json` manifest and `src/main.rvn`. |
+| **`raven fmt [-w] <file>`** | `gofmt` | Canonical code formatter (asthetically formats indentation, spacing, and braces). |
+| **`raven vet <file>`** | `go vet` | Static analyzer / linter detecting unused variables, shadowing, and unreachable code. |
+| **`raven doc <file>`** | `godoc` | Automatic API documentation generator producing GitHub-flavored Markdown. |
+| **`raven bench <file>`** | `go test -bench` | Microsecond-accurate benchmark runner for scripts and modules. |
+| **`raven lsp`** | `gopls` | Official Language Server Protocol (LSP) server providing diagnostics, completions, formatting, and hover. |
+| **`ravenc`** | `javac` | Dedicated compiler: Compiles `.rvn` source code into optimized `.rvc` binary bytecode. |
+| **`rvm`** | `java` (JVM) | High-speed Corvus Virtual Machine executing pre-compiled `.rvc` bytecode. |
+
+---
+
+## Go-Style Build Scripts
+
+Standard Go-style root scripts are provided for fast development:
+- `./make.bash` — Fast compile and link
+- `./all.bash` — Full rebuild, test execution (57/57 tests), and stdlib tour run
+- `./run.bash <file>` — Quick-run any Raven script
+- `./clean.bash` — Clean build artifacts
 
 ---
 
@@ -240,21 +256,34 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (53 automated unit, regression & VM integration tests):
+Raven includes a comprehensive test suite (57 automated unit, regression, toolchain & VM integration tests):
 
 ```bash
-# 1. Build & Test
+# Fast build and test
+./all.bash
+
+# Or standard CMake:
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 
-# 2. System-wide Installation (optional)
-./install.sh
+# System-wide Installation (optional)
+sudo ./install.sh
 ```
 
 ## VS Code Extension
 
-Raven comes with an official Visual Studio Code syntax highlighting extension in `editors/vscode`:
+Raven comes with a full-featured Visual Studio Code extension located in `editors/vscode`:
+- **Syntax Highlighting**: Complete grammar for keywords, builtins, operators, strings, numbers, and comments.
+- **Language Server (LSP)**: Automatic diagnostics on type, live linting, code completions, hover tooltips, and document formatting.
+- **Snippets**: Pre-built templates for `fn`, `struct`, `while`, `for-in`, `if-else`, `match`, `try-catch`, and `import`.
+- **Keybindings & Actions**:
+  - `Shift+F5`: Run active Raven file in terminal
+  - Format on Save: Configurable automatic `raven fmt` execution
+  - Context Menu Actions: Run, Format, Vet, Doc generation
+  - Status Bar: One-click "Raven Run" button
+
+To install:
 ```bash
 cp -r editors/vscode ~/.vscode/extensions/raven-lang
 ```

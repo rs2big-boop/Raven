@@ -1,14 +1,21 @@
 {
   "name": "raven-lang",
   "displayName": "Raven Language",
-  "description": "Rich language support and syntax highlighting for the Raven Programming Language (.rvn)",
-  "version": "0.1.0",
+  "description": "Rich language support, LSP, formatter, linter, and runtime tools for the Raven Programming Language (.rvn)",
+  "version": "0.3.0",
   "publisher": "raven-lang",
   "engines": {
     "vscode": "^1.75.0"
   },
+  "main": "./extension.js",
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Formatters",
+    "Linters",
+    "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:raven"
   ],
   "contributes": {
     "languages": [
@@ -19,12 +26,86 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "snippets": [
+      {
+        "language": "raven",
+        "path": "./snippets/raven.json"
+      }
+    ],
     "grammars": [
       {
         "language": "raven",
         "scopeName": "source.raven",
         "path": "./syntaxes/raven.tmLanguage.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "raven.run",
+        "title": "Raven: Run Current File",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.fmt",
+        "title": "Raven: Format Current File (gofmt style)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.vet",
+        "title": "Raven: Lint / Vet Current File (go vet style)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.doc",
+        "title": "Raven: Generate API Documentation (godoc style)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.bench",
+        "title": "Raven: Benchmark Current File",
+        "category": "Raven"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "raven.run",
+          "when": "resourceLangId == raven",
+          "group": "navigation@1"
+        },
+        {
+          "command": "raven.fmt",
+          "when": "resourceLangId == raven",
+          "group": "1_modification@1"
+        },
+        {
+          "command": "raven.vet",
+          "when": "resourceLangId == raven",
+          "group": "1_modification@2"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "raven.run",
+        "key": "shift+f5",
+        "when": "editorLangId == raven"
+      }
+    ],
+    "configuration": {
+      "title": "Raven",
+      "properties": {
+        "raven.executablePath": {
+          "type": "string",
+          "default": "/home/ran/Raven/build/raven",
+          "description": "Path to the raven CLI executable"
+        },
+        "raven.formatOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically format Raven files on save"
+        }
+      }
+    }
   }
 }

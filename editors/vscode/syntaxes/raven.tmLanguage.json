@@ -56,11 +56,11 @@
       "patterns": [
         {
           "name": "keyword.control.raven",
-          "match": "\\b(let|fn|if|else|while|for|in|return|try|catch|throw|import|match)\\b"
+          "match": "\\b(let|fn|if|else|while|for|in|return|try|catch|throw|import|match|struct|break|continue)\\b"
         },
         {
           "name": "constant.language.raven",
-          "match": "\\b(true|false|nil)\\b"
+          "match": "\\b(true|false|nil|null)\\b"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "patterns": [
         {
           "name": "support.function.raven",
-          "match": "\\b(print|print_err|input|len|type|str|num|abs|min|max|sqrt|sin|cos|tan|floor|ceil|round|log|exp|rand|rand_int|range|push|pop|keys|values|sort_arr|map|filter|reduce|split|join|contains|to_upper|to_lower|trim|replace|index_of|char_code|char|read_file|write_file|file_exists|time|sleep|env|exec|to_json|parse_json|assert)\\b"
+          "match": "\\b(print|print_err|input|len|type|str|num|int|bool|format|abs|min|max|clamp|gcd|lcm|sqrt|pow|sin|cos|tan|floor|ceil|round|log|exp|rand|rand_int|range|push|pop|keys|values|sort_arr|arr_contains|unique|flatten|arr_reverse|sum|arr_min|arr_max|count_if|map_merge|map_has_key|map_delete|map|filter|reduce|split|join|contains|to_upper|to_lower|trim|replace|index_of|str_repeat|pad_left|pad_right|str_reverse|is_digit|is_alpha|is_space|is_upper|is_lower|str_count|has_prefix|has_suffix|char_code|char|slice|regex_match|regex_replace|hash|base64_encode|base64_decode|http_get|read_file|write_file|append_file|read_lines|file_exists|is_dir|list_dir|mkdir|remove_file|get_cwd|time|sleep|env|exec|to_json|parse_json|assert|panic)\\b"
         }
       ]
     },
@@ -81,6 +81,10 @@
         {
           "name": "keyword.operator.arrow.raven",
           "match": "=>"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.raven",
+          "match": "(\\+=|-=|\\*=|/=|%=)"
         },
         {
           "name": "keyword.operator.comparison.raven",

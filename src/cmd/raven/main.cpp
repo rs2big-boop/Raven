@@ -12,6 +12,7 @@
 #include "raven/linter.hpp"
 #include "raven/formatter.hpp"
 #include "raven/doc_generator.hpp"
+#include "raven/lsp.hpp"
 
 namespace raven {
 
@@ -147,11 +148,13 @@ int main(int argc, char* argv[]) {
             std::cout << "Raven Programming Language (C++20)\n\n"
                       << "Usage: raven [command|options] [arguments]\n\n"
                       << "Commands:\n"
+                      << "  init [name]             Initialize a new Raven project with raven.json\n"
                       << "  run <file.rvn>          Execute a Raven script file\n"
                       << "  fmt <file.rvn> [-w]     Format Raven source code (like gofmt)\n"
                       << "  vet <file.rvn>          Static analysis & linting (like go vet)\n"
                       << "  doc <file.rvn>          Generate Markdown documentation (like godoc)\n"
                       << "  bench <file.rvn>        Benchmark script execution time and memory\n"
+                      << "  lsp                     Start the Language Server Protocol (LSP) server\n"
                       << "  test                    Execute test suite with ctest\n"
                       << "  pkg install <repo-url>  Clone/install a package into raven_modules/\n\n"
                       << "Options:\n"
@@ -160,6 +163,55 @@ int main(int argc, char* argv[]) {
                       << "  --disasm <file.rvn>     Compile and display the Bytecode disassembly\n"
                       << "  --version, -v           Print Raven version\n"
                       << "  --help, -h              Show this help message\n";
+            return 0;
+        }
+
+        if (first_arg == "lsp") {
+            raven::LanguageServer::run(std::cin, std::cout);
+            return 0;
+        }
+
+        if (first_arg == "init") {
+            std::string proj_name = (argc > 2) ? argv[2] : "raven_app";
+            std::string prefix = (argc > 2) ? (proj_name + "/") : "";
+
+            if (!prefix.empty()) {
+                std::system(("mkdir -p " + proj_name + "/src").c_str());
+            } else {
+                std::system("mkdir -p src");
+            }
+
+            // Write raven.json
+            std::ofstream manifest(prefix + "raven.json");
+            manifest << "{\n"
+                     << "  \"name\": \"" << proj_name << "\",\n"
+                     << "  \"version\": \"0.1.0\",\n"
+                     << "  \"entry\": \"src/main.rvn\",\n"
+                     << "  \"dependencies\": {}\n"
+                     << "}\n";
+            manifest.close();
+
+            // Write src/main.rvn
+            std::ofstream main_file(prefix + "src/main.rvn");
+            main_file << "// " << proj_name << " - Powered by Raven\n"
+                      << "import \"stdlib/fmt\";\n\n"
+                      << "fn main() {\n"
+                      << "    println(\"Hello, World from " << proj_name << "!\");\n"
+                      << "}\n\n"
+                      << "main();\n";
+            main_file.close();
+
+            // Write .gitignore
+            std::ofstream gitignore(prefix + ".gitignore");
+            gitignore << "build/\n*.rvc\nraven_modules/\n.raven_cache/\n";
+            gitignore.close();
+
+            std::cout << "✨ Initialized new Raven project '" << proj_name << "'\n\n"
+                      << "To get started:\n";
+            if (!prefix.empty()) {
+                std::cout << "  cd " << proj_name << "\n";
+            }
+            std::cout << "  raven run src/main.rvn\n";
             return 0;
         }
 

@@ -26,10 +26,11 @@ add_library(raven_core
     src/runtime/interpreter.cpp
     src/runtime/vm.cpp
 
-    # Developer Tooling (Linter/Vet, Formatter, Documentation Generator)
+    # Developer Tooling (Linter/Vet, Formatter, Documentation Generator, Language Server)
     src/tools/linter.cpp
     src/tools/formatter.cpp
     src/tools/doc_generator.cpp
+    src/tools/lsp.cpp
 )
 
 target_include_directories(raven_core PUBLIC

@@ -1546,27 +1546,38 @@ void Interpreter::visit(const ImportStmt& stmt) {
         base = path.substr(last_slash + 1);
     }
 
+    std::string rel_path = path;
+    if (rel_path.rfind("stdlib/", 0) == 0) {
+        rel_path = rel_path.substr(7);
+    }
+
     std::vector<std::string> candidates = {
         path + ".rvn",
         path + "/" + base + ".rvn",
-        "stdlib/" + path + ".rvn",
-        "stdlib/" + path + "/" + base + ".rvn",
-        "../stdlib/" + path + ".rvn",
-        "../stdlib/" + path + "/" + base + ".rvn",
-        "../" + path + ".rvn",
-        "../" + path + "/" + base + ".rvn",
+        "stdlib/" + rel_path + ".rvn",
+        "stdlib/" + rel_path + "/" + base + ".rvn",
+        "../stdlib/" + rel_path + ".rvn",
+        "../stdlib/" + rel_path + "/" + base + ".rvn",
+        "/home/ran/Raven/stdlib/" + rel_path + ".rvn",
+        "/home/ran/Raven/stdlib/" + rel_path + "/" + base + ".rvn",
+        "/usr/local/share/raven/stdlib/" + rel_path + ".rvn",
+        "/usr/local/share/raven/stdlib/" + rel_path + "/" + base + ".rvn",
         "raven_modules/" + path + ".rvn",
-        "/usr/local/share/raven/stdlib/" + path + ".rvn",
-        "/usr/local/share/raven/stdlib/" + path + "/" + base + ".rvn",
-        "/usr/local/share/raven/" + path + ".rvn",
         path,
-        "stdlib/" + path,
-        "../stdlib/" + path,
-        "../" + path,
-        "raven_modules/" + path,
-        "/usr/local/share/raven/stdlib/" + path,
-        "/usr/local/share/raven/" + path
+        "stdlib/" + rel_path,
+        "/home/ran/Raven/stdlib/" + rel_path,
+        "/usr/local/share/raven/stdlib/" + rel_path
     };
+
+    // Check executable path relative stdlib
+    std::error_code ec_exe;
+    auto exe_path = std::filesystem::read_symlink("/proc/self/exe", ec_exe);
+    if (!ec_exe && !exe_path.empty()) {
+        auto exe_dir = exe_path.parent_path();
+        candidates.push_back((exe_dir / "stdlib" / (rel_path + ".rvn")).string());
+        candidates.push_back((exe_dir.parent_path() / "stdlib" / (rel_path + ".rvn")).string());
+        candidates.push_back((exe_dir.parent_path() / "share" / "raven" / "stdlib" / (rel_path + ".rvn")).string());
+    }
 
     std::string resolved;
     for (const auto& c : candidates) {
