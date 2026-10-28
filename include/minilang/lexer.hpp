@@ -1,0 +1,33 @@
+#pragma once
+
+#include <cstddef>
+#include <string>
+#include <vector>
+
+#include "minilang/token.hpp"
+
+namespace minilang {
+
+class Lexer {
+public:
+    explicit Lexer(std::string source);
+
+    std::vector<Token> tokenize();
+
+private:
+    char peek() const;
+    char peek_next() const;
+    char advance();
+    bool is_at_end() const;
+
+    void skip_whitespace();
+    Token scan_number();
+    Token scan_identifier_or_keyword();
+
+    std::string source_;
+    std::size_t position_ = 0;
+    int line_ = 1;
+    int column_ = 1;
+};
+
+} // namespace minilang
