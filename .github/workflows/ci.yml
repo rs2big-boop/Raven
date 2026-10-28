@@ -24,8 +24,19 @@ jobs:
     - name: Build Raven Toolchain (raven, ravenc, rvm)
       run: cmake --build build --config Release
 
-    - name: Run Full Test Suite (34 Unit Tests)
+    - name: Run Full Test Suite (57 Tests)
       run: ctest --test-dir build --output-on-failure
+
+    - name: Test Developer Tooling (fmt, vet, doc, bench, init)
+      run: |
+        ./build/raven fmt examples/go_stdlib_tour.rvn
+        ./build/raven vet examples/go_stdlib_tour.rvn
+        ./build/raven doc stdlib/strings.rvn
+        ./build/raven bench examples/go_stdlib_tour.rvn
+        mkdir /tmp/ci_test && cd /tmp/ci_test
+        $GITHUB_WORKSPACE/build/raven init ci_app
+        cd ci_app && $GITHUB_WORKSPACE/build/raven run src/main.rvn
+        rm -rf /tmp/ci_test
 
     - name: Test Tree-Walk Interpreter (raven)
       run: |
@@ -33,6 +44,7 @@ jobs:
         ./build/raven examples/fibonacci.rvn
         ./build/raven examples/while.rvn
         ./build/raven examples/showcase.rvn
+        ./build/raven examples/go_stdlib_tour.rvn
 
     - name: Test Raven Bytecode Compiler (ravenc) & RVM (rvm)
       run: |
