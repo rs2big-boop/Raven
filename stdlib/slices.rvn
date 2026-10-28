@@ -1,0 +1,152 @@
+// stdlib/slices.rvn - Slice/Array algorithms (inspired by Go's slices package)
+
+fn slices_contains(arr, elem) {
+    let i = 0;
+    while (i < len(arr)) {
+        if (arr[i] == elem) { return true; }
+        i += 1;
+    }
+    return false;
+}
+
+fn slices_index(arr, elem) {
+    let i = 0;
+    while (i < len(arr)) {
+        if (arr[i] == elem) { return i; }
+        i += 1;
+    }
+    return -1;
+}
+
+fn slices_reverse(arr) {
+    let res = [];
+    let i = len(arr) - 1;
+    while (i >= 0) {
+        push(res, arr[i]);
+        i -= 1;
+    }
+    return res;
+}
+
+fn slices_unique(arr) {
+    let res = [];
+    let seen = {};
+    let i = 0;
+    while (i < len(arr)) {
+        let k = str(arr[i]);
+        if (!map_has_key(seen, k)) {
+            seen[k] = true;
+            push(res, arr[i]);
+        }
+        i += 1;
+    }
+    return res;
+}
+
+fn slices_sum(arr) {
+    let total = 0;
+    let i = 0;
+    while (i < len(arr)) {
+        total += arr[i];
+        i += 1;
+    }
+    return total;
+}
+
+fn slices_min(arr) {
+    if (len(arr) == 0) { return nil; }
+    let m = arr[0];
+    let i = 1;
+    while (i < len(arr)) {
+        if (arr[i] < m) { m = arr[i]; }
+        i += 1;
+    }
+    return m;
+}
+
+fn slices_max(arr) {
+    if (len(arr) == 0) { return nil; }
+    let m = arr[0];
+    let i = 1;
+    while (i < len(arr)) {
+        if (arr[i] > m) { m = arr[i]; }
+        i += 1;
+    }
+    return m;
+}
+
+fn slices_take(arr, n) {
+    let res = [];
+    let i = 0;
+    while (i < n && i < len(arr)) {
+        push(res, arr[i]);
+        i += 1;
+    }
+    return res;
+}
+
+fn slices_drop(arr, n) {
+    let res = [];
+    let i = n;
+    while (i < len(arr)) {
+        push(res, arr[i]);
+        i += 1;
+    }
+    return res;
+}
+
+fn slices_chunk(arr, size) {
+    let res = [];
+    let i = 0;
+    while (i < len(arr)) {
+        let chunk = [];
+        let j = 0;
+        while (j < size && i + j < len(arr)) {
+            push(chunk, arr[i + j]);
+            j += 1;
+        }
+        push(res, chunk);
+        i += size;
+    }
+    return res;
+}
+
+fn slices_flatten(arr) {
+    let res = [];
+    let i = 0;
+    while (i < len(arr)) {
+        if (type(arr[i]) == "array") {
+            let j = 0;
+            while (j < len(arr[i])) {
+                push(res, arr[i][j]);
+                j += 1;
+            }
+        } else {
+            push(res, arr[i]);
+        }
+        i += 1;
+    }
+    return res;
+}
+
+fn slices_zip(a, b) {
+    let res = [];
+    let n = len(a);
+    if (len(b) < n) { n = len(b); }
+    let i = 0;
+    while (i < n) {
+        push(res, [a[i], b[i]]);
+        i += 1;
+    }
+    return res;
+}
+
+fn slices_equal(a, b) {
+    if (len(a) != len(b)) { return false; }
+    let i = 0;
+    while (i < len(a)) {
+        if (a[i] != b[i]) { return false; }
+        i += 1;
+    }
+    return true;
+}

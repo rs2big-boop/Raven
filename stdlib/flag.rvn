@@ -1,0 +1,50 @@
+// stdlib/flag.rvn - Command line flag parsing (inspired by Go's flag package)
+
+fn flag_parse(args_list) {
+    let flags = {};
+    let positional = [];
+    let i = 0;
+    while (i < len(args_list)) {
+        let arg = args_list[i];
+        if (has_prefix(arg, "--")) {
+            let rest = slice(arg, 2, len(arg));
+            let eq_idx = index_of(rest, "=");
+            if (eq_idx != -1) {
+                let k = slice(rest, 0, eq_idx);
+                let v = slice(rest, eq_idx + 1, len(rest));
+                flags[k] = v;
+            } else {
+                flags[rest] = "true";
+            }
+        } else if (has_prefix(arg, "-")) {
+            let rest = slice(arg, 1, len(arg));
+            flags[rest] = "true";
+        } else {
+            push(positional, arg);
+        }
+        i += 1;
+    }
+    return {"flags": flags, "args": positional};
+}
+
+fn flag_string(parsed, name, default_val) {
+    if (map_has_key(parsed["flags"], name)) {
+        return parsed["flags"][name];
+    }
+    return default_val;
+}
+
+fn flag_bool(parsed, name, default_val) {
+    if (map_has_key(parsed["flags"], name)) {
+        let val = parsed["flags"][name];
+        return val == "true" || val == "1";
+    }
+    return default_val;
+}
+
+fn flag_int(parsed, name, default_val) {
+    if (map_has_key(parsed["flags"], name)) {
+        return int(num(parsed["flags"][name]));
+    }
+    return default_val;
+}

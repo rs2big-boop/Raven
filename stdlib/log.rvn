@@ -1,0 +1,36 @@
+// stdlib/log.rvn - Structured logging (inspired by Go's log / log/slog package)
+
+let _current_log_level = 1; // 0=DEBUG, 1=INFO, 2=WARN, 3=ERROR
+
+fn set_log_level(level) {
+    _current_log_level = level;
+}
+
+fn log_debug(msg) {
+    if (_current_log_level <= 0) {
+        print("[DEBUG] " + str(msg));
+    }
+}
+
+fn log_info(msg) {
+    if (_current_log_level <= 1) {
+        print("[INFO] " + str(msg));
+    }
+}
+
+fn log_warn(msg) {
+    if (_current_log_level <= 2) {
+        print("[WARN] " + str(msg));
+    }
+}
+
+fn log_error(msg) {
+    if (_current_log_level <= 3) {
+        print_err("[ERROR] " + str(msg));
+    }
+}
+
+fn log_fatal(msg) {
+    print_err("[FATAL] " + str(msg));
+    panic("fatal log: " + str(msg));
+}

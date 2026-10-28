@@ -1,0 +1,22 @@
+// stdlib/path/filepath.rvn - Filepath manipulation (inspired by Go's path/filepath)
+import "stdlib/path"
+
+fn join(parts) {
+    return path_join(parts);
+}
+
+fn base(p) {
+    return path_base(p);
+}
+
+fn dir(p) {
+    return path_dir(p);
+}
+
+fn ext(p) {
+    return path_ext(p);
+}
+
+fn is_abs(p) {
+    return path_is_abs(p);
+}

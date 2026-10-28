@@ -1,0 +1,9 @@
+// stdlib/encoding/json.rvn - JSON encoding and decoding (inspired by Go's encoding/json package)
+
+fn marshal(v) {
+    return to_json(v);
+}
+
+fn unmarshal(json_str) {
+    return parse_json(json_str);
+}

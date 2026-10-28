@@ -1,0 +1,19 @@
+// stdlib/crypto.rvn - Cryptographic and hash functions (inspired by Go's crypto package)
+
+fn fnv_hash(s) {
+    return hash(s);
+}
+
+fn sha256_sum(s) {
+    let tmp = "/tmp/_raven_sha256_in.txt";
+    write_file(tmp, s);
+    let out = exec("sha256sum " + tmp + " 2>/dev/null | cut -d' ' -f1");
+    return trim(out);
+}
+
+fn md5_sum(s) {
+    let tmp = "/tmp/_raven_md5_in.txt";
+    write_file(tmp, s);
+    let out = exec("md5sum " + tmp + " 2>/dev/null | cut -d' ' -f1");
+    return trim(out);
+}

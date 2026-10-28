@@ -1,0 +1,19 @@
+// stdlib/net/http.rvn - HTTP client utilities (inspired by Go's net/http package)
+
+fn http_get_url(url) {
+    return http_get(url);
+}
+
+fn http_post(url, body) {
+    let tmp = "/tmp/_raven_post_body.txt";
+    write_file(tmp, body);
+    let out = exec("curl -s -L -X POST -d @" + tmp + " \"" + url + "\"");
+    return out;
+}
+
+fn http_post_json(url, json_data) {
+    let tmp = "/tmp/_raven_post_json.txt";
+    write_file(tmp, to_json(json_data));
+    let out = exec("curl -s -L -X POST -H \"Content-Type: application/json\" -d @" + tmp + " \"" + url + "\"");
+    return out;
+}

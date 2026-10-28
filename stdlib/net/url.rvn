@@ -1,0 +1,45 @@
+// stdlib/net/url.rvn - URL encoding and parsing (inspired by Go's net/url package)
+
+fn url_encode(s) {
+    let out = "";
+    let i = 0;
+    while (i < len(s)) {
+        let ch = slice(s, i, i + 1);
+        if (ch == " ") {
+            out += "%20";
+        } else if (ch == "&") {
+            out += "%26";
+        } else if (ch == "=") {
+            out += "%3D";
+        } else if (ch == "?") {
+            out += "%3F";
+        } else if (ch == "#") {
+            out += "%23";
+        } else {
+            out += ch;
+        }
+        i += 1;
+    }
+    return out;
+}
+
+fn query_escape(s) {
+    return url_encode(s);
+}
+
+fn parse_query(qs) {
+    let res = {};
+    if (len(qs) == 0) { return res; }
+    let pairs = split(qs, "&");
+    let i = 0;
+    while (i < len(pairs)) {
+        let pair = split(pairs[i], "=");
+        if (len(pair) == 2) {
+            res[pair[0]] = pair[1];
+        } else if (len(pair) == 1) {
+            res[pair[0]] = "";
+        }
+        i += 1;
+    }
+    return res;
+}

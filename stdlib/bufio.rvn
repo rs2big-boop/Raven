@@ -1,0 +1,57 @@
+// stdlib/bufio.rvn - Buffered I/O (inspired by Go's bufio package)
+
+fn create_scanner(text) {
+    let lines = split(text, "\n");
+    let pos = 0;
+    let obj = {};
+
+    obj["scan"] = fn() {
+        if (pos < len(lines)) {
+            pos += 1;
+            return true;
+        }
+        return false;
+    };
+
+    obj["text"] = fn() {
+        if (pos > 0 && pos <= len(lines)) {
+            return lines[pos - 1];
+        }
+        return "";
+    };
+
+    return obj;
+}
+
+fn create_word_scanner(text) {
+    let words = [];
+    let raw = split(text, " ");
+    let i = 0;
+    while (i < len(raw)) {
+        let w = trim(raw[i]);
+        if (len(w) > 0) {
+            push(words, w);
+        }
+        i += 1;
+    }
+
+    let pos = 0;
+    let obj = {};
+
+    obj["scan"] = fn() {
+        if (pos < len(words)) {
+            pos += 1;
+            return true;
+        }
+        return false;
+    };
+
+    obj["text"] = fn() {
+        if (pos > 0 && pos <= len(words)) {
+            return words[pos - 1];
+        }
+        return "";
+    };
+
+    return obj;
+}

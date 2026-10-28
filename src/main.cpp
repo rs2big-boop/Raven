@@ -104,7 +104,7 @@ static int run_file(const std::string& path, bool use_vm = false, bool disasm = 
 }
 
 static void run_prompt() {
-    std::cout << "Raven 0.2.0 Interactive Shell (Tree-Walk & Bytecode VM)\n";
+    std::cout << "Raven 0.3.0 Interactive Shell (Tree-Walk & Bytecode VM)\n";
     std::cout << "Type 'exit' or press Ctrl+D to quit.\n";
 
     Interpreter interpreter;
@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (first_arg == "--version" || first_arg == "-v") {
-            std::cout << "Raven 0.2.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
+            std::cout << "Raven 0.3.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
             return 0;
         }
 

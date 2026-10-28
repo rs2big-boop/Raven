@@ -1,0 +1,17 @@
+// stdlib/io.rvn - I/O utilities (inspired by Go's io package)
+
+fn read_all(path) {
+    return read_file(path);
+}
+
+fn write_all(path, content) {
+    return write_file(path, content);
+}
+
+fn append_all(path, content) {
+    return append_file(path, content);
+}
+
+fn read_all_lines(path) {
+    return read_lines(path);
+}

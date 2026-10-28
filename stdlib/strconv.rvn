@@ -1,0 +1,36 @@
+// stdlib/strconv.rvn - String conversions (inspired by Go's strconv package)
+
+fn atoi(s) {
+    return int(num(s));
+}
+
+fn itoa(n) {
+    return str(int(n));
+}
+
+fn parse_int(s) {
+    return int(num(s));
+}
+
+fn parse_float(s) {
+    return num(s);
+}
+
+fn parse_bool(s) {
+    if (s == "true" || s == "1" || s == "t" || s == "TRUE") { return true; }
+    if (s == "false" || s == "0" || s == "f" || s == "FALSE") { return false; }
+    return false;
+}
+
+fn format_bool(b) {
+    if (b) { return "true"; }
+    return "false";
+}
+
+fn format_int(n) {
+    return str(int(n));
+}
+
+fn format_float(n) {
+    return str(n);
+}

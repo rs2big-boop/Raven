@@ -1,0 +1,9 @@
+// stdlib/encoding/base64.rvn - Base64 encoding/decoding (inspired by Go's encoding/base64 package)
+
+fn encode_to_string(s) {
+    return base64_encode(s);
+}
+
+fn decode_string(s) {
+    return base64_decode(s);
+}

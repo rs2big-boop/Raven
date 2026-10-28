@@ -1,0 +1,38 @@
+// stdlib/reflect.rvn - Reflection utilities (inspired by Go's reflect package)
+
+fn type_of(val) {
+    return type(val);
+}
+
+fn is_nil(val) {
+    return val == nil;
+}
+
+fn is_string(val) {
+    return type(val) == "string";
+}
+
+fn is_number(val) {
+    return type(val) == "number";
+}
+
+fn is_bool(val) {
+    return type(val) == "bool";
+}
+
+fn is_array(val) {
+    return type(val) == "array";
+}
+
+fn is_map(val) {
+    return type(val) == "map";
+}
+
+fn is_callable_type(val) {
+    return type(val) == "function";
+}
+
+fn fields(map_val) {
+    if (type(map_val) != "map") { return []; }
+    return keys(map_val);
+}

@@ -1,0 +1,14 @@
+// stdlib/archive/tar.rvn - TAR archive operations (inspired by Go's archive/tar package)
+
+fn tar_extract(tar_path, dest_dir) {
+    mkdir(dest_dir);
+    let cmd = "tar -xf \"" + tar_path + "\" -C \"" + dest_dir + "\" 2>/dev/null";
+    exec(cmd);
+    return true;
+}
+
+fn tar_create(tar_path, src_dir) {
+    let cmd = "tar -cf \"" + tar_path + "\" \"" + src_dir + "\" 2>/dev/null";
+    exec(cmd);
+    return file_exists(tar_path);
+}

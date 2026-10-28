@@ -27,6 +27,7 @@ enum class TokenType {
     Return,
     True,
     False,
+    Nil,
 
     // Literals & Identifiers
     Identifier,
@@ -109,6 +110,7 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Return: return "Return";
         case TokenType::True: return "True";
         case TokenType::False: return "False";
+        case TokenType::Nil: return "Nil";
 
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";

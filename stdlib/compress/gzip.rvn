@@ -1,0 +1,15 @@
+// stdlib/compress/gzip.rvn - Gzip compression (inspired by Go's compress/gzip package)
+
+fn gzip_compress_string(s) {
+    let tmp = "/tmp/_raven_gz_in.txt";
+    write_file(tmp, s);
+    let out = exec("gzip -c \"" + tmp + "\" 2>/dev/null | base64");
+    return trim(out);
+}
+
+fn gzip_decompress_string(b64_str) {
+    let tmp = "/tmp/_raven_gz_in.b64";
+    write_file(tmp, b64_str);
+    let out = exec("base64 -d \"" + tmp + "\" 2>/dev/null | gzip -d -c 2>/dev/null");
+    return out;
+}

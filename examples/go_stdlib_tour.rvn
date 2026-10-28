@@ -1,0 +1,54 @@
+// Go-Inspired Standard Library Tour in Raven
+import "stdlib/fmt";
+import "stdlib/strings";
+import "stdlib/slices";
+import "stdlib/maps";
+import "stdlib/strconv";
+import "stdlib/encoding/json";
+import "stdlib/encoding/base64";
+import "stdlib/crypto";
+import "stdlib/container/heap";
+import "stdlib/time";
+import "stdlib/regexp";
+
+println("=== Raven Modern Go-like Standard Library Showcase ===");
+
+// 1. Strings & Formatting
+let title = str_title("raven programming language v0.3.0");
+println(sprintf("Title: {}", title, nil, nil));
+println(sprintf("Repeated: {}", str_repeat("Go+", 3), nil, nil));
+
+// 2. Strconv
+let num_val = atoi("12345");
+println(sprintf("Parsed Int: {}", num_val * 2, nil, nil));
+
+// 3. Slices & Functional operations
+let data = [5, 2, 8, 1, 9, 2, 8, 4];
+let uniq = slices_unique(data);
+println(sprintf("Unique elements: {}", to_json(uniq), nil, nil));
+println(sprintf("Sum: {}", slices_sum(data), nil, nil));
+
+// 4. Maps
+let m1 = {"name": "Raven", "target": "Go-level stdlib"};
+let m2 = {"version": "0.3.0", "status": "production"};
+let merged = map_merge(m1, m2);
+println(sprintf("Merged map keys: {}", to_json(map_keys_list(merged)), nil, nil));
+
+// 5. Encoding & Crypto
+let encoded = encode_to_string("Hello from Raven VM!");
+println(sprintf("Base64: {}", encoded, nil, nil));
+println(sprintf("Decoded: {}", decode_string(encoded), nil, nil));
+println(sprintf("FNV64 Hash: {}", fnv_hash("Hello from Raven VM!"), nil, nil));
+
+// 6. Regex
+let email_re = compile("^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$");
+println(sprintf("Valid email test: {}", email_re.test("developer@raven-lang.org"), nil, nil));
+
+// 7. Container Heap
+let pq = create_min_heap();
+pq.push(50);
+pq.push(10);
+pq.push(30);
+println(sprintf("Min-heap pop root: {}", pq.pop(), nil, nil));
+
+println("=== Showcase Completed Successfully! ===");

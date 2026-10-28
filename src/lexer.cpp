@@ -121,6 +121,8 @@ Token Lexer::scan_identifier_or_keyword() {
         {"return", TokenType::Return},
         {"true", TokenType::True},
         {"false", TokenType::False},
+        {"nil", TokenType::Nil},
+        {"null", TokenType::Nil},
     };
 
     int start_line = line_;

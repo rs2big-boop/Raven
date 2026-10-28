@@ -1,0 +1,67 @@
+// stdlib/bytes.rvn - Byte slices and buffer operations (inspired by Go's bytes package)
+
+fn bytes_from_string(s) {
+    let result = [];
+    let i = 0;
+    while (i < len(s)) {
+        push(result, char_code(slice(s, i, i + 1)));
+        i += 1;
+    }
+    return result;
+}
+
+fn bytes_to_string(b_arr) {
+    let s = "";
+    let i = 0;
+    while (i < len(b_arr)) {
+        s += char(b_arr[i]);
+        i += 1;
+    }
+    return s;
+}
+
+fn create_buffer() {
+    let buf = [];
+    let obj = {};
+
+    obj["write_string"] = fn(s) {
+        let b = bytes_from_string(s);
+        let i = 0;
+        while (i < len(b)) {
+            push(buf, b[i]);
+            i += 1;
+        }
+    };
+
+    obj["write_byte"] = fn(b) {
+        push(buf, b);
+    };
+
+    obj["string"] = fn() {
+        return bytes_to_string(buf);
+    };
+
+    obj["bytes"] = fn() {
+        return buf;
+    };
+
+    obj["len"] = fn() {
+        return len(buf);
+    };
+
+    obj["reset"] = fn() {
+        buf = [];
+    };
+
+    return obj;
+}
+
+fn bytes_equal(a, b) {
+    if (len(a) != len(b)) { return false; }
+    let i = 0;
+    while (i < len(a)) {
+        if (a[i] != b[i]) { return false; }
+        i += 1;
+    }
+    return true;
+}

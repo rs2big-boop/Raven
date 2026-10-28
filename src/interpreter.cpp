@@ -12,6 +12,7 @@
 #include <memory>
 #include <random>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <thread>
 
@@ -804,6 +805,328 @@ void Interpreter::register_builtins() {
         pclose(pipe);
         return Value(result);
     });
+
+    // String manipulation additions
+    def("str_repeat", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        int n = static_cast<int>(args[1].as_number());
+        std::string res;
+        for (int i = 0; i < n; i++) res += s;
+        return Value(res);
+    });
+
+    def("pad_left", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        int width = static_cast<int>(args[1].as_number());
+        std::string ch = args[2].to_string();
+        if (ch.empty()) ch = " ";
+        while (static_cast<int>(s.size()) < width) s = ch[0] + s;
+        return Value(s);
+    });
+
+    def("pad_right", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        int width = static_cast<int>(args[1].as_number());
+        std::string ch = args[2].to_string();
+        if (ch.empty()) ch = " ";
+        while (static_cast<int>(s.size()) < width) s += ch[0];
+        return Value(s);
+    });
+
+    def("str_reverse", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        std::reverse(s.begin(), s.end());
+        return Value(s);
+    });
+
+    def("is_digit", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        if (s.empty()) return Value(false);
+        return Value(static_cast<bool>(std::isdigit(static_cast<unsigned char>(s[0]))));
+    });
+
+    def("is_alpha", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        if (s.empty()) return Value(false);
+        return Value(static_cast<bool>(std::isalpha(static_cast<unsigned char>(s[0]))));
+    });
+
+    def("is_space", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        if (s.empty()) return Value(false);
+        return Value(static_cast<bool>(std::isspace(static_cast<unsigned char>(s[0]))));
+    });
+
+    def("is_upper", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        if (s.empty()) return Value(false);
+        return Value(static_cast<bool>(std::isupper(static_cast<unsigned char>(s[0]))));
+    });
+
+    def("is_lower", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        if (s.empty()) return Value(false);
+        return Value(static_cast<bool>(std::islower(static_cast<unsigned char>(s[0]))));
+    });
+
+    def("str_count", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        std::string sub = args[1].to_string();
+        if (sub.empty()) return Value(0.0);
+        int count = 0;
+        size_t pos = 0;
+        while ((pos = s.find(sub, pos)) != std::string::npos) {
+            count++;
+            pos += sub.size();
+        }
+        return Value(static_cast<double>(count));
+    });
+
+    def("has_prefix", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        std::string prefix = args[1].to_string();
+        return Value(s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix);
+    });
+
+    def("has_suffix", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string s = args[0].to_string();
+        std::string suffix = args[1].to_string();
+        return Value(s.size() >= suffix.size() && s.substr(s.size() - suffix.size()) == suffix);
+    });
+
+    def("format", -1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args.empty()) return Value(std::string(""));
+        std::string tmpl = args[0].to_string();
+        std::string result;
+        size_t arg_idx = 1;
+        size_t i = 0;
+        while (i < tmpl.size()) {
+            if (tmpl[i] == '{' && i + 1 < tmpl.size() && tmpl[i+1] == '}') {
+                if (arg_idx < args.size()) {
+                    result += args[arg_idx++].to_string();
+                }
+                i += 2;
+            } else {
+                result += tmpl[i++];
+            }
+        }
+        return Value(result);
+    });
+
+    // Array and Collection additions
+    def("arr_contains", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array()) return Value(false);
+        auto arr = args[0].as_array();
+        for (const auto& v : *arr) {
+            if (v.to_string() == args[1].to_string()) return Value(true);
+        }
+        return Value(false);
+    });
+
+    def("unique", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array()) return args[0];
+        auto arr = args[0].as_array();
+        auto result = std::make_shared<std::vector<Value>>();
+        std::set<std::string> seen;
+        for (const auto& v : *arr) {
+            std::string k = v.to_string();
+            if (seen.insert(k).second) {
+                result->push_back(v);
+            }
+        }
+        return Value(result);
+    });
+
+    def("flatten", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array()) return args[0];
+        auto arr = args[0].as_array();
+        auto result = std::make_shared<std::vector<Value>>();
+        for (const auto& v : *arr) {
+            if (v.is_array()) {
+                for (const auto& inner : *v.as_array()) {
+                    result->push_back(inner);
+                }
+            } else {
+                result->push_back(v);
+            }
+        }
+        return Value(result);
+    });
+
+    def("arr_reverse", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array()) return args[0];
+        auto arr = args[0].as_array();
+        auto result = std::make_shared<std::vector<Value>>(arr->rbegin(), arr->rend());
+        return Value(result);
+    });
+
+    def("sum", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array()) return Value(0.0);
+        double total = 0.0;
+        for (const auto& v : *args[0].as_array()) {
+            if (v.is_number()) total += v.as_number();
+        }
+        return Value(total);
+    });
+
+    def("arr_min", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array() || args[0].as_array()->empty()) return Value();
+        auto arr = args[0].as_array();
+        double m = arr->at(0).as_number();
+        for (size_t i = 1; i < arr->size(); i++) {
+            double v = arr->at(i).as_number();
+            if (v < m) m = v;
+        }
+        return Value(m);
+    });
+
+    def("arr_max", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array() || args[0].as_array()->empty()) return Value();
+        auto arr = args[0].as_array();
+        double m = arr->at(0).as_number();
+        for (size_t i = 1; i < arr->size(); i++) {
+            double v = arr->at(i).as_number();
+            if (v > m) m = v;
+        }
+        return Value(m);
+    });
+
+    def("count_if", 2, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array() || !args[1].is_callable()) return Value(0.0);
+        auto arr = args[0].as_array();
+        auto fn = args[1].as_callable();
+        int count = 0;
+        for (const auto& v : *arr) {
+            Value r = fn->call(interp, {v});
+            if (r.is_truthy()) count++;
+        }
+        return Value(static_cast<double>(count));
+    });
+
+    def("map_merge", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        auto result = std::make_shared<std::unordered_map<std::string, Value>>();
+        if (args[0].is_map()) {
+            for (const auto& [k, v] : *args[0].as_map()) (*result)[k] = v;
+        }
+        if (args[1].is_map()) {
+            for (const auto& [k, v] : *args[1].as_map()) (*result)[k] = v;
+        }
+        return Value(result);
+    });
+
+    def("map_has_key", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_map()) return Value(false);
+        std::string key = args[1].to_string();
+        return Value(args[0].as_map()->count(key) > 0);
+    });
+
+    def("map_delete", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_map()) return args[0];
+        std::string key = args[1].to_string();
+        args[0].as_map()->erase(key);
+        return args[0];
+    });
+
+    // Math additions
+    def("int", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(static_cast<double>(static_cast<int64_t>(args[0].as_number())));
+    });
+
+    def("bool", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(args[0].is_truthy());
+    });
+
+    def("clamp", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        double v = args[0].as_number();
+        double lo = args[1].as_number();
+        double hi = args[2].as_number();
+        return Value(std::max(lo, std::min(hi, v)));
+    });
+
+    def("gcd", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t a = static_cast<int64_t>(std::abs(args[0].as_number()));
+        int64_t b = static_cast<int64_t>(std::abs(args[1].as_number()));
+        while (b != 0) {
+            int64_t t = b;
+            b = a % b;
+            a = t;
+        }
+        return Value(static_cast<double>(a));
+    });
+
+    def("lcm", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t a = static_cast<int64_t>(std::abs(args[0].as_number()));
+        int64_t b = static_cast<int64_t>(std::abs(args[1].as_number()));
+        if (a == 0 || b == 0) return Value(0.0);
+        int64_t orig_a = a, orig_b = b;
+        while (b != 0) {
+            int64_t t = b;
+            b = a % b;
+            a = t;
+        }
+        return Value(static_cast<double>((orig_a / a) * orig_b));
+    });
+
+    // IO and File System additions
+    def("read_lines", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path = args[0].to_string();
+        std::ifstream file(path);
+        auto lines = std::make_shared<std::vector<Value>>();
+        if (!file.is_open()) return Value(lines);
+        std::string line;
+        while (std::getline(file, line)) {
+            lines->push_back(Value(line));
+        }
+        return Value(lines);
+    });
+
+    def("append_file", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path = args[0].to_string();
+        std::string content = args[1].to_string();
+        std::ofstream file(path, std::ios::app);
+        if (!file.is_open()) return Value(false);
+        file << content;
+        return Value(true);
+    });
+
+    def("is_dir", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path = args[0].to_string();
+        std::error_code ec;
+        return Value(std::filesystem::is_directory(path, ec));
+    });
+
+    def("list_dir", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path = args[0].to_string();
+        auto entries = std::make_shared<std::vector<Value>>();
+        std::error_code ec;
+        if (std::filesystem::is_directory(path, ec)) {
+            for (const auto& entry : std::filesystem::directory_iterator(path, ec)) {
+                entries->push_back(Value(entry.path().filename().string()));
+            }
+        }
+        return Value(entries);
+    });
+
+    def("mkdir", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path = args[0].to_string();
+        std::error_code ec;
+        return Value(std::filesystem::create_directories(path, ec));
+    });
+
+    def("remove_file", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path = args[0].to_string();
+        std::error_code ec;
+        return Value(std::filesystem::remove(path, ec));
+    });
+
+    def("get_cwd", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        std::error_code ec;
+        return Value(std::filesystem::current_path(ec).string());
+    });
+
+    def("panic", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        throw RuntimeError(Token{TokenType::Identifier, "panic", 0, 0}, "panic: " + args[0].to_string());
+    });
 }
 
 void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements) {
@@ -1217,27 +1540,38 @@ void Interpreter::visit(const ThrowStmt& stmt) {
 
 void Interpreter::visit(const ImportStmt& stmt) {
     std::string path = stmt.module_path;
+    std::string base = path;
+    size_t last_slash = path.find_last_of("/\\");
+    if (last_slash != std::string::npos) {
+        base = path.substr(last_slash + 1);
+    }
+
     std::vector<std::string> candidates = {
-        path,
         path + ".rvn",
-        "../" + path,
-        "../" + path + ".rvn",
+        path + "/" + base + ".rvn",
         "stdlib/" + path + ".rvn",
-        "stdlib/" + path,
+        "stdlib/" + path + "/" + base + ".rvn",
         "../stdlib/" + path + ".rvn",
-        "../stdlib/" + path,
+        "../stdlib/" + path + "/" + base + ".rvn",
+        "../" + path + ".rvn",
+        "../" + path + "/" + base + ".rvn",
         "raven_modules/" + path + ".rvn",
-        "raven_modules/" + path,
-        "/usr/local/share/raven/" + path + ".rvn",
-        "/usr/local/share/raven/" + path,
         "/usr/local/share/raven/stdlib/" + path + ".rvn",
-        "/usr/local/share/raven/stdlib/" + path
+        "/usr/local/share/raven/stdlib/" + path + "/" + base + ".rvn",
+        "/usr/local/share/raven/" + path + ".rvn",
+        path,
+        "stdlib/" + path,
+        "../stdlib/" + path,
+        "../" + path,
+        "raven_modules/" + path,
+        "/usr/local/share/raven/stdlib/" + path,
+        "/usr/local/share/raven/" + path
     };
 
     std::string resolved;
     for (const auto& c : candidates) {
-        std::ifstream test(c);
-        if (test.good()) {
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(c, ec)) {
             resolved = c;
             break;
         }

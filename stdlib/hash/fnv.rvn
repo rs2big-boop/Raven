@@ -1,0 +1,5 @@
+// stdlib/hash/fnv.rvn - FNV-1a hashing (inspired by Go's hash/fnv package)
+
+fn fnv64(s) {
+    return hash(s);
+}

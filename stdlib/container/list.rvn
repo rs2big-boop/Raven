@@ -1,0 +1,47 @@
+// stdlib/container/list.rvn - List container (inspired by Go's container/list package)
+
+fn create_list() {
+    let items = [];
+    let obj = {};
+
+    obj["push_back"] = fn(val) {
+        push(items, val);
+    };
+
+    obj["pop_back"] = fn() {
+        return pop(items);
+    };
+
+    obj["push_front"] = fn(val) {
+        let new_items = [val];
+        let i = 0;
+        while (i < len(items)) {
+            push(new_items, items[i]);
+            i += 1;
+        }
+        items = new_items;
+    };
+
+    obj["pop_front"] = fn() {
+        if (len(items) == 0) { return nil; }
+        let front = items[0];
+        let new_items = [];
+        let i = 1;
+        while (i < len(items)) {
+            push(new_items, items[i]);
+            i += 1;
+        }
+        items = new_items;
+        return front;
+    };
+
+    obj["len"] = fn() {
+        return len(items);
+    };
+
+    obj["to_array"] = fn() {
+        return items;
+    };
+
+    return obj;
+}

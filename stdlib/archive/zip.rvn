@@ -1,0 +1,14 @@
+// stdlib/archive/zip.rvn - ZIP archive operations (inspired by Go's archive/zip package)
+
+fn zip_extract(zip_path, dest_dir) {
+    mkdir(dest_dir);
+    let cmd = "unzip -q -o \"" + zip_path + "\" -d \"" + dest_dir + "\" 2>/dev/null";
+    exec(cmd);
+    return true;
+}
+
+fn zip_create(zip_path, src_dir) {
+    let cmd = "zip -r -q \"" + zip_path + "\" \"" + src_dir + "\" 2>/dev/null";
+    exec(cmd);
+    return file_exists(zip_path);
+}

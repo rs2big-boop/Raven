@@ -1,0 +1,54 @@
+// stdlib/maps.rvn - Map algorithms (inspired by Go's maps package)
+
+fn map_keys_list(m) {
+    return keys(m);
+}
+
+fn map_values_list(m) {
+    return values(m);
+}
+
+fn map_has(m, key) {
+    return map_has_key(m, key);
+}
+
+fn map_del(m, key) {
+    return map_delete(m, key);
+}
+
+fn map_copy(m) {
+    let res = {};
+    let ks = keys(m);
+    let i = 0;
+    while (i < len(ks)) {
+        res[ks[i]] = m[ks[i]];
+        i += 1;
+    }
+    return res;
+}
+
+fn map_invert(m) {
+    let res = {};
+    let ks = keys(m);
+    let i = 0;
+    while (i < len(ks)) {
+        res[str(m[ks[i]])] = ks[i];
+        i += 1;
+    }
+    return res;
+}
+
+fn map_equal(a, b) {
+    let ka = keys(a);
+    let kb = keys(b);
+    if (len(ka) != len(kb)) { return false; }
+    let i = 0;
+    while (i < len(ka)) {
+        let k = ka[i];
+        if (!map_has_key(b, k) || a[k] != b[k]) {
+            return false;
+        }
+        i += 1;
+    }
+    return true;
+}

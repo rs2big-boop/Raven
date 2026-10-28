@@ -1,4 +1,4 @@
-// Raven Standard Library - OS & System Module
+// stdlib/os.rvn - Operating system functionality (inspired by Go's os package)
 
 fn get_env(name) {
     return env(name);
@@ -10,4 +10,32 @@ fn path_exists(path) {
 
 fn run_command(cmd) {
     return exec(cmd);
+}
+
+fn current_dir() {
+    return get_cwd();
+}
+
+fn make_dir(path) {
+    return mkdir(path);
+}
+
+fn remove(path) {
+    return remove_file(path);
+}
+
+fn read_dir(path) {
+    return list_dir(path);
+}
+
+fn is_directory(path) {
+    return is_dir(path);
+}
+
+fn read_file_string(path) {
+    return read_file(path);
+}
+
+fn write_file_string(path, content) {
+    return write_file(path, content);
 }

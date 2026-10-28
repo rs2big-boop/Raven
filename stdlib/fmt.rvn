@@ -1,0 +1,34 @@
+// stdlib/fmt.rvn - Formatted I/O (inspired by Go's fmt package)
+
+fn println(v) {
+    print(v);
+}
+
+fn print_val(v) {
+    print(v);
+}
+
+fn eprintln(v) {
+    print_err(v);
+}
+
+fn sprint(v) {
+    return str(v);
+}
+
+fn sprintf(tmpl, a1, a2, a3) {
+    let s = replace(tmpl, "{}", str(a1));
+    s = replace(s, "{}", str(a2));
+    s = replace(s, "{}", str(a3));
+    return s;
+}
+
+fn printf(tmpl, a1, a2, a3) {
+    print(sprintf(tmpl, a1, a2, a3));
+}
+
+fn errorf(tmpl, a1, a2) {
+    let s = replace(tmpl, "{}", str(a1));
+    s = replace(s, "{}", str(a2));
+    return "error: " + s;
+}

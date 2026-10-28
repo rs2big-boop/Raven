@@ -1,0 +1,56 @@
+// stdlib/sync.rvn - Synchronization primitives (inspired by Go's sync package)
+
+fn create_mutex() {
+    let locked = false;
+    let obj = {};
+
+    obj["lock"] = fn() {
+        if (locked) {
+            panic("deadlock: mutex already locked");
+        }
+        locked = true;
+    };
+
+    obj["unlock"] = fn() {
+        locked = false;
+    };
+
+    obj["is_locked"] = fn() {
+        return locked;
+    };
+
+    return obj;
+}
+
+fn create_once() {
+    let executed = false;
+    let obj = {};
+
+    obj["do"] = fn(callback) {
+        if (!executed) {
+            executed = true;
+            callback();
+        }
+    };
+
+    return obj;
+}
+
+fn create_wait_group() {
+    let counter = 0;
+    let obj = {};
+
+    obj["add"] = fn(delta) {
+        counter += delta;
+    };
+
+    obj["done"] = fn() {
+        counter -= 1;
+    };
+
+    obj["count"] = fn() {
+        return counter;
+    };
+
+    return obj;
+}

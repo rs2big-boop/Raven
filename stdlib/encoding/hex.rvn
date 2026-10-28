@@ -1,0 +1,16 @@
+// stdlib/encoding/hex.rvn - Hexadecimal encoding/decoding (inspired by Go's encoding/hex package)
+
+fn encode_to_hex(s) {
+    let hex_chars = "0123456789abcdef";
+    let res = "";
+    let i = 0;
+    while (i < len(s)) {
+        let code = char_code(slice(s, i, i + 1));
+        let hi = int(code / 16);
+        let lo = int(code % 16);
+        res += slice(hex_chars, hi, hi + 1);
+        res += slice(hex_chars, lo, lo + 1);
+        i += 1;
+    }
+    return res;
+}

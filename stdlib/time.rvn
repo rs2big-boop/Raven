@@ -1,0 +1,34 @@
+// stdlib/time.rvn - Time and duration utilities (inspired by Go's time package)
+
+fn now_ms() {
+    return time();
+}
+
+fn now_unix() {
+    return int(time() / 1000);
+}
+
+fn sleep_duration_ms(ms) {
+    sleep(ms);
+}
+
+fn sleep_seconds(secs) {
+    sleep(secs * 1000);
+}
+
+fn since_ms(start_ms) {
+    return time() - start_ms;
+}
+
+fn format_duration(ms) {
+    if (ms < 1000) {
+        return str(int(ms)) + "ms";
+    }
+    let s = ms / 1000;
+    if (s < 60) {
+        return str(int(s)) + "s";
+    }
+    let m = int(s / 60);
+    let rem_s = int(s % 60);
+    return str(m) + "m" + str(rem_s) + "s";
+}

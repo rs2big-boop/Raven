@@ -164,9 +164,35 @@ Raven ships with an extensive, batteries-included standard library:
 - **`stdlib/collections`** — `create_stack()`, `create_queue()`, `create_set()`
 - **`stdlib/iter`** — `zip`, `take`, `drop`, `chunk`, `flatten`, `any`, `all`, `find`, `reversed`
 - **`stdlib/sort`** — `bubble_sort(arr)`, `insertion_sort(arr)`, `min_of_arr(arr)`, `max_of_arr(arr)`
-- **`stdlib/string` & `stdlib/string_utils`** — `repeat`, `pad_left`, `pad_right`, `starts_with`, `ends_with`, `count_occurrences`
-- **`stdlib/os`** — `get_env`, `path_exists`, `run_command`
-- **`stdlib/testing`** — `describe`, `test`, `expect_eq`, `expect_true`, `expect_false`
+- **`stdlib/fmt`** — Go-style formatted I/O (`println`, `eprintln`, `sprint`, `sprintf`, `printf`, `errorf`)
+- **`stdlib/strings`** — Complete string utilities (`str_repeat`, `str_contains`, `str_has_prefix`, `str_has_suffix`, `str_count`, `str_index`, `str_title`, `str_words`, `str_lines`, `str_reverse`)
+- **`stdlib/bytes`** — Byte slices, byte-to-string conversion, and dynamic `create_buffer()` (Buffer Writer)
+- **`stdlib/slices`** — Modern array manipulation (`slices_unique`, `slices_contains`, `slices_reverse`, `slices_sum`, `slices_min`, `slices_max`, `slices_take`, `slices_drop`, `slices_chunk`, `slices_flatten`, `slices_zip`)
+- **`stdlib/maps`** — Map utilities (`map_keys_list`, `map_values_list`, `map_has`, `map_del`, `map_copy`, `map_invert`, `map_equal`)
+- **`stdlib/strconv`** — String to number & boolean conversions (`atoi`, `itoa`, `parse_int`, `parse_float`, `parse_bool`, `format_bool`)
+- **`stdlib/encoding/json`** — Go-style `marshal()` and `unmarshal()`
+- **`stdlib/encoding/base64`** — `encode_to_string()` and `decode_string()`
+- **`stdlib/encoding/csv`** — `csv_read_all()` and `csv_write_all()`
+- **`stdlib/encoding/hex`** — `encode_to_hex()`
+- **`stdlib/crypto`** & **`stdlib/hash/fnv`** — `fnv_hash()`, `sha256_sum()`, `md5_sum()`
+- **`stdlib/net/http`** & **`stdlib/net/url`** — `http_get_url()`, `http_post()`, `http_post_json()`, `url_encode()`, `parse_query()`
+- **`stdlib/time`** — `now_ms()`, `now_unix()`, `sleep_duration_ms()`, `since_ms()`, `format_duration()`
+- **`stdlib/path`** & **`stdlib/path/filepath`** — `path_join()`, `path_base()`, `path_dir()`, `path_ext()`, `path_is_abs()`
+- **`stdlib/io`** & **`stdlib/bufio`** — `read_all()`, `write_all()`, `append_all()`, `read_all_lines()`, `create_scanner()`, `create_word_scanner()`
+- **`stdlib/os`** — `get_env()`, `path_exists()`, `run_command()`, `current_dir()`, `make_dir()`, `remove()`, `read_dir()`, `is_directory()`
+- **`stdlib/log`** — Leveled structured logger (`log_debug`, `log_info`, `log_warn`, `log_error`, `log_fatal`)
+- **`stdlib/context`** — Cancellation context (`create_context()`, `cancel()`, `is_done()`, `set_deadline_ms()`)
+- **`stdlib/sync`** — Concurrency primitives (`create_mutex()`, `create_once()`, `create_wait_group()`)
+- **`stdlib/container/heap`**, **`container/list`**, **`container/ring`** — Min-heap priority queues, linked lists, circular rings
+- **`stdlib/archive/zip`** & **`stdlib/archive/tar`** — `zip_extract()`, `zip_create()`, `tar_extract()`, `tar_create()`
+- **`stdlib/compress/gzip`** — `gzip_compress_string()`, `gzip_decompress_string()`
+- **`stdlib/regexp`** — Regular expression matching & replacement (`compile()`, `match_string()`, `replace_all_string()`)
+- **`stdlib/reflect`** — Type reflection (`type_of()`, `is_nil()`, `is_string()`, `is_number()`, `fields()`)
+- **`stdlib/flag`** — Command-line argument parsing (`flag_parse()`, `flag_string()`, `flag_bool()`, `flag_int()`)
+- **`stdlib/html`** — `html_escape()`, `html_unescape()`, `html_tag()`
+- **`stdlib/unicode`** — `unicode_is_digit()`, `unicode_is_alpha()`, `unicode_is_upper()`, `unicode_code_point()`
+- **`stdlib/cmp`** — `compare()`, `less()`, `or_default()`
+- **`stdlib/testing`** — Unit testing framework (`describe()`, `test()`, `expect_eq()`, `expect_true()`)
 
 ### Built-in Functions Reference
 | Function | Description |
@@ -175,32 +201,46 @@ Raven ships with an extensive, batteries-included standard library:
 | `input()` | Read line from stdin |
 | `len(v)` | Length of string, array, or map |
 | `type(v)` | Type name as string |
-| `str(v)` / `num(v)` | Type conversion |
-| `abs(x)` / `min(a,b)` / `max(a,b)` | Core arithmetic |
-| `sqrt(x)` / `sin(x)` / `cos(x)` / `tan(x)` | Trigonometry & powers |
+| `str(v)` / `num(v)` / `int(v)` / `bool(v)` | Type conversions |
+| `format(tmpl, ...)` | Positional string formatting |
+| `abs(x)` / `min(a,b)` / `max(a,b)` / `clamp(x,lo,hi)` | Arithmetic & clamping |
+| `gcd(a,b)` / `lcm(a,b)` | Greatest common divisor & least common multiple |
+| `sqrt(x)` / `pow(b,e)` / `sin(x)` / `cos(x)` / `tan(x)` | Trigonometry & powers |
 | `floor(x)` / `ceil(x)` / `round(x)` | Rounding |
 | `log(x)` / `exp(x)` | Logarithm & exponentials |
 | `rand()` / `rand_int(min, max)` | PRNG random generators |
 | `range(start, end)` | Numeric sequences |
 | `push(arr, v)` / `pop(arr)` | Dynamic array mutations |
 | `keys(map)` / `values(map)` | Map inspections |
+| `map_merge(m1, m2)` / `map_has_key(m, k)` / `map_delete(m, k)` | Map primitives |
 | `sort_arr(arr)` | In-place native array sort |
+| `sum(arr)` / `arr_min(arr)` / `arr_max(arr)` | Native array aggregations |
+| `unique(arr)` / `flatten(arr)` / `arr_reverse(arr)` / `count_if(arr, fn)` | High-speed array operations |
 | `map(arr, fn)` / `filter(arr, fn)` / `reduce(arr, fn, init)` | Functional primitives |
 | `split(s, sep)` / `join(arr, sep)` | String manipulation |
+| `str_repeat(s, n)` / `pad_left(s, w, ch)` / `pad_right(s, w, ch)` | String formatting |
+| `str_reverse(s)` / `str_count(s, sub)` / `has_prefix(s, p)` / `has_suffix(s, s)` | String queries |
+| `is_digit(s)` / `is_alpha(s)` / `is_space(s)` / `is_upper(s)` / `is_lower(s)` | Char predicates |
+| `slice(seq, start, end)` | Slicing strings and arrays |
+| `regex_match(str, pat)` / `regex_replace(str, pat, rep)` | Regex engine |
+| `hash(str)` / `base64_encode(s)` / `base64_decode(s)` | Hashing & Base64 |
+| `http_get(url)` | Native HTTP client |
 | `contains(container, elem)` | Universal membership check |
 | `to_upper(s)` / `to_lower(s)` / `trim(s)` / `replace(s, from, to)` | String transforms |
 | `char_code(s)` / `char(n)` | ASCII code & character conversions |
 | `to_json(v)` / `parse_json(s)` | High-speed JSON serialization & parsing |
-| `read_file(path)` / `write_file(path, data)` / `file_exists(path)` | Direct filesystem I/O |
+| `read_file(path)` / `write_file(path, data)` / `append_file(path, data)` | Direct filesystem I/O |
+| `read_lines(path)` / `file_exists(path)` / `is_dir(path)` / `list_dir(path)` | Filesystem inspection |
+| `mkdir(path)` / `remove_file(path)` / `get_cwd()` | Directory & process utilities |
 | `time()` / `sleep(ms)` | Epoch clock & thread sleep |
 | `env(var)` / `exec(cmd)` | Environment variables & shell execution |
-| `assert(cond, msg)` | Runtime assertions |
+| `assert(cond, msg)` / `panic(msg)` | Runtime assertions & panics |
 
 ---
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (48 automated unit, regression & VM integration tests):
+Raven includes a comprehensive test suite (53 automated unit, regression & VM integration tests):
 
 ```bash
 # 1. Build & Test

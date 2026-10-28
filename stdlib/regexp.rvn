@@ -1,0 +1,28 @@
+// stdlib/regexp.rvn - Regular expressions (inspired by Go's regexp package)
+
+fn match_string(pattern, s) {
+    return regex_match(s, pattern);
+}
+
+fn replace_all_string(pattern, src, repl) {
+    return regex_replace(src, pattern, repl);
+}
+
+fn compile(pattern) {
+    let obj = {};
+    obj["pattern"] = pattern;
+
+    obj["is_match"] = fn(s) {
+        return regex_match(s, pattern);
+    };
+
+    obj["test"] = fn(s) {
+        return regex_match(s, pattern);
+    };
+
+    obj["replace_all"] = fn(s, repl) {
+        return regex_replace(s, pattern, repl);
+    };
+
+    return obj;
+}

@@ -1,0 +1,32 @@
+// stdlib/math/rand.rvn - Pseudo-random number generator (inspired by Go's math/rand package)
+
+fn random() {
+    return rand();
+}
+
+fn int_n(max_val) {
+    return rand_int(0, max_val);
+}
+
+fn int_range(min_val, max_val) {
+    return rand_int(min_val, max_val);
+}
+
+fn shuffle(arr) {
+    let n = len(arr);
+    let i = n - 1;
+    while (i > 0) {
+        let j = rand_int(0, i);
+        let tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+        i -= 1;
+    }
+    return arr;
+}
+
+fn choice(arr) {
+    if (len(arr) == 0) { return nil; }
+    let idx = rand_int(0, len(arr) - 1);
+    return arr[idx];
+}

@@ -1,0 +1,67 @@
+// stdlib/container/heap.rvn - Binary min-heap (inspired by Go's container/heap package)
+
+fn create_min_heap() {
+    let heap = [];
+    let obj = {};
+
+    obj["push"] = fn(val) {
+        push(heap, val);
+        let idx = len(heap) - 1;
+        while (idx > 0) {
+            let parent = int((idx - 1) / 2);
+            if (heap[idx] < heap[parent]) {
+                let tmp = heap[idx];
+                heap[idx] = heap[parent];
+                heap[parent] = tmp;
+                idx = parent;
+            } else {
+                break;
+            }
+        }
+    };
+
+    obj["pop"] = fn() {
+        if (len(heap) == 0) { return nil; }
+        let root = heap[0];
+        let last = pop(heap);
+        if (len(heap) == 0) { return root; }
+        heap[0] = last;
+
+        let idx = 0;
+        let n = len(heap);
+        while (true) {
+            let left = 2 * idx + 1;
+            let right = 2 * idx + 2;
+            let smallest = idx;
+
+            if (left < n && heap[left] < heap[smallest]) {
+                smallest = left;
+            }
+            if (right < n && heap[right] < heap[smallest]) {
+                smallest = right;
+            }
+
+            if (smallest != idx) {
+                let tmp = heap[idx];
+                heap[idx] = heap[smallest];
+                heap[smallest] = tmp;
+                idx = smallest;
+            } else {
+                break;
+            }
+        }
+
+        return root;
+    };
+
+    obj["peek"] = fn() {
+        if (len(heap) == 0) { return nil; }
+        return heap[0];
+    };
+
+    obj["len"] = fn() {
+        return len(heap);
+    };
+
+    return obj;
+}

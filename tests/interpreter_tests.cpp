@@ -443,3 +443,98 @@ TEST(InterpreterTest, StructDeclarationAndAccess) {
         "print(v.x);\n";
     EXPECT_EQ(run_code(source), "Vector2D\n3\n4\n100\n");
 }
+
+TEST(InterpreterTest, BreakAndContinue) {
+    std::string source =
+        "let i = 0;\n"
+        "let sum = 0;\n"
+        "while (i < 10) {\n"
+        "    i += 1;\n"
+        "    if (i == 3) { continue; }\n"
+        "    if (i > 5) { break; }\n"
+        "    sum += i;\n"
+        "}\n"
+        "print(sum);\n";
+    // i=1 (sum=1), i=2 (sum=3), i=3 (skip), i=4 (sum=7), i=5 (sum=12), i=6 (break)
+    EXPECT_EQ(run_code(source), "12\n");
+}
+
+TEST(InterpreterTest, CompoundAssignmentOperators) {
+    std::string source =
+        "let x = 10;\n"
+        "x += 5;\n"
+        "x -= 3;\n"
+        "x *= 2;\n"
+        "x /= 4;\n"
+        "print(x);\n";
+    // 10 + 5 = 15; 15 - 3 = 12; 12 * 2 = 24; 24 / 4 = 6
+    EXPECT_EQ(run_code(source), "6\n");
+}
+
+TEST(InterpreterTest, NativeRegexAndSliceAndHash) {
+    std::string source =
+        "let matched = regex_match(\"user@example.com\", \".*@.*\\\\.com\");\n"
+        "print(matched);\n"
+        "let s = slice(\"Hello, World\", 0, 5);\n"
+        "print(s);\n"
+        "let arr_s = slice([10, 20, 30, 40], 1, 3);\n"
+        "print(arr_s[0]);\n"
+        "print(arr_s[1]);\n"
+        "let b64 = base64_encode(\"Raven\");\n"
+        "print(b64);\n"
+        "print(base64_decode(b64));\n";
+    EXPECT_EQ(run_code(source), "true\nHello\n20\n30\nUmF2ZW4=\nRaven\n");
+}
+
+TEST(InterpreterTest, NewStringAndArrayBuiltins) {
+    std::string source =
+        "print(str_repeat(\"ab\", 3));\n"
+        "print(pad_left(\"42\", 5, \"0\"));\n"
+        "print(is_digit(\"7\"));\n"
+        "print(is_alpha(\"k\"));\n"
+        "print(has_prefix(\"golang\", \"go\"));\n"
+        "print(has_suffix(\"golang\", \"lang\"));\n"
+        "let a = [3, 1, 4, 1, 5];\n"
+        "print(sum(a));\n"
+        "print(arr_min(a));\n"
+        "print(arr_max(a));\n"
+        "print(len(unique(a)));\n"
+        "print(format(\"Raven v{} is {}\", 2, \"modern\"));\n";
+    EXPECT_EQ(run_code(source), "ababab\n00042\ntrue\ntrue\ntrue\ntrue\n14\n1\n5\n4\nRaven v2 is modern\n");
+}
+
+TEST(InterpreterTest, GoInspiredStandardLibraryModules) {
+    std::string source =
+        "import \"stdlib/fmt\";\n"
+        "import \"stdlib/strings\";\n"
+        "import \"stdlib/slices\";\n"
+        "import \"stdlib/maps\";\n"
+        "import \"stdlib/strconv\";\n"
+        "import \"stdlib/encoding/json\";\n"
+        "import \"stdlib/cmp\";\n"
+        "import \"stdlib/container/heap\";\n"
+        "println(\"Testing Go-like stdlib\");\n"
+        "print(str_title(\"hello world raven\"));\n"
+        "print(atoi(\"42\") + 8);\n"
+        "print(slices_sum([10, 20, 30]));\n"
+        "let m1 = {\"a\": 1};\n"
+        "let m2 = {\"b\": 2};\n"
+        "let m = map_merge(m1, m2);\n"
+        "print(m[\"a\"] + m[\"b\"]);\n"
+        "print(compare(5, 10));\n"
+        "let h = create_min_heap();\n"
+        "h.push(40);\n"
+        "h.push(10);\n"
+        "h.push(20);\n"
+        "print(h.pop());\n"
+        "print(h.pop());\n";
+    EXPECT_EQ(run_code(source),
+        "Testing Go-like stdlib\n"
+        "Hello World Raven\n"
+        "50\n"
+        "60\n"
+        "3\n"
+        "-1\n"
+        "10\n"
+        "20\n");
+}

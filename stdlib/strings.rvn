@@ -1,0 +1,107 @@
+// stdlib/strings.rvn - String utilities (inspired by Go's strings package)
+
+fn str_repeat(s, n) {
+    let result = "";
+    let i = 0;
+    while (i < n) {
+        result += s;
+        i += 1;
+    }
+    return result;
+}
+
+fn str_contains(s, substr) {
+    return contains(s, substr);
+}
+
+fn str_has_prefix(s, prefix) {
+    return has_prefix(s, prefix);
+}
+
+fn str_has_suffix(s, suffix) {
+    return has_suffix(s, suffix);
+}
+
+fn str_count(s, substr) {
+    return count_occurrences(s, substr);
+}
+
+fn str_index(s, substr) {
+    return index_of(s, substr);
+}
+
+fn str_to_lower(s) {
+    return to_lower(s);
+}
+
+fn str_to_upper(s) {
+    return to_upper(s);
+}
+
+fn str_trim(s) {
+    return trim(s);
+}
+
+fn str_replace(s, old_str, new_str) {
+    return replace(s, old_str, new_str);
+}
+
+fn str_split(s, sep) {
+    return split(s, sep);
+}
+
+fn str_join(arr, sep) {
+    return join(arr, sep);
+}
+
+fn str_lines(s) {
+    return split(s, "\n");
+}
+
+fn str_words(s) {
+    let raw = split(s, " ");
+    let result = [];
+    let i = 0;
+    while (i < len(raw)) {
+        let w = trim(raw[i]);
+        if (len(w) > 0) {
+            push(result, w);
+        }
+        i += 1;
+    }
+    return result;
+}
+
+fn str_title(s) {
+    let ws = split(s, " ");
+    let result = [];
+    let i = 0;
+    while (i < len(ws)) {
+        let w = ws[i];
+        if (len(w) > 0) {
+            let first = to_upper(slice(w, 0, 1));
+            let rest = slice(w, 1, len(w));
+            push(result, first + rest);
+        }
+        i += 1;
+    }
+    return join(result, " ");
+}
+
+fn str_pad_left(s, width, ch) {
+    return pad_left(s, width, ch);
+}
+
+fn str_pad_right(s, width, ch) {
+    return pad_right(s, width, ch);
+}
+
+fn str_reverse(s) {
+    let res = "";
+    let i = len(s) - 1;
+    while (i >= 0) {
+        res += slice(s, i, i + 1);
+        i -= 1;
+    }
+    return res;
+}

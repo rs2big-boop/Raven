@@ -435,6 +435,9 @@ std::unique_ptr<Expr> Parser::primary() {
     if (match({TokenType::True})) {
         return std::make_unique<LiteralExpr>(Value(true));
     }
+    if (match({TokenType::Nil})) {
+        return std::make_unique<LiteralExpr>(Value());
+    }
     if (match({TokenType::Number})) {
         return std::make_unique<LiteralExpr>(Value(std::stod(previous().lexeme)));
     }

@@ -1,0 +1,25 @@
+// stdlib/encoding/csv.rvn - CSV reader and writer (inspired by Go's encoding/csv package)
+
+fn csv_read_all(content) {
+    let rows = split(content, "\n");
+    let result = [];
+    let i = 0;
+    while (i < len(rows)) {
+        let line = trim(rows[i]);
+        if (len(line) > 0) {
+            push(result, split(line, ","));
+        }
+        i += 1;
+    }
+    return result;
+}
+
+fn csv_write_all(records) {
+    let lines = [];
+    let i = 0;
+    while (i < len(records)) {
+        push(lines, join(records[i], ","));
+        i += 1;
+    }
+    return join(lines, "\n");
+}

@@ -1,0 +1,35 @@
+// stdlib/context.rvn - Context cancellation and deadlines (inspired by Go's context package)
+
+fn create_context() {
+    let cancelled = false;
+    let deadline = -1;
+    let store = {};
+    let obj = {};
+
+    obj["cancel"] = fn() {
+        cancelled = true;
+    };
+
+    obj["is_done"] = fn() {
+        if (cancelled) { return true; }
+        if (deadline > 0 && time() >= deadline) { return true; }
+        return false;
+    };
+
+    obj["set_deadline_ms"] = fn(ms) {
+        deadline = time() + ms;
+    };
+
+    obj["set_value"] = fn(k, v) {
+        store[str(k)] = v;
+    };
+
+    obj["get_value"] = fn(k) {
+        if (map_has_key(store, str(k))) {
+            return store[str(k)];
+        }
+        return nil;
+    };
+
+    return obj;
+}

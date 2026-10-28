@@ -1,0 +1,37 @@
+// stdlib/unicode.rvn - Unicode and character classification (inspired by Go's unicode package)
+
+fn unicode_is_digit(ch) {
+    return is_digit(ch);
+}
+
+fn unicode_is_alpha(ch) {
+    return is_alpha(ch);
+}
+
+fn unicode_is_space(ch) {
+    return is_space(ch);
+}
+
+fn unicode_is_upper(ch) {
+    return is_upper(ch);
+}
+
+fn unicode_is_lower(ch) {
+    return is_lower(ch);
+}
+
+fn unicode_to_upper(s) {
+    return to_upper(s);
+}
+
+fn unicode_to_lower(s) {
+    return to_lower(s);
+}
+
+fn unicode_code_point(ch) {
+    return char_code(ch);
+}
+
+fn unicode_from_code(code) {
+    return char(code);
+}

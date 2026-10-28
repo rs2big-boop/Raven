@@ -1,0 +1,52 @@
+// stdlib/path.rvn - Path manipulation (inspired by Go's path/filepath package)
+
+fn path_join(parts) {
+    let res = "";
+    let i = 0;
+    while (i < len(parts)) {
+        let p = parts[i];
+        if (len(p) > 0) {
+            if (len(res) > 0 && !has_suffix(res, "/")) {
+                res += "/";
+            }
+            res += p;
+        }
+        i += 1;
+    }
+    return res;
+}
+
+fn path_base(p) {
+    let parts = split(p, "/");
+    if (len(parts) == 0) { return p; }
+    return parts[len(parts) - 1];
+}
+
+fn path_dir(p) {
+    let idx = -1;
+    let i = 0;
+    while (i < len(p)) {
+        if (slice(p, i, i + 1) == "/") { idx = i; }
+        i += 1;
+    }
+    if (idx == -1) { return "."; }
+    if (idx == 0) { return "/"; }
+    return slice(p, 0, idx);
+}
+
+fn path_ext(p) {
+    let b = path_base(p);
+    let dot = -1;
+    let i = 0;
+    while (i < len(b)) {
+        if (slice(b, i, i + 1) == ".") { dot = i; }
+        i += 1;
+    }
+    if (dot <= 0 || dot == len(b) - 1) { return ""; }
+    return slice(b, dot, len(b));
+}
+
+fn path_is_abs(p) {
+    if (len(p) == 0) { return false; }
+    return slice(p, 0, 1) == "/";
+}
