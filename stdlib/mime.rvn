@@ -1,0 +1,34 @@
+// stdlib/mime.rvn - Media types / MIME mapping (inspired by Go's mime package)
+
+let _mime_db = {
+    ".html": "text/html; charset=utf-8",
+    ".htm":  "text/html; charset=utf-8",
+    ".css":  "text/css; charset=utf-8",
+    ".js":   "application/javascript",
+    ".json": "application/json",
+    ".xml":  "application/xml",
+    ".txt":  "text/plain; charset=utf-8",
+    ".csv":  "text/csv; charset=utf-8",
+    ".png":  "image/png",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif":  "image/gif",
+    ".svg":  "image/svg+xml",
+    ".ico":  "image/x-icon",
+    ".pdf":  "application/pdf",
+    ".zip":  "application/zip",
+    ".tar":  "application/x-tar",
+    ".gz":   "application/gzip",
+    ".rvn":  "text/x-raven"
+};
+
+fn type_by_extension(ext) {
+    if (map_has_key(_mime_db, ext)) {
+        return _mime_db[ext];
+    }
+    return "application/octet-stream";
+}
+
+fn add_extension_type(ext, mime_type) {
+    _mime_db[ext] = mime_type;
+}

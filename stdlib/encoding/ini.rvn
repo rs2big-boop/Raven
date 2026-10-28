@@ -1,0 +1,56 @@
+// stdlib/encoding/ini.rvn - INI configuration parser (inspired by gopkg.in/ini.v1)
+
+fn ini_parse(ini_str) {
+    let lines = split(ini_str, "\n");
+    let config = {};
+    let current_section = "default";
+    config[current_section] = {};
+
+    let i = 0;
+    while (i < len(lines)) {
+        let line = trim(lines[i]);
+        if (len(line) > 0 && !has_prefix(line, ";") && !has_prefix(line, "#")) {
+            if (has_prefix(line, "[") && has_suffix(line, "]")) {
+                current_section = slice(line, 1, len(line) - 1);
+                if (!map_has_key(config, current_section)) {
+                    config[current_section] = {};
+                }
+            } else {
+                let eq = index_of(line, "=");
+                if (eq != -1) {
+                    let k = trim(slice(line, 0, eq));
+                    let v = trim(slice(line, eq + 1, len(line)));
+                    // Remove quotes if any
+                    if ((has_prefix(v, "\"") && has_suffix(v, "\"")) ||
+                        (has_prefix(v, "'") && has_suffix(v, "'"))) {
+                        v = slice(v, 1, len(v) - 1);
+                    }
+                    config[current_section][k] = v;
+                }
+            }
+        }
+        i += 1;
+    }
+    return config;
+}
+
+fn ini_stringify(config) {
+    let out = "";
+    let sections = keys(config);
+    let i = 0;
+    while (i < len(sections)) {
+        let sec = sections[i];
+        out += "[" + sec + "]\n";
+        let sec_map = config[sec];
+        let ks = keys(sec_map);
+        let j = 0;
+        while (j < len(ks)) {
+            let k = ks[j];
+            out += k + " = " + str(sec_map[k]) + "\n";
+            j += 1;
+        }
+        out += "\n";
+        i += 1;
+    }
+    return out;
+}

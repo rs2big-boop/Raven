@@ -1,0 +1,43 @@
+// stdlib/image.rvn - 2D Canvas and Image Generation (inspired by Go's image package)
+
+fn create_image(width, height) {
+    let pixels = [];
+    let i = 0;
+    let total = width * height;
+    while (i < total) {
+        push(pixels, [0, 0, 0]); // black RGB default
+        i += 1;
+    }
+
+    let obj = {};
+    obj["width"] = width;
+    obj["height"] = height;
+
+    obj["set_rgb"] = fn(x, y, r, g, b) {
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            let idx = y * width + x;
+            pixels[idx] = [int(r), int(g), int(b)];
+        }
+    };
+
+    obj["get_rgb"] = fn(x, y) {
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            let idx = y * width + x;
+            return pixels[idx];
+        }
+        return [0, 0, 0];
+    };
+
+    obj["export_ppm"] = fn(filepath) {
+        let content = "P3\n" + str(width) + " " + str(height) + "\n255\n";
+        let p = 0;
+        while (p < total) {
+            let pix = pixels[p];
+            content += str(pix[0]) + " " + str(pix[1]) + " " + str(pix[2]) + "\n";
+            p += 1;
+        }
+        return write_file(filepath, content);
+    };
+
+    return obj;
+}

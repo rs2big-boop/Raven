@@ -1,0 +1,41 @@
+// stdlib/database/sql.rvn - Database and SQL interface (inspired by Go's database/sql package)
+
+fn sql_open(driver, dsn) {
+    let db = {};
+    db["driver"] = driver;
+    db["dsn"] = dsn;
+    db["closed"] = false;
+
+    db["exec"] = fn(query) {
+        if (db["closed"]) {
+            panic("database is closed");
+        }
+        if (driver == "sqlite3" || driver == "sqlite") {
+            let cmd = "sqlite3 \"" + dsn + "\" \"" + query + "\" 2>&1";
+            let out = exec(cmd);
+            return trim(out);
+        }
+        return "";
+    };
+
+    db["query"] = fn(query) {
+        if (db["closed"]) {
+            panic("database is closed");
+        }
+        if (driver == "sqlite3" || driver == "sqlite") {
+            let cmd = "sqlite3 -json \"" + dsn + "\" \"" + query + "\" 2>/dev/null";
+            let out = trim(exec(cmd));
+            if (len(out) == 0) {
+                return [];
+            }
+            return parse_json(out);
+        }
+        return [];
+    };
+
+    db["close"] = fn() {
+        db["closed"] = true;
+    };
+
+    return db;
+}

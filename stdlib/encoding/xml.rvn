@@ -1,0 +1,24 @@
+// stdlib/encoding/xml.rvn - XML serialization (inspired by Go's encoding/xml package)
+
+fn xml_escape(s) {
+    let out = replace(s, "&", "&amp;");
+    out = replace(out, "<", "&lt;");
+    out = replace(out, ">", "&gt;");
+    out = replace(out, "\"", "&quot;");
+    out = replace(out, "'", "&apos;");
+    return out;
+}
+
+fn xml_tag(tag_name, attrs_map, content) {
+    let attr_str = "";
+    if (type(attrs_map) == "map") {
+        let ks = keys(attrs_map);
+        let i = 0;
+        while (i < len(ks)) {
+            let k = ks[i];
+            attr_str += " " + k + "=\"" + xml_escape(str(attrs_map[k])) + "\"";
+            i += 1;
+        }
+    }
+    return "<" + tag_name + attr_str + ">" + content + "</" + tag_name + ">";
+}

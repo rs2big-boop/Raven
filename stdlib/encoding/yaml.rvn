@@ -1,0 +1,47 @@
+// stdlib/encoding/yaml.rvn - YAML parser and encoder (inspired by gopkg.in/yaml.v3)
+
+fn yaml_parse(yaml_str) {
+    let lines = split(yaml_str, "\n");
+    let result = {};
+    let i = 0;
+    while (i < len(lines)) {
+        let line = lines[i];
+        let trimmed = trim(line);
+        if (len(trimmed) > 0 && !has_prefix(trimmed, "#")) {
+            let colon = index_of(trimmed, ":");
+            if (colon != -1) {
+                let k = trim(slice(trimmed, 0, colon));
+                let v = trim(slice(trimmed, colon + 1, len(trimmed)));
+                if (v == "true") {
+                    result[k] = true;
+                } else if (v == "false") {
+                    result[k] = false;
+                } else if (is_digit(v)) {
+                    result[k] = num(v);
+                } else {
+                    // Strip quotes if present
+                    if ((has_prefix(v, "\"") && has_suffix(v, "\"")) ||
+                        (has_prefix(v, "'") && has_suffix(v, "'"))) {
+                        v = slice(v, 1, len(v) - 1);
+                    }
+                    result[k] = v;
+                }
+            }
+        }
+        i += 1;
+    }
+    return result;
+}
+
+fn yaml_stringify(map_val) {
+    let out = "";
+    let ks = keys(map_val);
+    let i = 0;
+    while (i < len(ks)) {
+        let k = ks[i];
+        let v = map_val[k];
+        out += k + ": " + str(v) + "\n";
+        i += 1;
+    }
+    return out;
+}

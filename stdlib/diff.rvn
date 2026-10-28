@@ -1,0 +1,32 @@
+// stdlib/diff.rvn - Value and text diffing (inspired by github.com/pmezard/go-difflib and google/go-cmp)
+
+fn diff_strings(a, b) {
+    if (a == b) {
+        return "";
+    }
+    let lines_a = split(a, "\n");
+    let lines_b = split(b, "\n");
+    let result = "--- Expected\n+++ Actual\n";
+
+    let max_len = len(lines_a);
+    if (len(lines_b) > max_len) { max_len = len(lines_b); }
+
+    let i = 0;
+    while (i < max_len) {
+        let la = "";
+        let lb = "";
+        if (i < len(lines_a)) { la = lines_a[i]; }
+        if (i < len(lines_b)) { lb = lines_b[i]; }
+
+        if (la != lb) {
+            if (i < len(lines_a)) { result += "- " + la + "\n"; }
+            if (i < len(lines_b)) { result += "+ " + lb + "\n"; }
+        }
+        i += 1;
+    }
+    return result;
+}
+
+fn diff_equal(a, b) {
+    return str(a) == str(b);
+}

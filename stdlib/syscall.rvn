@@ -1,0 +1,15 @@
+// stdlib/syscall.rvn - Operating system primitive calls (inspired by Go's syscall package)
+
+fn get_pid() {
+    let out = trim(exec("echo $$"));
+    return atoi(out);
+}
+
+fn exit_process(code) {
+    exec("exit " + str(int(code)));
+}
+
+fn kill_process(pid, signal) {
+    let cmd = "kill -" + str(signal) + " " + str(pid) + " 2>/dev/null";
+    exec(cmd);
+}

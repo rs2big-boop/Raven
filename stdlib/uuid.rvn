@@ -1,0 +1,35 @@
+// stdlib/uuid.rvn - UUID generation (inspired by Go's uuid package)
+
+fn uuid_v4() {
+    let hex_chars = "0123456789abcdef";
+    let res = "";
+    let i = 0;
+    while (i < 36) {
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            res += "-";
+        } else if (i == 14) {
+            res += "4"; // UUID v4 version
+        } else if (i == 19) {
+            let r = rand_int(8, 11); // variant 10xx
+            res += slice(hex_chars, r, r + 1);
+        } else {
+            let r = rand_int(0, 15);
+            res += slice(hex_chars, r, r + 1);
+        }
+        i += 1;
+    }
+    return res;
+}
+
+fn new_uuid() {
+    return uuid_v4();
+}
+
+fn is_valid_uuid(u) {
+    if (len(u) != 36) { return false; }
+    if (slice(u, 8, 9) != "-" || slice(u, 13, 14) != "-" ||
+        slice(u, 18, 19) != "-" || slice(u, 23, 24) != "-") {
+        return false;
+    }
+    return true;
+}

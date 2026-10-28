@@ -1,0 +1,15 @@
+// stdlib/unique.rvn - Canonicalization and interning of comparable values (inspired by Go's unique package)
+
+let _intern_table = {};
+
+fn unique_make(val) {
+    let key = str(val);
+    if (!map_has_key(_intern_table, key)) {
+        _intern_table[key] = val;
+    }
+    return _intern_table[key];
+}
+
+fn unique_size() {
+    return len(_intern_table);
+}

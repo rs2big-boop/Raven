@@ -38,3 +38,40 @@ fn expect_false(cond) {
         throw "Expected condition to be false";
     }
 }
+
+// Testify-style assertions (inspired by github.com/stretchr/testify)
+fn assert_equal(expected, actual) {
+    expect_eq(actual, expected);
+}
+
+fn assert_not_equal(a, b) {
+    if (a == b) {
+        throw "Expected values to be different, but both were " + str(a);
+    }
+}
+
+fn assert_true(cond) {
+    expect_true(cond);
+}
+
+fn assert_false(cond) {
+    expect_false(cond);
+}
+
+fn assert_nil(val) {
+    if (val != nil) {
+        throw "Expected nil, but got " + str(val);
+    }
+}
+
+fn assert_not_nil(val) {
+    if (val == nil) {
+        throw "Expected non-nil value, but got nil";
+    }
+}
+
+fn assert_contains(container, elem) {
+    if (!contains(container, elem)) {
+        throw "Expected " + str(container) + " to contain " + str(elem);
+    }
+}

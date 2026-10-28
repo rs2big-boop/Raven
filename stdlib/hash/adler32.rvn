@@ -1,0 +1,15 @@
+// stdlib/hash/adler32.rvn - Adler-32 checksum (inspired by Go's hash/adler32 package)
+
+fn adler32_checksum(s) {
+    let a = 1;
+    let b = 0;
+    let mod = 65521;
+    let i = 0;
+    while (i < len(s)) {
+        let code = char_code(slice(s, i, i + 1));
+        a = (a + code) % mod;
+        b = (b + a) % mod;
+        i += 1;
+    }
+    return (b * 65536) + a;
+}

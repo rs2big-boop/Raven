@@ -1,0 +1,20 @@
+// stdlib/xid.rvn - Globally unique sortable ID (inspired by github.com/rs/xid)
+
+let _xid_counter = 0;
+
+fn xid_new() {
+    let t = int(time() / 1000);
+    _xid_counter = (_xid_counter + 1) % 16777215; // 3 bytes counter
+
+    let hex_chars = "0123456789abcdefghijklmnopqrstuv"; // base32 hex
+    let raw = str(t) + str(_xid_counter) + str(rand_int(1000, 9999));
+    let id_str = hash(raw);
+
+    if (len(id_str) > 20) {
+        return slice(id_str, 0, 20);
+    }
+    while (len(id_str) < 20) {
+        id_str += "0";
+    }
+    return id_str;
+}

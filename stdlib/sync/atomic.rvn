@@ -1,0 +1,63 @@
+// stdlib/sync/atomic.rvn - Low-level atomic memory primitives (inspired by Go's sync/atomic)
+
+fn create_atomic_int(initial_val) {
+    let val = int(initial_val);
+    let obj = {};
+
+    obj["load"] = fn() {
+        return val;
+    };
+
+    obj["store"] = fn(new_val) {
+        val = int(new_val);
+    };
+
+    obj["add"] = fn(delta) {
+        val += int(delta);
+        return val;
+    };
+
+    obj["sub"] = fn(delta) {
+        val -= int(delta);
+        return val;
+    };
+
+    obj["compare_and_swap"] = fn(old_val, new_val) {
+        if (val == old_val) {
+            val = new_val;
+            return true;
+        }
+        return false;
+    };
+
+    return obj;
+}
+
+// Uber-atomic style wrappers (inspired by go.uber.org/atomic)
+fn create_atomic_bool(initial_val) {
+    let val = bool(initial_val);
+    let obj = {};
+
+    obj["load"] = fn() { return val; };
+    obj["store"] = fn(new_val) { val = bool(new_val); };
+    obj["toggle"] = fn() { val = !val; return val; };
+    obj["compare_and_swap"] = fn(old_val, new_val) {
+        if (val == old_val) {
+            val = bool(new_val);
+            return true;
+        }
+        return false;
+    };
+
+    return obj;
+}
+
+fn create_atomic_string(initial_val) {
+    let val = str(initial_val);
+    let obj = {};
+
+    obj["load"] = fn() { return val; };
+    obj["store"] = fn(new_val) { val = str(new_val); };
+
+    return obj;
+}

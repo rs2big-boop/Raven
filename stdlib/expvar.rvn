@@ -1,0 +1,28 @@
+// stdlib/expvar.rvn - Standardized variable publishing for metrics (inspired by Go's expvar package)
+
+let _expvar_registry = {};
+
+fn expvar_publish(name, getter_fn) {
+    _expvar_registry[name] = getter_fn;
+}
+
+fn expvar_set(name, value) {
+    _expvar_registry[name] = fn() { return value; };
+}
+
+fn expvar_get_all() {
+    let res = {};
+    let ks = keys(_expvar_registry);
+    let i = 0;
+    while (i < len(ks)) {
+        let k = ks[i];
+        let getter = _expvar_registry[k];
+        res[k] = getter();
+        i += 1;
+    }
+    return res;
+}
+
+fn expvar_to_json() {
+    return to_json(expvar_get_all());
+}

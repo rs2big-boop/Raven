@@ -1,0 +1,60 @@
+// stdlib/text/tabwriter.rvn - Elastic tabstops and column alignment (inspired by Go's text/tabwriter)
+
+fn create_tabwriter(min_width, pad_char) {
+    let lines = [];
+    let obj = {};
+
+    obj["write_row"] = fn(columns) {
+        push(lines, columns);
+    };
+
+    obj["render"] = fn() {
+        if (len(lines) == 0) { return ""; }
+
+        // Find max width for each column
+        let col_widths = [];
+        let i = 0;
+        while (i < len(lines)) {
+            let row = lines[i];
+            let j = 0;
+            while (j < len(row)) {
+                let cell_len = len(str(row[j]));
+                if (j >= len(col_widths)) {
+                    push(col_widths, cell_len);
+                } else if (cell_len > col_widths[j]) {
+                    col_widths[j] = cell_len;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+
+        // Apply min_width
+        let j = 0;
+        while (j < len(col_widths)) {
+            if (col_widths[j] < min_width) {
+                col_widths[j] = min_width;
+            }
+            j += 1;
+        }
+
+        // Format rows
+        let result = "";
+        i = 0;
+        while (i < len(lines)) {
+            let row = lines[i];
+            let row_str = "";
+            let c = 0;
+            while (c < len(row)) {
+                let val = str(row[c]);
+                row_str += pad_right(val, col_widths[c] + 2, pad_char);
+                c += 1;
+            }
+            result += row_str + "\n";
+            i += 1;
+        }
+        return result;
+    };
+
+    return obj;
+}

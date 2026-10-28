@@ -1,0 +1,22 @@
+// stdlib/embed.rvn - Embedded files and static asset caching (inspired by Go's embed package)
+
+let _embedded_fs = {};
+
+fn embed_file(virtual_path, content) {
+    _embedded_fs[virtual_path] = content;
+}
+
+fn embed_read(virtual_path) {
+    if (map_has_key(_embedded_fs, virtual_path)) {
+        return _embedded_fs[virtual_path];
+    }
+    panic("embed: file not found in embedded filesystem: " + virtual_path);
+}
+
+fn embed_has(virtual_path) {
+    return map_has_key(_embedded_fs, virtual_path);
+}
+
+fn embed_list() {
+    return keys(_embedded_fs);
+}

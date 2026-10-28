@@ -1,0 +1,18 @@
+// stdlib/hash/crc32.rvn - CRC32 checksum (inspired by Go's hash/crc32 package)
+
+fn crc32_checksum(s) {
+    let crc = 4294967295; // 0xFFFFFFFF
+    let i = 0;
+    while (i < len(s)) {
+        let b = char_code(slice(s, i, i + 1));
+        crc = crc ^ b;
+        let j = 0;
+        while (j < 8) {
+            let mask = -(crc % 2);
+            crc = int(crc / 2) ^ (3988292384 & mask);
+            j += 1;
+        }
+        i += 1;
+    }
+    return (crc ^ 4294967295);
+}

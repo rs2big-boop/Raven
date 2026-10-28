@@ -538,3 +538,52 @@ TEST(InterpreterTest, GoInspiredStandardLibraryModules) {
         "10\n"
         "20\n");
 }
+
+TEST(InterpreterTest, GoEcosystemModules) {
+    std::string source =
+        "import \"stdlib/uuid\";\n"
+        "import \"stdlib/xid\";\n"
+        "import \"stdlib/encoding/yaml\";\n"
+        "import \"stdlib/encoding/ini\";\n"
+        "import \"stdlib/mime\";\n"
+        "import \"stdlib/text/template\";\n"
+        "import \"stdlib/sync/atomic\";\n"
+        "import \"stdlib/arena\";\n"
+        "import \"stdlib/unique\";\n"
+        "import \"stdlib/embed\";\n"
+        "\n"
+        "let u = uuid_v4();\n"
+        "print(len(u));\n"
+        "let x = xid_new();\n"
+        "print(len(x));\n"
+        "let y = yaml_parse(\"name: Raven\\nversion: 3\\nready: true\\n\");\n"
+        "print(y[\"name\"]);\n"
+        "print(y[\"ready\"]);\n"
+        "let cfg = ini_parse(\"[server]\\nhost = 127.0.0.1\\nport = 8080\\n\");\n"
+        "print(cfg[\"server\"][\"host\"]);\n"
+        "print(type_by_extension(\".json\"));\n"
+        "let rendered = template_render(\"Hello {{name}}!\", {\"name\": \"Gopher\"});\n"
+        "print(rendered);\n"
+        "let atom = create_atomic_int(10);\n"
+        "atom.add(5);\n"
+        "print(atom.load());\n"
+        "let ar = create_arena();\n"
+        "let p1 = ar.allocate(\"item\");\n"
+        "print(ar.count());\n"
+        "print(unique_make(\"test_val\"));\n"
+        "embed_file(\"/virtual/config.txt\", \"data\");\n"
+        "print(embed_read(\"/virtual/config.txt\"));\n";
+
+    EXPECT_EQ(run_code(source),
+        "36\n"
+        "20\n"
+        "Raven\n"
+        "true\n"
+        "127.0.0.1\n"
+        "application/json\n"
+        "Hello Gopher!\n"
+        "15\n"
+        "1\n"
+        "test_val\n"
+        "data\n");
+}

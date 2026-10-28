@@ -1,0 +1,26 @@
+// stdlib/arena.rvn - Region-based memory allocation (inspired by Go's arena package)
+
+fn create_arena() {
+    let pool = [];
+    let freed = false;
+    let obj = {};
+
+    obj["allocate"] = fn(val) {
+        if (freed) {
+            panic("arena has already been freed");
+        }
+        push(pool, val);
+        return val;
+    };
+
+    obj["count"] = fn() {
+        return len(pool);
+    };
+
+    obj["free"] = fn() {
+        pool = [];
+        freed = true;
+    };
+
+    return obj;
+}

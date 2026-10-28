@@ -1,0 +1,27 @@
+// stdlib/text/template.rvn - Text templates (inspired by Go's text/template package)
+
+fn template_render(tmpl_str, data_map) {
+    let out = tmpl_str;
+    let ks = keys(data_map);
+    let i = 0;
+    while (i < len(ks)) {
+        let k = ks[i];
+        let placeholder = "{{" + k + "}}";
+        let placeholder_spaced = "{{ " + k + " }}";
+        out = replace(out, placeholder, str(data_map[k]));
+        out = replace(out, placeholder_spaced, str(data_map[k]));
+        i += 1;
+    }
+    return out;
+}
+
+fn create_template(tmpl_str) {
+    let obj = {};
+    obj["source"] = tmpl_str;
+
+    obj["execute"] = fn(data_map) {
+        return template_render(tmpl_str, data_map);
+    };
+
+    return obj;
+}
