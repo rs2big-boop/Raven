@@ -1,14 +1,15 @@
-# MiniLang
+# Raven
 
 > A modern, clean programming language built from scratch in C++20.
+> File extension: `.rvn` · CLI: `raven`
 
-MiniLang is an educational yet production-grade tree-walk interpreter implementing lexical analysis, recursive descent parsing with operator precedence, lexical environments, functions with closures, and control flow.
+Raven is an educational yet production-grade tree-walk interpreter implementing lexical analysis, recursive descent parsing with operator precedence, lexical environments, functions with closures, and control flow.
 
 ---
 
-## Example
+## Example (`hello.rvn`)
 
-```minilang
+```rvn
 let name = "Ran";
 let age = 20;
 
@@ -35,7 +36,7 @@ Adult
 - **Variables & Scopes**: Lexical scoping with `let`, variable mutation, and nested block shadowing `{ ... }`.
 - **Control Flow**: `if` / `else` branching and `while` loops.
 - **Functions**: User-defined functions `fn name(params) { ... }`, recursion, and `return` statements.
-- **Interactive REPL & CLI**: Run `.mini` scripts or launch an interactive shell.
+- **Interactive REPL & CLI**: Run `.rvn` scripts or launch an interactive shell.
 - **Automated Tests**: Comprehensive GoogleTest test suite covering Lexer, Parser, and Interpreter.
 - **CI / GitHub Actions**: Automated builds and test runs on every commit.
 
@@ -44,18 +45,18 @@ Adult
 ## Project Structure
 
 ```
-MiniLang/
+Raven/
 ├── CMakeLists.txt
 ├── README.md
 ├── docs/
 │   ├── architecture.md
 │   └── language-spec.md
 ├── examples/
-│   ├── hello.mini
-│   ├── fibonacci.mini
-│   └── while.mini
+│   ├── hello.rvn
+│   ├── fibonacci.rvn
+│   └── while.rvn
 ├── include/
-│   └── minilang/
+│   └── raven/
 │       ├── ast.hpp
 │       ├── environment.hpp
 │       ├── interpreter.hpp
@@ -95,21 +96,21 @@ ctest --test-dir build --output-on-failure
 
 ### Run Scripts
 ```bash
-./build/minilang examples/hello.mini
-./build/minilang examples/fibonacci.mini
-./build/minilang examples/while.mini
+./build/raven examples/hello.rvn
+./build/raven examples/fibonacci.rvn
+./build/raven examples/while.rvn
 ```
 
 ### Start Interactive REPL
 ```bash
-./build/minilang
+./build/raven
 ```
 ```text
-MiniLang 0.1.0 Interactive Shell
+Raven 0.1.0 Interactive Shell
 Type 'exit' or press Ctrl+D to quit.
-minilang> let a = 10;
-minilang> let b = 20;
-minilang> print(a + b);
+raven> let a = 10;
+raven> let b = 20;
+raven> print(a + b);
 30
-minilang> exit
+raven> exit
 ```

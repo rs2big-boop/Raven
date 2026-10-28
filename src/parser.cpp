@@ -1,6 +1,6 @@
-#include "minilang/parser.hpp"
+#include "raven/parser.hpp"
 
-namespace minilang {
+namespace raven {
 
 Parser::Parser(std::vector<Token> tokens)
     : tokens_(std::move(tokens)) {}
@@ -379,4 +379,4 @@ void Parser::synchronize() {
     }
 }
 
-} // namespace minilang
+} // namespace raven

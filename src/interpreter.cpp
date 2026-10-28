@@ -1,6 +1,6 @@
-#include "minilang/interpreter.hpp"
+#include "raven/interpreter.hpp"
 
-namespace minilang {
+namespace raven {
 
 class UserFunction : public Callable {
 public:
@@ -289,4 +289,4 @@ void Interpreter::check_number_operands(const Token& op, const Value& left, cons
     throw RuntimeError(op, "Operands must be numbers.");
 }
 
-} // namespace minilang
+} // namespace raven

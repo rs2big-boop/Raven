@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
-#include "minilang/ast.hpp"
-#include "minilang/token.hpp"
+#include "raven/ast.hpp"
+#include "raven/token.hpp"
 
-namespace minilang {
+namespace raven {
 
 class ParseError : public std::runtime_error {
 public:
@@ -73,4 +73,4 @@ private:
     std::vector<std::string> errors_;
 };
 
-} // namespace minilang
+} // namespace raven

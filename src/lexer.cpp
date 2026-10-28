@@ -1,10 +1,10 @@
-#include "minilang/lexer.hpp"
+#include "raven/lexer.hpp"
 
 #include <cctype>
 #include <unordered_map>
 #include <utility>
 
-namespace minilang {
+namespace raven {
 
 Lexer::Lexer(std::string source)
     : source_(std::move(source)) {}
@@ -52,14 +52,12 @@ void Lexer::skip_whitespace_and_comments() {
             line_++;
             column_ = 1;
         } else if (c == '/' && peek_next() == '/') {
-            // Single-line comment
             advance();
             advance();
             while (!is_at_end() && peek() != '\n') {
                 advance();
             }
         } else if (c == '/' && peek_next() == '*') {
-            // Multi-line comment
             advance();
             advance();
             while (!is_at_end()) {
@@ -92,7 +90,7 @@ Token Lexer::scan_number() {
     }
 
     if (peek() == '.' && std::isdigit(static_cast<unsigned char>(peek_next()))) {
-        advance(); // consume '.'
+        advance();
         while (!is_at_end() && std::isdigit(static_cast<unsigned char>(peek()))) {
             advance();
         }
@@ -141,7 +139,7 @@ Token Lexer::scan_identifier_or_keyword() {
 Token Lexer::scan_string() {
     int start_line = line_;
     int start_col = column_;
-    advance(); // Consume opening quote '"'
+    advance();
 
     std::string value;
     while (!is_at_end() && peek() != '"') {
@@ -151,7 +149,7 @@ Token Lexer::scan_string() {
             column_ = 0;
             value += advance();
         } else if (c == '\\') {
-            advance(); // consume backslash
+            advance();
             if (is_at_end()) {
                 return Token{TokenType::Invalid, "Unterminated escape sequence", start_line, start_col};
             }
@@ -175,7 +173,7 @@ Token Lexer::scan_string() {
         return Token{TokenType::Invalid, "Unterminated string", start_line, start_col};
     }
 
-    advance(); // Consume closing quote '"'
+    advance();
     return Token{TokenType::String, std::move(value), start_line, start_col};
 }
 
@@ -288,4 +286,4 @@ std::vector<Token> Lexer::tokenize() {
     return tokens;
 }
 
-} // namespace minilang
+} // namespace raven

@@ -1,4 +1,7 @@
-# MiniLang Language Specification
+# Raven Language Specification
+
+## File Extension
+- Raven source files use the `.rvn` extension (e.g., `main.rvn`).
 
 ## Formal Grammar (EBNF)
 

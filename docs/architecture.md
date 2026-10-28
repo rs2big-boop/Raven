@@ -1,11 +1,11 @@
-# MiniLang Architecture & Design
+# Raven Architecture & Design
 
-MiniLang is an educational, production-style tree-walk interpreter written from scratch in modern C++20.
+Raven is an educational, production-style tree-walk interpreter written from scratch in modern C++20.
 
 ```
 +-----------------------------------------------------------+
 |                       Source Code                         |
-|                   (e.g., hello.mini)                      |
+|                   (e.g., hello.rvn)                       |
 +-----------------------------+-----------------------------+
                               |
                               v

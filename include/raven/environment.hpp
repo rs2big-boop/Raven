@@ -5,10 +5,10 @@
 #include <string>
 #include <unordered_map>
 
-#include "minilang/token.hpp"
-#include "minilang/value.hpp"
+#include "raven/token.hpp"
+#include "raven/value.hpp"
 
-namespace minilang {
+namespace raven {
 
 class RuntimeError : public std::runtime_error {
 public:
@@ -66,4 +66,4 @@ private:
     std::shared_ptr<Environment> enclosing_ = nullptr;
 };
 
-} // namespace minilang
+} // namespace raven

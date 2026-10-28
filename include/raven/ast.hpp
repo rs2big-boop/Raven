@@ -5,10 +5,10 @@
 #include <utility>
 #include <vector>
 
-#include "minilang/token.hpp"
-#include "minilang/value.hpp"
+#include "raven/token.hpp"
+#include "raven/value.hpp"
 
-namespace minilang {
+namespace raven {
 
 // Forward declarations of Expressions
 class BinaryExpr;
@@ -193,7 +193,7 @@ public:
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
     Token name;
-    std::unique_ptr<Expr> initializer; // Can be nullptr
+    std::unique_ptr<Expr> initializer;
 };
 
 class BlockStmt : public Stmt {
@@ -219,7 +219,7 @@ public:
 
     std::unique_ptr<Expr> condition;
     std::shared_ptr<Stmt> then_branch;
-    std::shared_ptr<Stmt> else_branch; // Can be nullptr
+    std::shared_ptr<Stmt> else_branch;
 };
 
 class WhileStmt : public Stmt {
@@ -253,7 +253,7 @@ public:
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
     Token keyword;
-    std::unique_ptr<Expr> value; // Can be nullptr
+    std::unique_ptr<Expr> value;
 };
 
-} // namespace minilang
+} // namespace raven

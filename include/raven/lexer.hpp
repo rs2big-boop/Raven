@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "minilang/token.hpp"
+#include "raven/token.hpp"
 
-namespace minilang {
+namespace raven {
 
 class Lexer {
 public:
@@ -32,4 +32,4 @@ private:
     int column_ = 1;
 };
 
-} // namespace minilang
+} // namespace raven

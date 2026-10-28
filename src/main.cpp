@@ -3,11 +3,11 @@
 #include <sstream>
 #include <string>
 
-#include "minilang/interpreter.hpp"
-#include "minilang/lexer.hpp"
-#include "minilang/parser.hpp"
+#include "raven/interpreter.hpp"
+#include "raven/lexer.hpp"
+#include "raven/parser.hpp"
 
-namespace minilang {
+namespace raven {
 
 static int run(const std::string& source, Interpreter& interpreter) {
     Lexer lexer(source);
@@ -50,14 +50,14 @@ static int run_file(const std::string& path) {
 }
 
 static void run_prompt() {
-    std::cout << "MiniLang 0.1.0 Interactive Shell\n";
+    std::cout << "Raven 0.1.0 Interactive Shell\n";
     std::cout << "Type 'exit' or press Ctrl+D to quit.\n";
 
     Interpreter interpreter;
     std::string line;
 
     while (true) {
-        std::cout << "minilang> ";
+        std::cout << "raven> ";
         if (!std::getline(std::cin, line)) {
             std::cout << "\n";
             break;
@@ -71,7 +71,6 @@ static void run_prompt() {
             continue;
         }
 
-        // Auto append semicolon if user entered an expression or single statement without it
         if (line.back() != ';' && line.back() != '}') {
             line += ";";
         }
@@ -80,19 +79,19 @@ static void run_prompt() {
     }
 }
 
-} // namespace minilang
+} // namespace raven
 
 int main(int argc, char* argv[]) {
     if (argc > 1) {
         std::string arg = argv[1];
         if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: minilang [path/to/script.mini]\n";
-            std::cout << "       minilang                (starts REPL)\n";
+            std::cout << "Usage: raven [path/to/script.rvn]\n";
+            std::cout << "       raven                (starts REPL)\n";
             return 0;
         }
-        return minilang::run_file(arg);
+        return raven::run_file(arg);
     }
 
-    minilang::run_prompt();
+    raven::run_prompt();
     return 0;
 }

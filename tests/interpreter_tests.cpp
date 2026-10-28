@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 #include <sstream>
-#include "minilang/lexer.hpp"
-#include "minilang/parser.hpp"
-#include "minilang/interpreter.hpp"
+#include "raven/lexer.hpp"
+#include "raven/parser.hpp"
+#include "raven/interpreter.hpp"
 
-using namespace minilang;
+using namespace raven;
 
 static std::string run_code(const std::string& source) {
     Lexer lexer(source);
@@ -74,11 +74,17 @@ TEST(InterpreterTest, FunctionsAndRecursion) {
         "    if (n <= 1) {\n"
         "        return n;\n"
         "    }\n"
+        "    return fib(n - 1) + fib(n - 2); line\n";
+    std::string valid_source =
+        "fn fib(n) {\n"
+        "    if (n <= 1) {\n"
+        "        return n;\n"
+        "    }\n"
         "    return fib(n - 1) + fib(n - 2);\n"
         "}\n"
         "print(fib(7));\n";
 
-    EXPECT_EQ(run_code(source), "13\n");
+    EXPECT_EQ(run_code(valid_source), "13\n");
 }
 
 TEST(InterpreterTest, RuntimeErrorDivisionByZero) {

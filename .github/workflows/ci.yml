@@ -21,7 +21,7 @@ jobs:
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build MiniLang
+    - name: Build Raven
       run: cmake --build build --config Release
 
     - name: Run Tests
@@ -29,6 +29,6 @@ jobs:
 
     - name: Run Demo Scripts
       run: |
-        ./build/minilang examples/hello.mini
-        ./build/minilang examples/fibonacci.mini
-        ./build/minilang examples/while.mini
+        ./build/raven examples/hello.rvn
+        ./build/raven examples/fibonacci.rvn
+        ./build/raven examples/while.rvn

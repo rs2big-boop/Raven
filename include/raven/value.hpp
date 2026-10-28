@@ -7,7 +7,7 @@
 #include <variant>
 #include <vector>
 
-namespace minilang {
+namespace raven {
 
 class Interpreter;
 
@@ -61,7 +61,6 @@ public:
                 return std::to_string(static_cast<long long>(n));
             }
             std::string s = std::to_string(n);
-            // Trim trailing zeros for decimals
             s.erase(s.find_last_not_of('0') + 1, std::string::npos);
             if (s.back() == '.') s.pop_back();
             return s;
@@ -95,4 +94,4 @@ public:
     virtual std::string to_string() const = 0;
 };
 
-} // namespace minilang
+} // namespace raven

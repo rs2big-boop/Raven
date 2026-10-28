@@ -4,7 +4,7 @@
 #include <string_view>
 #include <ostream>
 
-namespace minilang {
+namespace raven {
 
 enum class TokenType {
     // Keywords
@@ -119,4 +119,4 @@ inline std::ostream& operator<<(std::ostream& os, const Token& token) {
     return os;
 }
 
-} // namespace minilang
+} // namespace raven

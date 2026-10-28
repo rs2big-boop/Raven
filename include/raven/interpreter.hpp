@@ -4,11 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "minilang/ast.hpp"
-#include "minilang/environment.hpp"
-#include "minilang/value.hpp"
+#include "raven/ast.hpp"
+#include "raven/environment.hpp"
+#include "raven/value.hpp"
 
-namespace minilang {
+namespace raven {
 
 struct ReturnException {
     Value value;
@@ -55,4 +55,4 @@ private:
     std::shared_ptr<Environment> environment_;
 };
 
-} // namespace minilang
+} // namespace raven

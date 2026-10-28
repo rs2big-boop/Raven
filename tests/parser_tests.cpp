@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "minilang/lexer.hpp"
-#include "minilang/parser.hpp"
+#include "raven/lexer.hpp"
+#include "raven/parser.hpp"
 
-using namespace minilang;
+using namespace raven;
 
 class AstStringifier : public ExprVisitor<std::string> {
 public:

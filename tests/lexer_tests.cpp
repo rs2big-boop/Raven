@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "minilang/lexer.hpp"
+#include "raven/lexer.hpp"
 
-using namespace minilang;
+using namespace raven;
 
 TEST(LexerTest, EmptySource) {
     Lexer lexer("");
