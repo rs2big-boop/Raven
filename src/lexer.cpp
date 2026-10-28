@@ -106,6 +106,12 @@ Token Lexer::scan_identifier_or_keyword() {
         {"if", TokenType::If},
         {"else", TokenType::Else},
         {"while", TokenType::While},
+        {"for", TokenType::For},
+        {"in", TokenType::In},
+        {"try", TokenType::Try},
+        {"catch", TokenType::Catch},
+        {"throw", TokenType::Throw},
+        {"match", TokenType::Match},
         {"print", TokenType::Print},
         {"fn", TokenType::Fn},
         {"return", TokenType::Return},
@@ -219,6 +225,12 @@ std::vector<Token> Lexer::tokenize() {
                 case ';':
                     tokens.push_back(Token{TokenType::Semicolon, ";", start_line, start_col});
                     break;
+                case ':':
+                    tokens.push_back(Token{TokenType::Colon, ":", start_line, start_col});
+                    break;
+                case '.':
+                    tokens.push_back(Token{TokenType::Dot, ".", start_line, start_col});
+                    break;
                 case ',':
                     tokens.push_back(Token{TokenType::Comma, ",", start_line, start_col});
                     break;
@@ -234,9 +246,17 @@ std::vector<Token> Lexer::tokenize() {
                 case '}':
                     tokens.push_back(Token{TokenType::RightBrace, "}", start_line, start_col});
                     break;
+                case '[':
+                    tokens.push_back(Token{TokenType::LeftBracket, "[", start_line, start_col});
+                    break;
+                case ']':
+                    tokens.push_back(Token{TokenType::RightBracket, "]", start_line, start_col});
+                    break;
                 case '=':
                     if (match('=')) {
                         tokens.push_back(Token{TokenType::EqualEqual, "==", start_line, start_col});
+                    } else if (match('>')) {
+                        tokens.push_back(Token{TokenType::Arrow, "=>", start_line, start_col});
                     } else {
                         tokens.push_back(Token{TokenType::Equal, "=", start_line, start_col});
                     }
@@ -270,7 +290,9 @@ std::vector<Token> Lexer::tokenize() {
                     }
                     break;
                 case '|':
-                    if (match('|')) {
+                    if (match('>')) {
+                        tokens.push_back(Token{TokenType::PipeGreater, "|>", start_line, start_col});
+                    } else if (match('|')) {
                         tokens.push_back(Token{TokenType::PipePipe, "||", start_line, start_col});
                     } else {
                         tokens.push_back(Token{TokenType::Invalid, "|", start_line, start_col});

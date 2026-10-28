@@ -1,11 +1,11 @@
-# Raven Architecture & Design
+# Raven Architecture & Advanced Runtime Design
 
-Raven is an educational, production-style tree-walk interpreter written from scratch in modern C++20.
+Raven combines the expressiveness of Python, the functional elegance of Rust/Elixir, and the dual-engine architecture of the JVM: a high-level AST interpreter alongside a Stack-based Bytecode Virtual Machine (VM).
 
 ```
 +-----------------------------------------------------------+
 |                       Source Code                         |
-|                   (e.g., hello.rvn)                       |
+|                   (e.g., showcase.rvn)                    |
 +-----------------------------+-----------------------------+
                               |
                               v
@@ -21,55 +21,60 @@ Raven is an educational, production-style tree-walk interpreter written from scr
 |                  Syntax Tree (AST)                        |
 +-----------------------------+-----------------------------+
                               |
-                              v
-+-----------------------------------------------------------+
-|                      Interpreter                          |
-|         Evaluates expressions, manages scopes             |
-|                 and executes statements                   |
-+-----------------------------------------------------------+
+              +---------------+---------------+
+              |                               |
+              v                               v
++-----------------------------+ +---------------------------+
+|      Tree-Walk Engine       | |     Bytecode Compiler     |
+|   - AST Visitor Execution   | |   - Emits OpCode Chunks   |
+|   - Dynamic Lexical Scopes  | |   - Constant Pool Table   |
+|   - Standard Library Engine | |   - Disassembler Engine   |
++-----------------------------+ +-------------+-------------+
+                                              |
+                                              v
+                                +---------------------------+
+                                |    Raven Virtual Machine  |
+                                |   - Stack-Based VM        |
+                                |   - High-Speed Execution  |
+                                +---------------------------+
 ```
 
 ---
 
-## 1. Pipeline Stages
+## 1. Dual Execution Engines
 
-### 01. Lexical Analysis (`Lexer`)
-- **Input**: Raw text (`std::string`).
-- **Output**: Linear stream of `Token` structures (`std::vector<Token>`).
-- **Role**:
-  - Classifies character sequences into `TokenType` (Keywords, Identifiers, Numbers, Strings, Operators).
-  - Skips non-semantic whitespace and comments (both single-line `//` and block `/* ... */`).
-  - Records precise 1-based `line` and `column` for actionable error diagnostics.
-  - Generates `TokenType::Invalid` instead of crashing on unrecognized characters.
+### Engine A: Tree-Walk Interpreter (`Interpreter`)
+- Direct AST traversal using modern C++20 `Visitor` pattern.
+- Immediate execution without compilation pauses.
+- Dynamic environment frames (`Environment`) with full support for closures, lexical shadowing, and user exceptions (`try` / `catch` / `throw`).
 
-### 02. Syntactic Analysis (`Parser`)
-- **Input**: `std::vector<Token>`.
-- **Output**: `std::vector<std::shared_ptr<Stmt>>` (AST root nodes).
-- **Technique**: Recursive Descent with Precedence Climbing.
-  - Implements unambiguous operator precedence:
-    `Assignment < Logical OR < Logical AND < Equality < Comparison < Term (+,-) < Factor (*,/,%) < Unary (!,-) < Call < Primary`.
-  - Panic-mode error recovery (`synchronize()`): recovers at statement boundaries (`let`, `if`, `while`, `;`) to report multiple diagnostics in a single run.
+### Engine B: Raven Virtual Machine (`VM`)
+- Emits byte-sized opcodes into contiguous linear memory `Chunk`.
+- Stack-based architecture mimicking JVM / CPython:
+  - `OP_CONSTANT`, `OP_ADD`, `OP_SUBTRACT`, `OP_MULTIPLY`, `OP_DIVIDE`, `OP_MODULO`
+  - `OP_EQUAL`, `OP_GREATER_EQUAL`, `OP_LESS_EQUAL`, etc.
+  - `OP_JUMP_IF_FALSE`, `OP_JUMP`, `OP_LOOP`
+  - `OP_BUILD_ARRAY`, `OP_INDEX_GET`, `OP_INDEX_SET`
+  - `OP_DEFINE_GLOBAL`, `OP_GET_GLOBAL`, `OP_SET_GLOBAL`
+- Built-in Disassembler accessible via `raven --disasm <file.rvn>`.
 
-### 03. Abstract Syntax Tree (`AST`)
-- **Design**: Strongly-typed node hierarchies with modern C++ Visitor pattern:
-  - `Expr`: `BinaryExpr`, `UnaryExpr`, `LiteralExpr`, `VariableExpr`, `AssignExpr`, `LogicalExpr`, `CallExpr`, `GroupingExpr`.
-  - `Stmt`: `VarDeclStmt`, `ExpressionStmt`, `PrintStmt`, `BlockStmt`, `IfStmt`, `WhileStmt`, `FunctionStmt`, `ReturnStmt`.
-- Node lifecycles are managed cleanly using `std::unique_ptr` and `std::shared_ptr`.
+---
 
-### 04. Environment & Scopes (`Environment`)
-- Implements **lexical scoping** via linked environment frames (`enclosing_`).
-- Variable declaration (`define`): binds variable in current scope.
-- Variable assignment (`assign`): mutates the variable in the innermost scope where it was defined, or throws `RuntimeError`.
-- Nested blocks `{ ... }` create child environments; when the block terminates, the outer scope is restored.
+## 2. Revolutionary Features
 
-### 05. Execution Engine (`Interpreter`)
-- Implements `ExprVisitor<Value>` and `StmtVisitor<void>`.
-- **Dynamic Typing (`Value`)**:
-  - Encapsulated via `std::variant<Nil, bool, double, std::string, std::shared_ptr<Callable>>`.
-  - Natural operator semantics:
-    - `+` performs arithmetic addition for numbers, and string concatenation if an operand is a string.
-    - Short-circuit evaluation for `&&` and `||`.
-    - Truthiness semantics: `nil`, `false`, `0`, and empty strings are falsy.
-- **Functions & Recursion**:
-  - First-class user functions (`UserFunction`) capturing their lexical environment (closures).
-  - Return statements unwind the call stack via a lightweight `ReturnException`.
+1. **Native Collections**:
+   - Dynamic Arrays `[1, "two", 3.0]` with negative indexing (`arr[-1]`), slicing, and push/pop mutations.
+   - Hash Maps / Objects `{"name": "Ran"}` with both bracket access `user["name"]` and dot syntax `user.name`.
+2. **Functional Pipelines (`|>`)**:
+   - Left-to-right composition operator:
+     ```rvn
+     data |> filter_fn |> map_fn |> print;
+     ```
+3. **First-Class Lambdas & Closures**:
+   - Anonymous functions `fn(x) { return x * 2; }` capturing outer lexical scope.
+4. **Collection Iteration (`for-in`)**:
+   - `for (let item in collection) { ... }` natively supporting arrays and maps.
+5. **Modern Exception Handling**:
+   - `try { ... } catch (err) { ... }` combined with `throw value;`.
+6. **Standard Library**:
+   - `len()`, `push()`, `pop()`, `keys()`, `values()`, `range()`, `map()`, `filter()`, `reduce()`, `type()`, `time()`, `assert()`, `str()`, `num()`.

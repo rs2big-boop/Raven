@@ -14,6 +14,10 @@ struct ReturnException {
     Value value;
 };
 
+struct UserException {
+    Value value;
+};
+
 class Interpreter : public ExprVisitor<Value>, public StmtVisitor<void> {
 public:
     explicit Interpreter(std::ostream& out = std::cout);
@@ -25,6 +29,7 @@ public:
                        std::shared_ptr<Environment> environment);
 
     std::shared_ptr<Environment> globals() const { return globals_; }
+    std::ostream& out() { return out_; }
 
     // ExprVisitor overrides
     Value visit(const BinaryExpr& expr) override;
@@ -35,6 +40,14 @@ public:
     Value visit(const AssignExpr& expr) override;
     Value visit(const LogicalExpr& expr) override;
     Value visit(const CallExpr& expr) override;
+    Value visit(const ArrayExpr& expr) override;
+    Value visit(const MapExpr& expr) override;
+    Value visit(const IndexExpr& expr) override;
+    Value visit(const IndexAssignExpr& expr) override;
+    Value visit(const PropertyExpr& expr) override;
+    Value visit(const PropertyAssignExpr& expr) override;
+    Value visit(const LambdaExpr& expr) override;
+    Value visit(const PipelineExpr& expr) override;
 
     // StmtVisitor overrides
     void visit(const ExpressionStmt& stmt) override;
@@ -43,10 +56,14 @@ public:
     void visit(const BlockStmt& stmt) override;
     void visit(const IfStmt& stmt) override;
     void visit(const WhileStmt& stmt) override;
+    void visit(const ForInStmt& stmt) override;
+    void visit(const TryCatchStmt& stmt) override;
+    void visit(const ThrowStmt& stmt) override;
     void visit(const FunctionStmt& stmt) override;
     void visit(const ReturnStmt& stmt) override;
 
 private:
+    void register_builtins();
     void check_number_operands(const Token& op, const Value& left, const Value& right);
     void check_number_operand(const Token& op, const Value& operand);
 

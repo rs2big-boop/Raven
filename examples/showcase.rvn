@@ -1,0 +1,53 @@
+// Raven Showcase: Better than Python, Rust, and Java!
+// 1. Dictionaries, Dynamic Arrays, and Objects
+let developer = {
+    "name": "Ran",
+    "role": "Language Creator",
+    "languages": ["C++", "Rust", "Python", "Java", "Raven"]
+};
+
+print("Welcome to Raven, designed by " + developer.name + " (" + developer.role + ")");
+
+// 2. Array operations & Mutations
+push(developer.languages, "Go");
+print("Supported language inspirations: " + developer.languages);
+print("Total inspirations: " + len(developer.languages));
+
+// 3. Functional Programming: Lambdas, Higher-Order Functions & Pipelines
+let numbers = range(1, 11); // [1, 2, ..., 10]
+
+let square = fn(x) { return x * x; };
+let is_even = fn(x) { return x % 2 == 0; };
+
+let even_squares = numbers |> fn(arr) {
+    return filter(arr, is_even);
+} |> fn(evens) {
+    return map(evens, square);
+};
+
+print("Original range: " + numbers);
+print("Even squares:   " + even_squares);
+
+// 4. For-in Loops
+let sum = 0;
+for (let num in even_squares) {
+    sum = sum + num;
+}
+print("Sum of even squares: " + sum);
+
+// 5. Robust Exception Handling (Try / Catch / Throw)
+fn safe_divide(a, b) {
+    if (b == 0) {
+        throw "Cannot divide " + a + " by zero!";
+    }
+    return a / b;
+}
+
+try {
+    print("100 / 4 = " + safe_divide(100, 4));
+    print("100 / 0 = " + safe_divide(100, 0));
+} catch (err) {
+    print("Handled Exception gracefully: " + err);
+}
+
+print("Raven execution completed with 100% stability!");

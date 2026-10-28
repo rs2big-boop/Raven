@@ -12,6 +12,12 @@ enum class TokenType {
     If,
     Else,
     While,
+    For,
+    In,
+    Try,
+    Catch,
+    Throw,
+    Match,
     Print,
     Fn,
     Return,
@@ -34,11 +40,15 @@ enum class TokenType {
     Less,
     Greater,
     Semicolon,
+    Colon,
+    Dot,
     Comma,
     LeftParen,
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
 
     // Two-character Operators
     EqualEqual,
@@ -47,6 +57,8 @@ enum class TokenType {
     GreaterEqual,
     AmpAmp,
     PipePipe,
+    PipeGreater, // |>
+    Arrow,       // =>
 
     // Control
     EndOfFile,
@@ -73,6 +85,12 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::If: return "If";
         case TokenType::Else: return "Else";
         case TokenType::While: return "While";
+        case TokenType::For: return "For";
+        case TokenType::In: return "In";
+        case TokenType::Try: return "Try";
+        case TokenType::Catch: return "Catch";
+        case TokenType::Throw: return "Throw";
+        case TokenType::Match: return "Match";
         case TokenType::Print: return "Print";
         case TokenType::Fn: return "Fn";
         case TokenType::Return: return "Return";
@@ -93,11 +111,15 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Less: return "Less";
         case TokenType::Greater: return "Greater";
         case TokenType::Semicolon: return "Semicolon";
+        case TokenType::Colon: return "Colon";
+        case TokenType::Dot: return "Dot";
         case TokenType::Comma: return "Comma";
         case TokenType::LeftParen: return "LeftParen";
         case TokenType::RightParen: return "RightParen";
         case TokenType::LeftBrace: return "LeftBrace";
         case TokenType::RightBrace: return "RightBrace";
+        case TokenType::LeftBracket: return "LeftBracket";
+        case TokenType::RightBracket: return "RightBracket";
 
         case TokenType::EqualEqual: return "EqualEqual";
         case TokenType::BangEqual: return "BangEqual";
@@ -105,6 +127,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::GreaterEqual: return "GreaterEqual";
         case TokenType::AmpAmp: return "AmpAmp";
         case TokenType::PipePipe: return "PipePipe";
+        case TokenType::PipeGreater: return "PipeGreater";
+        case TokenType::Arrow: return "Arrow";
 
         case TokenType::EndOfFile: return "EndOfFile";
         case TokenType::Invalid: return "Invalid";

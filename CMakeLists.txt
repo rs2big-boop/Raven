@@ -16,6 +16,8 @@ add_library(raven_core
     src/lexer.cpp
     src/parser.cpp
     src/interpreter.cpp
+    src/compiler.cpp
+    src/vm.cpp
 )
 
 target_include_directories(raven_core PUBLIC

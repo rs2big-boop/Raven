@@ -46,6 +46,50 @@ public:
         res += ")";
         return res;
     }
+
+    std::string visit(const ArrayExpr& expr) override {
+        std::string res = "[";
+        for (size_t i = 0; i < expr.elements.size(); ++i) {
+            res += expr.elements[i]->accept(*this);
+            if (i + 1 < expr.elements.size()) res += ", ";
+        }
+        res += "]";
+        return res;
+    }
+
+    std::string visit(const MapExpr& expr) override {
+        std::string res = "{";
+        for (size_t i = 0; i < expr.entries.size(); ++i) {
+            res += expr.entries[i].first->accept(*this) + ": " + expr.entries[i].second->accept(*this);
+            if (i + 1 < expr.entries.size()) res += ", ";
+        }
+        res += "}";
+        return res;
+    }
+
+    std::string visit(const IndexExpr& expr) override {
+        return "(index " + expr.object->accept(*this) + " " + expr.index->accept(*this) + ")";
+    }
+
+    std::string visit(const IndexAssignExpr& expr) override {
+        return "(= (index " + expr.object->accept(*this) + " " + expr.index->accept(*this) + ") " + expr.value->accept(*this) + ")";
+    }
+
+    std::string visit(const PropertyExpr& expr) override {
+        return "(prop " + expr.object->accept(*this) + " " + expr.name.lexeme + ")";
+    }
+
+    std::string visit(const PropertyAssignExpr& expr) override {
+        return "(= (prop " + expr.object->accept(*this) + " " + expr.name.lexeme + ") " + expr.value->accept(*this) + ")";
+    }
+
+    std::string visit(const LambdaExpr& /*expr*/) override {
+        return "(lambda)";
+    }
+
+    std::string visit(const PipelineExpr& expr) override {
+        return "(pipeline " + expr.left->accept(*this) + " " + expr.right->accept(*this) + ")";
+    }
 };
 
 TEST(ParserTest, OperatorPrecedence) {
@@ -134,4 +178,14 @@ TEST(ParserTest, FunctionDeclaration) {
     EXPECT_EQ(fn_stmt->params[0].lexeme, "a");
     EXPECT_EQ(fn_stmt->params[1].lexeme, "b");
     EXPECT_EQ(fn_stmt->body.size(), 1);
+}
+
+TEST(ParserTest, ArrayAndMapLiterals) {
+    Lexer lexer("[1, 2, 3]");
+    Parser parser(lexer.tokenize());
+    auto expr = parser.parse_expression();
+
+    ASSERT_NE(expr, nullptr);
+    AstStringifier printer;
+    EXPECT_EQ(printer.print(*expr), "[1, 2, 3]");
 }

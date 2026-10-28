@@ -3,11 +3,58 @@
 #include <sstream>
 #include <string>
 
+#include "raven/compiler.hpp"
 #include "raven/interpreter.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
+#include "raven/vm.hpp"
 
 namespace raven {
+
+static int run_disasm(const std::string& source, const std::string& name) {
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+
+    Parser parser(tokens);
+    auto statements = parser.parse();
+
+    if (parser.has_error()) {
+        for (const auto& err : parser.errors()) {
+            std::cerr << err << "\n";
+        }
+        return 65;
+    }
+
+    Chunk chunk;
+    Compiler compiler(chunk);
+    compiler.compile(statements);
+
+    chunk.disassemble(std::cout, name);
+    return 0;
+}
+
+static int run_vm(const std::string& source) {
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+
+    Parser parser(tokens);
+    auto statements = parser.parse();
+
+    if (parser.has_error()) {
+        for (const auto& err : parser.errors()) {
+            std::cerr << err << "\n";
+        }
+        return 65;
+    }
+
+    Chunk chunk;
+    Compiler compiler(chunk);
+    compiler.compile(statements);
+
+    VM vm(std::cout);
+    auto result = vm.run(chunk);
+    return result == InterpretResult::Ok ? 0 : 70;
+}
 
 static int run(const std::string& source, Interpreter& interpreter) {
     Lexer lexer(source);
@@ -35,7 +82,7 @@ static int run(const std::string& source, Interpreter& interpreter) {
     return 0;
 }
 
-static int run_file(const std::string& path) {
+static int run_file(const std::string& path, bool use_vm = false, bool disasm = false) {
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file '" << path << "'\n";
@@ -45,12 +92,19 @@ static int run_file(const std::string& path) {
     std::ostringstream ss;
     ss << file.rdbuf();
 
+    if (disasm) {
+        return run_disasm(ss.str(), path);
+    }
+    if (use_vm) {
+        return run_vm(ss.str());
+    }
+
     Interpreter interpreter;
     return run(ss.str(), interpreter);
 }
 
 static void run_prompt() {
-    std::cout << "Raven 0.1.0 Interactive Shell\n";
+    std::cout << "Raven 0.2.0 Interactive Shell (Tree-Walk & Bytecode VM)\n";
     std::cout << "Type 'exit' or press Ctrl+D to quit.\n";
 
     Interpreter interpreter;
@@ -83,13 +137,27 @@ static void run_prompt() {
 
 int main(int argc, char* argv[]) {
     if (argc > 1) {
-        std::string arg = argv[1];
-        if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: raven [path/to/script.rvn]\n";
-            std::cout << "       raven                (starts REPL)\n";
+        std::string first_arg = argv[1];
+
+        if (first_arg == "--help" || first_arg == "-h") {
+            std::cout << "Raven Programming Language (C++20)\n\n"
+                      << "Usage: raven [options] [script.rvn]\n\n"
+                      << "Options:\n"
+                      << "  --vm       Execute using the Raven Bytecode Virtual Machine\n"
+                      << "  --disasm   Compile and display the Bytecode disassembly\n"
+                      << "  --help, -h Show this help message\n";
             return 0;
         }
-        return raven::run_file(arg);
+
+        if (first_arg == "--disasm" && argc > 2) {
+            return raven::run_file(argv[2], false, true);
+        }
+
+        if (first_arg == "--vm" && argc > 2) {
+            return raven::run_file(argv[2], true, false);
+        }
+
+        return raven::run_file(first_arg);
     }
 
     raven::run_prompt();

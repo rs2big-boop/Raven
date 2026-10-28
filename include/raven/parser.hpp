@@ -40,12 +40,16 @@ private:
     std::shared_ptr<Stmt> print_statement();
     std::shared_ptr<Stmt> if_statement();
     std::shared_ptr<Stmt> while_statement();
+    std::shared_ptr<Stmt> for_in_statement();
+    std::shared_ptr<Stmt> try_catch_statement();
+    std::shared_ptr<Stmt> throw_statement();
     std::shared_ptr<Stmt> return_statement();
     std::shared_ptr<Stmt> block_statement();
     std::shared_ptr<Stmt> expression_statement();
 
     std::unique_ptr<Expr> expression();
     std::unique_ptr<Expr> assignment();
+    std::unique_ptr<Expr> pipeline();
     std::unique_ptr<Expr> logic_or();
     std::unique_ptr<Expr> logic_and();
     std::unique_ptr<Expr> equality();
@@ -53,7 +57,7 @@ private:
     std::unique_ptr<Expr> term();
     std::unique_ptr<Expr> factor();
     std::unique_ptr<Expr> unary();
-    std::unique_ptr<Expr> call();
+    std::unique_ptr<Expr> call_or_index();
     std::unique_ptr<Expr> finish_call(std::unique_ptr<Expr> callee);
     std::unique_ptr<Expr> primary();
 
@@ -63,6 +67,7 @@ private:
     Token advance();
     bool is_at_end() const;
     Token peek() const;
+    Token peek_next() const;
     Token previous() const;
     Token consume(TokenType type, const std::string& message);
     ParseError error(const Token& token, const std::string& message);

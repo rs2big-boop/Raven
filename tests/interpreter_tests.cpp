@@ -1,8 +1,11 @@
 #include <gtest/gtest.h>
 #include <sstream>
+
+#include "raven/compiler.hpp"
+#include "raven/interpreter.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
-#include "raven/interpreter.hpp"
+#include "raven/vm.hpp"
 
 using namespace raven;
 
@@ -16,6 +19,24 @@ static std::string run_code(const std::string& source) {
     std::ostringstream out;
     Interpreter interpreter(out);
     interpreter.interpret(statements);
+
+    return out.str();
+}
+
+static std::string run_vm_code(const std::string& source) {
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+
+    Parser parser(tokens);
+    auto statements = parser.parse();
+
+    Chunk chunk;
+    Compiler compiler(chunk);
+    compiler.compile(statements);
+
+    std::ostringstream out;
+    VM vm(out);
+    vm.run(chunk);
 
     return out.str();
 }
@@ -69,12 +90,6 @@ TEST(InterpreterTest, WhileLoop) {
 }
 
 TEST(InterpreterTest, FunctionsAndRecursion) {
-    std::string source =
-        "fn fib(n) {\n"
-        "    if (n <= 1) {\n"
-        "        return n;\n"
-        "    }\n"
-        "    return fib(n - 1) + fib(n - 2); line\n";
     std::string valid_source =
         "fn fib(n) {\n"
         "    if (n <= 1) {\n"
@@ -85,6 +100,83 @@ TEST(InterpreterTest, FunctionsAndRecursion) {
         "print(fib(7));\n";
 
     EXPECT_EQ(run_code(valid_source), "13\n");
+}
+
+TEST(InterpreterTest, DynamicArrays) {
+    std::string source =
+        "let arr = [10, 20, 30];\n"
+        "push(arr, 40);\n"
+        "print(len(arr));\n"
+        "print(arr[0]);\n"
+        "print(arr[-1]);\n"
+        "arr[1] = 99;\n"
+        "print(arr);\n";
+
+    EXPECT_EQ(run_code(source), "4\n10\n40\n[10, 99, 30, 40]\n");
+}
+
+TEST(InterpreterTest, HashMapsAndObjects) {
+    std::string source =
+        "let user = {\"name\": \"Ran\", \"score\": 100};\n"
+        "print(user.name);\n"
+        "user.score = 150;\n"
+        "print(user[\"score\"]);\n";
+
+    EXPECT_EQ(run_code(source), "Ran\n150\n");
+}
+
+TEST(InterpreterTest, FunctionalPipelineAndLambdas) {
+    std::string source =
+        "let nums = [1, 2, 3, 4, 5];\n"
+        "let double_val = fn(x) { return x * 2; };\n"
+        "let is_even = fn(x) { return x % 2 == 0; };\n"
+        "let evens = filter(nums, is_even);\n"
+        "let doubled = map(evens, double_val);\n"
+        "print(doubled);\n";
+
+    EXPECT_EQ(run_code(source), "[4, 8]\n");
+}
+
+TEST(InterpreterTest, PipelineOperator) {
+    std::string source =
+        "let inc = fn(x) { return x + 10; };\n"
+        "let res = 5 |> inc;\n"
+        "print(res);\n";
+
+    EXPECT_EQ(run_code(source), "15\n");
+}
+
+TEST(InterpreterTest, ForInLoop) {
+    std::string source =
+        "let sum = 0;\n"
+        "for (let x in [10, 20, 30]) {\n"
+        "    sum = sum + x;\n"
+        "}\n"
+        "print(sum);\n";
+
+    EXPECT_EQ(run_code(source), "60\n");
+}
+
+TEST(InterpreterTest, TryCatchAndThrow) {
+    std::string source =
+        "try {\n"
+        "    throw \"Custom failure\";\n"
+        "} catch (err) {\n"
+        "    print(\"Caught: \" + err);\n"
+        "}\n";
+
+    EXPECT_EQ(run_code(source), "Caught: Custom failure\n");
+}
+
+TEST(InterpreterTest, BytecodeVMExecution) {
+    std::string source =
+        "let a = 15;\n"
+        "let b = 25;\n"
+        "print(a + b);\n"
+        "let arr = [1, 2, 3];\n"
+        "print(arr[0] + arr[1]);\n";
+
+    EXPECT_EQ(run_vm_code(source), "40\n3\n");
 }
 
 TEST(InterpreterTest, RuntimeErrorDivisionByZero) {
