@@ -9,7 +9,8 @@ enum class SerializedType : uint8_t {
     Nil = 0,
     Bool = 1,
     Number = 2,
-    String = 3
+    String = 3,
+    BytecodeFunction = 4
 };
 
 template <typename T>
@@ -49,6 +50,20 @@ bool BytecodeSerializer::serialize(const Chunk& chunk, std::ostream& out) {
             uint32_t len = static_cast<uint32_t>(str.size());
             write_raw(out, len);
             out.write(str.data(), len);
+        } else if (val.is_callable()) {
+            auto* fn = dynamic_cast<BytecodeFunction*>(val.as_callable().get());
+            if (fn) {
+                write_raw(out, SerializedType::BytecodeFunction);
+                uint32_t len = static_cast<uint32_t>(fn->name().size());
+                write_raw(out, len);
+                out.write(fn->name().data(), len);
+                int32_t arity = fn->arity();
+                write_raw(out, arity);
+                uint64_t entry_ip = static_cast<uint64_t>(fn->entry_ip());
+                write_raw(out, entry_ip);
+            } else {
+                write_raw(out, SerializedType::Nil);
+            }
         } else {
             // Unserializable complex type -> emit nil
             write_raw(out, SerializedType::Nil);
@@ -120,6 +135,20 @@ bool BytecodeSerializer::deserialize(std::istream& in, Chunk& chunk) {
                 in.read(&str[0], len);
                 if (!in.good()) return false;
                 chunk.constants.push_back(Value(std::move(str)));
+                break;
+            }
+            case SerializedType::BytecodeFunction: {
+                uint32_t len = 0;
+                if (!read_raw(in, len)) return false;
+                std::string fn_name(len, '\0');
+                in.read(&fn_name[0], len);
+                if (!in.good()) return false;
+                int32_t arity = 0;
+                if (!read_raw(in, arity)) return false;
+                uint64_t entry_ip = 0;
+                if (!read_raw(in, entry_ip)) return false;
+                auto fn = std::make_shared<BytecodeFunction>(std::move(fn_name), arity, static_cast<size_t>(entry_ip));
+                chunk.constants.push_back(Value(fn));
                 break;
             }
         }

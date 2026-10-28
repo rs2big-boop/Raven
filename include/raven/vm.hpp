@@ -16,6 +16,11 @@ enum class InterpretResult {
     RuntimeError
 };
 
+struct CallFrame {
+    size_t return_ip;
+    size_t slots;
+};
+
 class VM {
 public:
     explicit VM(std::ostream& out = std::cout);
@@ -32,6 +37,7 @@ private:
     std::ostream& out_;
     std::vector<Value> stack_;
     std::unordered_map<std::string, Value> globals_;
+    std::vector<CallFrame> frames_;
 };
 
 } // namespace raven

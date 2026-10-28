@@ -137,9 +137,52 @@ let result = numbers
 
 ---
 
+## Standard Library & Native Builtins
+
+Raven ships with an extensive, batteries-included standard library:
+
+### Modules
+- **`stdlib/math`** — `PI`, `E`, `abs`, `min`, `max`, `pow`, `factorial`, `clamp`, `deg_to_rad`, `rad_to_deg`, `hypot`, `sum`, `mean`, `variance`, `std_dev`
+- **`stdlib/collections`** — `create_stack()`, `create_queue()`, `create_set()`
+- **`stdlib/iter`** — `zip`, `take`, `drop`, `chunk`, `flatten`, `any`, `all`, `find`, `reversed`
+- **`stdlib/sort`** — `bubble_sort(arr)`, `insertion_sort(arr)`, `min_of_arr(arr)`, `max_of_arr(arr)`
+- **`stdlib/string` & `stdlib/string_utils`** — `repeat`, `pad_left`, `pad_right`, `starts_with`, `ends_with`, `count_occurrences`
+- **`stdlib/os`** — `get_env`, `path_exists`, `run_command`
+- **`stdlib/testing`** — `describe`, `test`, `expect_eq`, `expect_true`, `expect_false`
+
+### Built-in Functions Reference
+| Function | Description |
+|----------|-------------|
+| `print(v)` / `print_err(v)` | Print to stdout / stderr |
+| `input()` | Read line from stdin |
+| `len(v)` | Length of string, array, or map |
+| `type(v)` | Type name as string |
+| `str(v)` / `num(v)` | Type conversion |
+| `abs(x)` / `min(a,b)` / `max(a,b)` | Core arithmetic |
+| `sqrt(x)` / `sin(x)` / `cos(x)` / `tan(x)` | Trigonometry & powers |
+| `floor(x)` / `ceil(x)` / `round(x)` | Rounding |
+| `log(x)` / `exp(x)` | Logarithm & exponentials |
+| `rand()` / `rand_int(min, max)` | PRNG random generators |
+| `range(start, end)` | Numeric sequences |
+| `push(arr, v)` / `pop(arr)` | Dynamic array mutations |
+| `keys(map)` / `values(map)` | Map inspections |
+| `sort_arr(arr)` | In-place native array sort |
+| `map(arr, fn)` / `filter(arr, fn)` / `reduce(arr, fn, init)` | Functional primitives |
+| `split(s, sep)` / `join(arr, sep)` | String manipulation |
+| `contains(container, elem)` | Universal membership check |
+| `to_upper(s)` / `to_lower(s)` / `trim(s)` / `replace(s, from, to)` | String transforms |
+| `char_code(s)` / `char(n)` | ASCII code & character conversions |
+| `to_json(v)` / `parse_json(s)` | High-speed JSON serialization & parsing |
+| `read_file(path)` / `write_file(path, data)` / `file_exists(path)` | Direct filesystem I/O |
+| `time()` / `sleep(ms)` | Epoch clock & thread sleep |
+| `env(var)` / `exec(cmd)` | Environment variables & shell execution |
+| `assert(cond, msg)` | Runtime assertions |
+
+---
+
 ## Building and Testing
 
-Raven includes a comprehensive test suite (43 automated unit & regression tests):
+Raven includes a comprehensive test suite (46 automated unit, regression & VM integration tests):
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release

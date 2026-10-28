@@ -390,3 +390,35 @@ TEST(InterpreterTest, StandardLibraryIterators) {
     interpreter.interpret(stmts);
     EXPECT_EQ(out.str(), "1:a\n2\n3\n");
 }
+
+TEST(InterpreterTest, NativeAbsAndSortBuiltins) {
+    EXPECT_EQ(run_code("print(abs(-5));\n"), "5\n");
+    EXPECT_EQ(run_code("print(abs(3.14));\n"), "3.14\n");
+    EXPECT_EQ(run_code(
+        "let arr = [3, 1, 4, 1, 5, 9, 2, 6];\n"
+        "sort_arr(arr);\n"
+        "print(arr[0]);\n"
+        "print(arr[7]);\n"
+    ), "1\n9\n");
+}
+
+TEST(InterpreterTest, NativeCharBuiltins) {
+    EXPECT_EQ(run_code("print(char_code(\"A\"));\n"), "65\n");
+    EXPECT_EQ(run_code("print(char(65));\n"), "A\n");
+}
+
+TEST(InterpreterTest, StandardLibrarySortAndStringUtils) {
+    std::string source =
+        "import \"stdlib/sort\";\n"
+        "import \"stdlib/string_utils\";\n"
+        "let sorted = bubble_sort([5, 2, 8, 1]);\n"
+        "print(sorted[0]);\n"
+        "print(sorted[3]);\n"
+        "print(min_of_arr(sorted));\n"
+        "print(max_of_arr(sorted));\n"
+        "print(starts_with(\"raven-lang\", \"raven\"));\n"
+        "print(ends_with(\"code.rvn\", \".rvn\"));\n"
+        "print(count_occurrences(\"banana\", \"an\"));\n";
+
+    EXPECT_EQ(run_code(source), "1\n8\n1\n8\ntrue\ntrue\n2\n");
+}

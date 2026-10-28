@@ -10,6 +10,29 @@
 
 namespace raven {
 
+class BytecodeFunction : public Callable {
+public:
+    BytecodeFunction(std::string name, int arity, size_t entry_ip)
+        : name_(std::move(name)), arity_(arity), entry_ip_(entry_ip) {}
+
+    int arity() const override { return arity_; }
+    size_t entry_ip() const { return entry_ip_; }
+    const std::string& name() const { return name_; }
+
+    Value call(Interpreter&, const std::vector<Value>&) override {
+        return Value();
+    }
+
+    std::string to_string() const override {
+        return "<vm fn " + name_ + ">";
+    }
+
+private:
+    std::string name_;
+    int arity_;
+    size_t entry_ip_;
+};
+
 enum class OpCode : uint8_t {
     Constant,
     Nil,
@@ -38,6 +61,8 @@ enum class OpCode : uint8_t {
     DefineGlobal,
     GetGlobal,
     SetGlobal,
+    GetLocal,
+    SetLocal,
 
     JumpIfFalse,
     Jump,
@@ -168,6 +193,18 @@ public:
                 os << std::left << std::setw(18) << "OP_SET_GLOBAL" << " "
                    << static_cast<int>(name_idx) << " ('"
                    << constants[name_idx].to_string() << "')\n";
+                return offset + 2;
+            }
+            case OpCode::GetLocal: {
+                uint8_t slot = code[offset + 1];
+                os << std::left << std::setw(18) << "OP_GET_LOCAL" << " slot "
+                   << static_cast<int>(slot) << "\n";
+                return offset + 2;
+            }
+            case OpCode::SetLocal: {
+                uint8_t slot = code[offset + 1];
+                os << std::left << std::setw(18) << "OP_SET_LOCAL" << " slot "
+                   << static_cast<int>(slot) << "\n";
                 return offset + 2;
             }
             case OpCode::JumpIfFalse: {

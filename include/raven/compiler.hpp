@@ -48,6 +48,11 @@ public:
     void visit(const ReturnStmt& stmt) override;
 
 private:
+    struct Local {
+        Token name;
+        int depth;
+    };
+
     void emit_byte(uint8_t byte, int line = 0);
     void emit_op(OpCode op, int line = 0);
     int emit_jump(OpCode op, int line = 0);
@@ -55,8 +60,12 @@ private:
     void emit_loop(int loop_start, int line = 0);
     uint8_t make_constant(Value value);
 
+    int resolve_local(const Token& name);
+
     Chunk& chunk_;
     int current_line_ = 1;
+    std::vector<Local> locals_;
+    int scope_depth_ = 0;
 };
 
 } // namespace raven

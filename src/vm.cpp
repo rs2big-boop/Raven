@@ -170,6 +170,18 @@ InterpretResult VM::run(const Chunk& chunk) {
                 it->second = peek(0);
                 break;
             }
+            case OpCode::GetLocal: {
+                uint8_t slot = read_byte();
+                size_t base = frames_.empty() ? 0 : frames_.back().slots;
+                push(stack_[base + slot]);
+                break;
+            }
+            case OpCode::SetLocal: {
+                uint8_t slot = read_byte();
+                size_t base = frames_.empty() ? 0 : frames_.back().slots;
+                stack_[base + slot] = peek(0);
+                break;
+            }
             case OpCode::JumpIfFalse: {
                 uint16_t offset = read_short();
                 if (!peek(0).is_truthy()) {
@@ -222,11 +234,49 @@ InterpretResult VM::run(const Chunk& chunk) {
                 break;
             }
             case OpCode::Call: {
-                // Return for now
+                uint8_t arg_count = read_byte();
+                Value callee = peek(arg_count);
+                if (!callee.is_callable()) {
+                    out_ << "Runtime error: can only call functions.\n";
+                    return InterpretResult::RuntimeError;
+                }
+                auto* fn = dynamic_cast<BytecodeFunction*>(callee.as_callable().get());
+                if (fn) {
+                    if (fn->arity() != arg_count) {
+                        out_ << "Runtime error: expected " << fn->arity() << " arguments but got " << static_cast<int>(arg_count) << ".\n";
+                        return InterpretResult::RuntimeError;
+                    }
+                    if (frames_.size() > 1000) {
+                        out_ << "Runtime error: call stack overflow.\n";
+                        return InterpretResult::RuntimeError;
+                    }
+                    CallFrame frame;
+                    frame.return_ip = ip;
+                    frame.slots = stack_.size() - arg_count;
+                    frames_.push_back(frame);
+                    ip = fn->entry_ip();
+                } else {
+                    out_ << "Runtime error: unsupported callable in VM.\n";
+                    return InterpretResult::RuntimeError;
+                }
                 break;
             }
-            case OpCode::Return:
-                return InterpretResult::Ok;
+            case OpCode::Return: {
+                Value result = stack_.empty() ? Value() : pop();
+                if (frames_.empty()) {
+                    return InterpretResult::Ok;
+                }
+                CallFrame frame = frames_.back();
+                frames_.pop_back();
+
+                size_t target_size = frame.slots > 0 ? frame.slots - 1 : 0;
+                while (stack_.size() > target_size) {
+                    stack_.pop_back();
+                }
+                push(result);
+                ip = frame.return_ip;
+                break;
+            }
         }
     }
 

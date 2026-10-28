@@ -1,0 +1,42 @@
+// Raven Standard Library - String Utilities Module
+
+fn starts_with(s, prefix) {
+    if (len(s) < len(prefix)) { return false; }
+    let i = 0;
+    while (i < len(prefix)) {
+        if (s[i] != prefix[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+fn ends_with(s, suffix) {
+    let sl = len(s);
+    let pl = len(suffix);
+    if (sl < pl) { return false; }
+    let i = 0;
+    while (i < pl) {
+        if (s[sl - pl + i] != suffix[i]) { return false; }
+        i = i + 1;
+    }
+    return true;
+}
+
+fn count_occurrences(s, sub) {
+    let count = 0;
+    let i = 0;
+    if (len(sub) == 0) { return 0; }
+    while (i <= len(s) - len(sub)) {
+        let found = true;
+        let j = 0;
+        while (j < len(sub)) {
+            if (s[i + j] != sub[j]) {
+                found = false;
+            }
+            j = j + 1;
+        }
+        if (found) { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}

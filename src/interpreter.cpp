@@ -416,6 +416,10 @@ void Interpreter::register_builtins() {
     });
 
     // Math Native Functions
+    def("abs", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "abs", 0, 0}, "abs() expects a number.");
+        return Value(std::abs(args[0].as_number()));
+    });
     def("min", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
         if (!args[0].is_number() || !args[1].is_number()) {
             throw RuntimeError(Token{TokenType::Identifier, "min", 0, 0}, "min() expects two numbers.");
@@ -592,6 +596,29 @@ void Interpreter::register_builtins() {
         return Value(-1.0);
     });
 
+    def("char_code", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "char_code", 0, 0}, "char_code() expects a string.");
+        const std::string& s = args[0].as_string();
+        if (s.empty()) return Value(0.0);
+        return Value(static_cast<double>(static_cast<unsigned char>(s[0])));
+    });
+
+    def("char", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "char", 0, 0}, "char() expects a number.");
+        int code = static_cast<int>(args[0].as_number());
+        return Value(std::string(1, static_cast<char>(code)));
+    });
+
+    def("sort_arr", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array()) throw RuntimeError(Token{TokenType::Identifier, "sort_arr", 0, 0}, "sort_arr() expects an array.");
+        auto arr = args[0].as_array();
+        std::sort(arr->begin(), arr->end(), [](const Value& a, const Value& b) {
+            if (a.is_number() && b.is_number()) return a.as_number() < b.as_number();
+            return a.to_string() < b.to_string();
+        });
+        return Value(arr);
+    });
+
     // File I/O
     def("read_file", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "read_file", 0, 0}, "read_file() expects path string.");
@@ -639,6 +666,19 @@ void Interpreter::register_builtins() {
         }
         pclose(pipe);
         return Value(result);
+    });
+
+    def("input", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        std::string line;
+        if (std::getline(std::cin, line)) {
+            return Value(line);
+        }
+        return Value("");
+    });
+
+    def("print_err", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::cerr << args[0].to_string() << "\n";
+        return Value();
     });
 
     // JSON Serialization

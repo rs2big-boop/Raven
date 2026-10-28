@@ -94,17 +94,38 @@ void Compiler::visit(const UnaryExpr& expr) {
     }
 }
 
+int Compiler::resolve_local(const Token& name) {
+    for (int i = static_cast<int>(locals_.size()) - 1; i >= 0; --i) {
+        if (locals_[i].name.lexeme == name.lexeme) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void Compiler::visit(const VariableExpr& expr) {
-    uint8_t name = make_constant(Value(expr.name.lexeme));
-    emit_op(OpCode::GetGlobal, expr.name.line);
-    emit_byte(name, expr.name.line);
+    int arg = resolve_local(expr.name);
+    if (arg != -1) {
+        emit_op(OpCode::GetLocal, expr.name.line);
+        emit_byte(static_cast<uint8_t>(arg), expr.name.line);
+    } else {
+        uint8_t name = make_constant(Value(expr.name.lexeme));
+        emit_op(OpCode::GetGlobal, expr.name.line);
+        emit_byte(name, expr.name.line);
+    }
 }
 
 void Compiler::visit(const AssignExpr& expr) {
     expr.value->accept(*this);
-    uint8_t name = make_constant(Value(expr.name.lexeme));
-    emit_op(OpCode::SetGlobal, expr.name.line);
-    emit_byte(name, expr.name.line);
+    int arg = resolve_local(expr.name);
+    if (arg != -1) {
+        emit_op(OpCode::SetLocal, expr.name.line);
+        emit_byte(static_cast<uint8_t>(arg), expr.name.line);
+    } else {
+        uint8_t name = make_constant(Value(expr.name.lexeme));
+        emit_op(OpCode::SetGlobal, expr.name.line);
+        emit_byte(name, expr.name.line);
+    }
 }
 
 void Compiler::visit(const LogicalExpr& expr) {
@@ -187,15 +208,25 @@ void Compiler::visit(const VarDeclStmt& stmt) {
     } else {
         emit_op(OpCode::Nil);
     }
-    uint8_t name = make_constant(Value(stmt.name.lexeme));
-    emit_op(OpCode::DefineGlobal, stmt.name.line);
-    emit_byte(name, stmt.name.line);
+    if (scope_depth_ > 0) {
+        locals_.push_back(Local{stmt.name, scope_depth_});
+    } else {
+        uint8_t name = make_constant(Value(stmt.name.lexeme));
+        emit_op(OpCode::DefineGlobal, stmt.name.line);
+        emit_byte(name, stmt.name.line);
+    }
 }
 
 void Compiler::visit(const BlockStmt& stmt) {
+    scope_depth_++;
     for (const auto& s : stmt.statements) {
-        s->accept(*this);
+        if (s) s->accept(*this);
     }
+    while (!locals_.empty() && locals_.back().depth >= scope_depth_) {
+        emit_op(OpCode::Pop);
+        locals_.pop_back();
+    }
+    scope_depth_--;
 }
 
 void Compiler::visit(const IfStmt& stmt) {
@@ -233,7 +264,38 @@ void Compiler::visit(const ForInStmt& /*stmt*/) {}
 void Compiler::visit(const TryCatchStmt& /*stmt*/) {}
 void Compiler::visit(const ThrowStmt& /*stmt*/) {}
 void Compiler::visit(const ImportStmt& /*stmt*/) {}
-void Compiler::visit(const FunctionStmt& /*stmt*/) {}
+void Compiler::visit(const FunctionStmt& stmt) {
+    int jump_over = emit_jump(OpCode::Jump);
+    size_t entry_ip = chunk_.code.size();
+
+    scope_depth_++;
+    for (const auto& param : stmt.params) {
+        locals_.push_back(Local{param, scope_depth_});
+    }
+
+    for (const auto& s : stmt.body) {
+        if (s) s->accept(*this);
+    }
+
+    emit_op(OpCode::Nil);
+    emit_op(OpCode::Return);
+
+    while (!locals_.empty() && locals_.back().depth >= scope_depth_) {
+        locals_.pop_back();
+    }
+    scope_depth_--;
+
+    patch_jump(jump_over);
+
+    auto fn_obj = std::make_shared<BytecodeFunction>(stmt.name.lexeme, static_cast<int>(stmt.params.size()), entry_ip);
+    uint8_t fn_const = make_constant(Value(fn_obj));
+    emit_op(OpCode::Constant);
+    emit_byte(fn_const);
+
+    uint8_t name_const = make_constant(Value(stmt.name.lexeme));
+    emit_op(OpCode::DefineGlobal);
+    emit_byte(name_const);
+}
 void Compiler::visit(const ReturnStmt& stmt) {
     if (stmt.value) {
         stmt.value->accept(*this);

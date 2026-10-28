@@ -1,0 +1,13 @@
+// Raven Standard Library - OS & System Module
+
+fn get_env(name) {
+    return env(name);
+}
+
+fn path_exists(path) {
+    return file_exists(path);
+}
+
+fn run_command(cmd) {
+    return exec(cmd);
+}
