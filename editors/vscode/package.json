@@ -2,7 +2,7 @@
   "name": "raven-lang",
   "displayName": "Raven Language",
   "description": "Rich language support, LSP, formatter, linter, and runtime tools for the Raven Programming Language (.rvn)",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publisher": "raven-lang",
   "engines": {
     "vscode": "^1.75.0"

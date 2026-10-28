@@ -1,4 +1,49 @@
-// stdlib/sync.rvn - Synchronization primitives (inspired by Go's sync package)
+// stdlib/sync.rvn - Concurrency and synchronization primitives (inspired by Go's sync & CSP channels)
+
+fn go(worker_fn) {
+    return spawn(worker_fn);
+}
+
+fn create_channel(capacity) {
+    if (capacity == nil) { capacity = 0; }
+    let id = chan_create(capacity);
+    let ch = {};
+    ch["send"] = fn(val) { return chan_send(id, val); };
+    ch["recv"] = fn() { return chan_recv(id); };
+    ch["close"] = fn() { return chan_close(id); };
+    ch["len"] = fn() { return chan_len(id); };
+    ch["id"] = id;
+    return ch;
+}
+
+fn create_wait_group() {
+    let counter = 0;
+    let notify_ch = chan_create(100);
+    let obj = {};
+
+    obj["add"] = fn(delta) {
+        counter += delta;
+    };
+
+    obj["done"] = fn() {
+        counter -= 1;
+        if (counter == 0) {
+            chan_send(notify_ch, true);
+        }
+    };
+
+    obj["wait"] = fn() {
+        if (counter > 0) {
+            chan_recv(notify_ch);
+        }
+    };
+
+    obj["count"] = fn() {
+        return counter;
+    };
+
+    return obj;
+}
 
 fn create_mutex() {
     let locked = false;
@@ -31,25 +76,6 @@ fn create_once() {
             executed = true;
             callback();
         }
-    };
-
-    return obj;
-}
-
-fn create_wait_group() {
-    let counter = 0;
-    let obj = {};
-
-    obj["add"] = fn(delta) {
-        counter += delta;
-    };
-
-    obj["done"] = fn() {
-        counter -= 1;
-    };
-
-    obj["count"] = fn() {
-        return counter;
     };
 
     return obj;

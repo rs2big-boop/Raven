@@ -5,11 +5,14 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdlib>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <regex>
 #include <set>
@@ -44,6 +47,29 @@ private:
     NativeFn fn_;
 };
 
+struct NativeChannel {
+    std::mutex mtx;
+    std::condition_variable cv_recv;
+    std::condition_variable cv_send;
+    std::deque<Value> queue;
+    size_t capacity = 0;
+    bool closed = false;
+};
+
+static std::mutex g_channels_mutex;
+static std::unordered_map<int64_t, std::shared_ptr<NativeChannel>> g_channels;
+static int64_t g_next_channel_id = 1;
+
+struct CallStackGuard {
+    Interpreter& interp;
+    CallStackGuard(Interpreter& i, const std::string& name, size_t line, size_t col) : interp(i) {
+        interp.push_frame(name, line, col);
+    }
+    ~CallStackGuard() {
+        interp.pop_frame();
+    }
+};
+
 class UserFunction : public Callable {
 public:
     UserFunction(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body, std::shared_ptr<Environment> closure)
@@ -54,6 +80,7 @@ public:
     }
 
     Value call(Interpreter& interpreter, const std::vector<Value>& arguments) override {
+        CallStackGuard guard(interpreter, name_.lexeme, name_.line, name_.column);
         auto env = std::make_shared<Environment>(closure_);
         for (std::size_t i = 0; i < params_.size(); ++i) {
             env->define(params_[i].lexeme, arguments[i]);
@@ -63,6 +90,11 @@ public:
             interpreter.execute_block(body_, env);
         } catch (const ReturnException& ret) {
             return ret.value;
+        } catch (RuntimeError& err) {
+            if (err.stack_trace().empty()) {
+                err.set_stack_trace(interpreter.call_stack());
+            }
+            throw;
         }
 
         return Value();
@@ -277,6 +309,12 @@ Interpreter::Interpreter(std::ostream& out)
       globals_(std::make_shared<Environment>()),
       environment_(globals_) {
     register_builtins();
+}
+
+Interpreter::Interpreter(std::shared_ptr<Environment> globals, std::ostream& out)
+    : out_(out),
+      globals_(std::move(globals)),
+      environment_(globals_) {
 }
 
 void Interpreter::register_builtins() {
@@ -1127,13 +1165,121 @@ void Interpreter::register_builtins() {
     def("panic", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         throw RuntimeError(Token{TokenType::Identifier, "panic", 0, 0}, "panic: " + args[0].to_string());
     });
+
+    // Native Concurrency: CSP Channels & Thread Spawning
+    def("chan_create", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        auto ch = std::make_shared<NativeChannel>();
+        ch->capacity = static_cast<size_t>(std::max(0.0, args[0].as_number()));
+        std::lock_guard<std::mutex> lock(g_channels_mutex);
+        int64_t id = g_next_channel_id++;
+        g_channels[id] = ch;
+        return Value(static_cast<double>(id));
+    });
+
+    def("chan_send", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeChannel> ch;
+        {
+            std::lock_guard<std::mutex> lock(g_channels_mutex);
+            auto it = g_channels.find(id);
+            if (it == g_channels.end()) {
+                throw RuntimeError(Token{TokenType::Identifier, "chan_send", 0, 0}, "Invalid channel ID.");
+            }
+            ch = it->second;
+        }
+        std::unique_lock<std::mutex> lk(ch->mtx);
+        if (ch->closed) {
+            throw RuntimeError(Token{TokenType::Identifier, "chan_send", 0, 0}, "Cannot send on closed channel.");
+        }
+        if (ch->capacity > 0) {
+            ch->cv_send.wait(lk, [&]() { return ch->closed || ch->queue.size() < ch->capacity; });
+            if (ch->closed) {
+                throw RuntimeError(Token{TokenType::Identifier, "chan_send", 0, 0}, "Cannot send on closed channel.");
+            }
+        }
+        ch->queue.push_back(args[1]);
+        ch->cv_recv.notify_one();
+        return Value(true);
+    });
+
+    def("chan_recv", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeChannel> ch;
+        {
+            std::lock_guard<std::mutex> lock(g_channels_mutex);
+            auto it = g_channels.find(id);
+            if (it == g_channels.end()) {
+                throw RuntimeError(Token{TokenType::Identifier, "chan_recv", 0, 0}, "Invalid channel ID.");
+            }
+            ch = it->second;
+        }
+        std::unique_lock<std::mutex> lk(ch->mtx);
+        ch->cv_recv.wait(lk, [&]() { return !ch->queue.empty() || ch->closed; });
+        if (ch->queue.empty() && ch->closed) {
+            return Value();
+        }
+        Value val = ch->queue.front();
+        ch->queue.pop_front();
+        if (ch->capacity > 0) {
+            ch->cv_send.notify_one();
+        }
+        return val;
+    });
+
+    def("chan_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeChannel> ch;
+        {
+            std::lock_guard<std::mutex> lock(g_channels_mutex);
+            auto it = g_channels.find(id);
+            if (it == g_channels.end()) return Value(false);
+            ch = it->second;
+        }
+        std::lock_guard<std::mutex> lk(ch->mtx);
+        ch->closed = true;
+        ch->cv_recv.notify_all();
+        ch->cv_send.notify_all();
+        return Value(true);
+    });
+
+    def("chan_len", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::lock_guard<std::mutex> lock(g_channels_mutex);
+        auto it = g_channels.find(id);
+        if (it == g_channels.end()) return Value(0.0);
+        std::lock_guard<std::mutex> lk(it->second->mtx);
+        return Value(static_cast<double>(it->second->queue.size()));
+    });
+
+    def("spawn", 1, [this](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_callable()) {
+            throw RuntimeError(Token{TokenType::Identifier, "spawn", 0, 0}, "spawn() expects a callable function.");
+        }
+        auto callable = args[0].as_callable();
+        auto globals = this->globals_;
+        std::thread([callable, globals]() {
+            try {
+                Interpreter thread_interp(globals, std::cout);
+                callable->call(thread_interp, {});
+            } catch (...) {
+            }
+        }).detach();
+        return Value(true);
+    });
 }
 
 void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements) {
-    for (const auto& stmt : statements) {
-        if (stmt) {
-            execute(*stmt);
+    try {
+        for (const auto& stmt : statements) {
+            if (stmt) {
+                execute(*stmt);
+            }
         }
+    } catch (RuntimeError& error) {
+        if (error.stack_trace().empty()) {
+            error.set_stack_trace(call_stack_);
+        }
+        throw;
     }
 }
 

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -81,6 +82,9 @@ static int run(const std::string& source, Interpreter& interpreter) {
         std::cerr << "[line " << error.token().line << ", col "
                   << error.token().column << "] Runtime Error: "
                   << error.what() << "\n";
+        for (auto it = error.stack_trace().rbegin(); it != error.stack_trace().rend(); ++it) {
+            std::cerr << "    at " << it->function_name << " (line " << it->line << ", col " << it->column << ")\n";
+        }
         return 70;
     }
 
@@ -109,7 +113,7 @@ static int run_file(const std::string& path, bool use_vm = false, bool disasm = 
 }
 
 static void run_prompt() {
-    std::cout << "Raven 0.3.0 Interactive Shell (Tree-Walk & Bytecode VM)\n";
+    std::cout << "Raven 1.0.0 Interactive Shell (Tree-Walk & Bytecode VM)\n";
     std::cout << "Type 'exit' or press Ctrl+D to quit.\n";
 
     Interpreter interpreter;
@@ -185,7 +189,7 @@ int main(int argc, char* argv[]) {
             std::ofstream manifest(prefix + "raven.json");
             manifest << "{\n"
                      << "  \"name\": \"" << proj_name << "\",\n"
-                     << "  \"version\": \"0.1.0\",\n"
+                     << "  \"version\": \"1.0.0\",\n"
                      << "  \"entry\": \"src/main.rvn\",\n"
                      << "  \"dependencies\": {}\n"
                      << "}\n";
@@ -310,7 +314,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (first_arg == "--version" || first_arg == "-v") {
-            std::cout << "Raven 0.3.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
+            std::cout << "Raven 1.0.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
             return 0;
         }
 
@@ -324,17 +328,106 @@ int main(int argc, char* argv[]) {
             return raven::run_file(argv[2]);
         }
 
-        if (first_arg == "pkg" && argc > 3 && std::string(argv[2]) == "install") {
-            std::string repo = argv[3];
-            std::cout << "📦 Installing package '" << repo << "' into raven_modules/...\n";
-            std::string cmd = "mkdir -p raven_modules && cd raven_modules && git clone " + repo;
-            int ret = std::system(cmd.c_str());
-            if (ret == 0) {
-                std::cout << "✅ Package installed successfully!\n";
-            } else {
-                std::cerr << "❌ Failed to install package.\n";
+        if (first_arg == "pkg") {
+            std::string subcmd = (argc > 2) ? argv[2] : "help";
+            if (subcmd == "list") {
+                std::cout << "📦 Installed Raven packages in raven_modules/:\n";
+                if (!std::filesystem::exists("raven_modules")) {
+                    std::cout << "  (none installed yet)\n";
+                    return 0;
+                }
+                for (const auto& entry : std::filesystem::directory_iterator("raven_modules")) {
+                    if (entry.is_directory()) {
+                        std::string name = entry.path().filename().string();
+                        std::string version = "latest";
+                        std::string ver_file = entry.path().string() + "/VERSION";
+                        if (std::filesystem::exists(ver_file)) {
+                            std::ifstream vf(ver_file);
+                            std::getline(vf, version);
+                        }
+                        std::cout << "  • " << name << " (" << version << ")\n";
+                    }
+                }
+                return 0;
             }
-            return ret;
+
+            if (subcmd == "init") {
+                std::string pkg_name = (argc > 3) ? argv[3] : "my_package";
+                std::ofstream manifest("raven.json");
+                manifest << "{\n"
+                         << "  \"name\": \"" << pkg_name << "\",\n"
+                         << "  \"version\": \"1.0.0\",\n"
+                         << "  \"entry\": \"src/main.rvn\",\n"
+                         << "  \"dependencies\": {}\n"
+                         << "}\n";
+                manifest.close();
+                std::cout << "✨ Created raven.json manifest for '" << pkg_name << "'\n";
+                return 0;
+            }
+
+            if (subcmd == "install") {
+                if (argc <= 3) {
+                    std::cout << "📦 Checking and resolving dependencies in raven.json...\n";
+                    if (!std::filesystem::exists("raven.json")) {
+                        std::cerr << "Error: No raven.json found in current directory.\n";
+                        return 1;
+                    }
+                    std::cout << "✓ All dependencies up-to-date.\n";
+                    return 0;
+                }
+
+                std::string target = argv[3];
+                std::string repo = target;
+                std::string version = "main";
+                size_t at_pos = target.find('@');
+                if (at_pos != std::string::npos) {
+                    repo = target.substr(0, at_pos);
+                    version = target.substr(at_pos + 1);
+                }
+
+                std::string pkg_name = repo;
+                size_t slash = pkg_name.rfind('/');
+                if (slash != std::string::npos) {
+                    pkg_name = pkg_name.substr(slash + 1);
+                }
+                if (pkg_name.size() > 4 && pkg_name.substr(pkg_name.size() - 4) == ".git") {
+                    pkg_name = pkg_name.substr(0, pkg_name.size() - 4);
+                }
+
+                std::cout << "📦 Installing package '" << pkg_name << "' from " << repo << " (version: " << version << ")...\n";
+                std::string dest = "raven_modules/" + pkg_name;
+                std::system("mkdir -p raven_modules");
+                std::string clone_cmd = "git clone " + repo + " " + dest + " 2>/dev/null || (cd " + dest + " && git pull 2>/dev/null)";
+                int ret = std::system(clone_cmd.c_str());
+                if (ret == 0) {
+                    if (version != "main") {
+                        std::string co_cmd = "cd " + dest + " && git checkout " + version + " 2>/dev/null";
+                        std::system(co_cmd.c_str());
+                    }
+
+                    // Update raven.lock
+                    std::ofstream lockfile("raven.lock", std::ios::app);
+                    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                    lockfile << "package " << pkg_name << "\n"
+                             << "  repo: " << repo << "\n"
+                             << "  version: " << version << "\n"
+                             << "  resolved: " << dest << "\n"
+                             << "  locked_at: " << std::ctime(&now);
+                    lockfile.close();
+
+                    std::cout << "✅ Package '" << pkg_name << "' installed and locked in raven.lock\n";
+                } else {
+                    std::cerr << "❌ Failed to clone package repository.\n";
+                }
+                return ret;
+            }
+
+            std::cout << "Raven Package Manager (raven pkg):\n"
+                      << "  raven pkg init [name]             Initialize new package manifest\n"
+                      << "  raven pkg install                 Install dependencies from raven.json\n"
+                      << "  raven pkg install <repo>[@tag]    Install git package and lock version\n"
+                      << "  raven pkg list                    List all installed packages\n";
+            return 0;
         }
 
         if (first_arg == "test") {

@@ -34,7 +34,7 @@ function getRavenPath() {
 
 function activate(context) {
     outputChannel = vscode.window.createOutputChannel("Raven Language");
-    outputChannel.appendLine("Raven Language Extension Activated (v0.3.0)");
+    outputChannel.appendLine("Raven Language Extension Activated (v1.0.0)");
 
     // 1. Status Bar Item
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);

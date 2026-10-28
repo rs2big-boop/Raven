@@ -25,6 +25,7 @@ struct ContinueException {};
 class Interpreter : public ExprVisitor<Value>, public StmtVisitor<void> {
 public:
     explicit Interpreter(std::ostream& out = std::cout);
+    Interpreter(std::shared_ptr<Environment> globals, std::ostream& out);
 
     void interpret(const std::vector<std::shared_ptr<Stmt>>& statements);
     void execute(const Stmt& stmt);
@@ -34,6 +35,19 @@ public:
 
     std::shared_ptr<Environment> globals() const { return globals_; }
     std::ostream& out() { return out_; }
+
+    const std::vector<StackFrame>& call_stack() const { return call_stack_; }
+    std::vector<StackFrame>& call_stack() { return call_stack_; }
+
+    void push_frame(const std::string& name, size_t line, size_t col) {
+        call_stack_.push_back(StackFrame{name, line, col});
+    }
+
+    void pop_frame() {
+        if (!call_stack_.empty()) {
+            call_stack_.pop_back();
+        }
+    }
 
     // ExprVisitor overrides
     Value visit(const BinaryExpr& expr) override;
@@ -80,6 +94,7 @@ private:
     std::shared_ptr<Environment> globals_;
     std::shared_ptr<Environment> environment_;
     std::unordered_set<std::string> imported_modules_;
+    std::vector<StackFrame> call_stack_;
 };
 
 } // namespace raven

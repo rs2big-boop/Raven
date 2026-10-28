@@ -7,3 +7,6 @@ bin/
 .idea/
 compile_commands.json
 *.rvc
+dist/
+raven_modules/
+raven.lock

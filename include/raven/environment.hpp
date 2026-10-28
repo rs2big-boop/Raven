@@ -10,15 +10,24 @@
 
 namespace raven {
 
+struct StackFrame {
+    std::string function_name;
+    size_t line = 0;
+    size_t column = 0;
+};
+
 class RuntimeError : public std::runtime_error {
 public:
-    RuntimeError(Token token, const std::string& message)
-        : std::runtime_error(message), token_(std::move(token)) {}
+    RuntimeError(Token token, const std::string& message, std::vector<StackFrame> stack_trace = {})
+        : std::runtime_error(message), token_(std::move(token)), stack_trace_(std::move(stack_trace)) {}
 
     const Token& token() const { return token_; }
+    const std::vector<StackFrame>& stack_trace() const { return stack_trace_; }
+    void set_stack_trace(std::vector<StackFrame> trace) { stack_trace_ = std::move(trace); }
 
 private:
     Token token_;
+    std::vector<StackFrame> stack_trace_;
 };
 
 class Environment : public std::enable_shared_from_this<Environment> {

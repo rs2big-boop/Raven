@@ -14,7 +14,7 @@ import "stdlib/regexp";
 println("=== Raven Modern Go-like Standard Library Showcase ===");
 
 // 1. Strings & Formatting
-let title = str_title("raven programming language v0.3.0");
+let title = str_title("raven programming language v1.0.0");
 println(sprintf("Title: {}", title, nil, nil));
 println(sprintf("Repeated: {}", str_repeat("Go+", 3), nil, nil));
 
@@ -30,7 +30,7 @@ println(sprintf("Sum: {}", slices_sum(data), nil, nil));
 
 // 4. Maps
 let m1 = {"name": "Raven", "target": "Go-level stdlib"};
-let m2 = {"version": "0.3.0", "status": "production"};
+let m2 = {"version": "1.0.0", "status": "production"};
 let merged = map_merge(m1, m2);
 println(sprintf("Merged map keys: {}", to_json(map_keys_list(merged)), nil, nil));
 

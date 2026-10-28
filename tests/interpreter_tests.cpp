@@ -587,3 +587,56 @@ TEST(InterpreterTest, GoEcosystemModules) {
         "test_val\n"
         "data\n");
 }
+
+TEST(InterpreterTest, NativeConcurrencyAndChannels) {
+    std::string source =
+        "let ch = chan_create(2);\n"
+        "chan_send(ch, 100);\n"
+        "chan_send(ch, 200);\n"
+        "print(chan_len(ch));\n"
+        "print(chan_recv(ch));\n"
+        "print(chan_recv(ch));\n"
+        "chan_close(ch);\n"
+        "\n"
+        "import \"stdlib/sync\";\n"
+        "let sc = create_channel(1);\n"
+        "go(fn() { sc.send(\"from_go\"); });\n"
+        "print(sc.recv());\n"
+        "\n"
+        "let wg = create_wait_group();\n"
+        "wg.add(2);\n"
+        "go(fn() { wg.done(); });\n"
+        "go(fn() { wg.done(); });\n"
+        "wg.wait();\n"
+        "print(\"wg_ok\");\n";
+
+    EXPECT_EQ(run_code(source),
+        "2\n"
+        "100\n"
+        "200\n"
+        "from_go\n"
+        "wg_ok\n");
+}
+
+TEST(InterpreterTest, CallStackTraceVerification) {
+    std::string source =
+        "fn func_c() { return 10 / 0; }\n"
+        "fn func_b() { func_c(); }\n"
+        "fn func_a() { func_b(); }\n"
+        "func_a();\n";
+
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto stmts = parser.parse();
+    Interpreter interp;
+
+    try {
+        interp.interpret(stmts);
+        FAIL() << "Expected RuntimeError";
+    } catch (const RuntimeError& err) {
+        EXPECT_EQ(err.what(), std::string("Division by zero."));
+        EXPECT_GE(err.stack_trace().size(), 3UL);
+        EXPECT_EQ(err.stack_trace().back().function_name, "func_c");
+    }
+}
