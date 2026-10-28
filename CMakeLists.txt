@@ -20,6 +20,9 @@ add_library(raven_core
     src/optimizer.cpp
     src/bytecode_serializer.cpp
     src/vm.cpp
+    src/linter.cpp
+    src/formatter.cpp
+    src/doc_generator.cpp
 )
 
 target_include_directories(raven_core PUBLIC

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -8,6 +9,9 @@
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
 #include "raven/vm.hpp"
+#include "raven/linter.hpp"
+#include "raven/formatter.hpp"
+#include "raven/doc_generator.hpp"
 
 namespace raven {
 
@@ -144,7 +148,11 @@ int main(int argc, char* argv[]) {
                       << "Usage: raven [command|options] [arguments]\n\n"
                       << "Commands:\n"
                       << "  run <file.rvn>          Execute a Raven script file\n"
-                      << "  test                    Execute all test scripts in tests/ directory\n"
+                      << "  fmt <file.rvn> [-w]     Format Raven source code (like gofmt)\n"
+                      << "  vet <file.rvn>          Static analysis & linting (like go vet)\n"
+                      << "  doc <file.rvn>          Generate Markdown documentation (like godoc)\n"
+                      << "  bench <file.rvn>        Benchmark script execution time and memory\n"
+                      << "  test                    Execute test suite with ctest\n"
                       << "  pkg install <repo-url>  Clone/install a package into raven_modules/\n\n"
                       << "Options:\n"
                       << "  -e, -c <code>           Execute inline Raven code\n"
@@ -152,6 +160,100 @@ int main(int argc, char* argv[]) {
                       << "  --disasm <file.rvn>     Compile and display the Bytecode disassembly\n"
                       << "  --version, -v           Print Raven version\n"
                       << "  --help, -h              Show this help message\n";
+            return 0;
+        }
+
+        if (first_arg == "fmt" && argc > 2) {
+            std::string path = argv[2];
+            bool in_place = (argc > 3 && std::string(argv[3]) == "-w");
+            std::ifstream file(path);
+            if (!file.is_open()) {
+                std::cerr << "Error: Could not open file: " << path << "\n";
+                return 1;
+            }
+            std::stringstream buf;
+            buf << file.rdbuf();
+            file.close();
+
+            std::string formatted = raven::Formatter::format(buf.str());
+            if (in_place) {
+                std::ofstream out(path);
+                out << formatted;
+                std::cout << "Formatted " << path << "\n";
+            } else {
+                std::cout << formatted;
+            }
+            return 0;
+        }
+
+        if ((first_arg == "vet" || first_arg == "lint") && argc > 2) {
+            std::string path = argv[2];
+            std::ifstream file(path);
+            if (!file.is_open()) {
+                std::cerr << "Error: Could not open file: " << path << "\n";
+                return 1;
+            }
+            std::stringstream buf;
+            buf << file.rdbuf();
+
+            raven::Lexer lexer(buf.str());
+            raven::Parser parser(lexer.tokenize());
+            auto stmts = parser.parse();
+            if (parser.has_error()) {
+                for (const auto& err : parser.errors()) {
+                    std::cerr << err << "\n";
+                }
+                return 65;
+            }
+
+            raven::Linter linter;
+            auto issues = linter.analyze(stmts);
+            if (issues.empty()) {
+                std::cout << "✓ No lint issues found in " << path << ".\n";
+                return 0;
+            }
+            for (const auto& issue : issues) {
+                std::cout << issue.to_string() << "\n";
+            }
+            return 0;
+        }
+
+        if (first_arg == "doc" && argc > 2) {
+            std::string path = argv[2];
+            std::ifstream file(path);
+            if (!file.is_open()) {
+                std::cerr << "Error: Could not open file: " << path << "\n";
+                return 1;
+            }
+            std::stringstream buf;
+            buf << file.rdbuf();
+
+            auto items = raven::DocGenerator::extract(buf.str());
+            std::cout << raven::DocGenerator::to_markdown(path, items);
+            return 0;
+        }
+
+        if (first_arg == "bench" && argc > 2) {
+            std::string path = argv[2];
+            std::ifstream file(path);
+            if (!file.is_open()) {
+                std::cerr << "Error: Could not open file: " << path << "\n";
+                return 1;
+            }
+            std::stringstream buf;
+            buf << file.rdbuf();
+            std::string source = buf.str();
+
+            std::cout << "⚡ Benchmarking " << path << " ...\n";
+
+            auto start = std::chrono::high_resolution_clock::now();
+            raven::Interpreter interp;
+            raven::run(source, interp);
+            auto end = std::chrono::high_resolution_clock::now();
+
+            auto us = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            double ms = us / 1000.0;
+            std::cout << "\n[Benchmark Result] Elapsed Time: " << ms << " ms (" << us << " µs)\n";
             return 0;
         }
 

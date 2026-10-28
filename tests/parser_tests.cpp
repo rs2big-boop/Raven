@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
+#include "raven/linter.hpp"
+#include "raven/formatter.hpp"
+#include "raven/doc_generator.hpp"
 
 using namespace raven;
 
@@ -221,4 +224,49 @@ TEST(ParserTest, ImportStatement) {
     auto import_stmt = dynamic_cast<ImportStmt*>(stmts[0].get());
     ASSERT_NE(import_stmt, nullptr);
     EXPECT_EQ(import_stmt->module_path, "stdlib/math");
+}
+
+TEST(ParserTest, LinterDetectsUnusedVariables) {
+    Lexer lexer("let unused_val = 100; let used_val = 50; print(used_val);");
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    Linter linter;
+    auto issues = linter.analyze(stmts);
+    ASSERT_EQ(issues.size(), 1);
+    EXPECT_EQ(issues[0].severity, LintSeverity::Warning);
+    EXPECT_NE(issues[0].message.find("unused_val"), std::string::npos);
+}
+
+TEST(ParserTest, FormatterIndentation) {
+    std::string unformatted =
+        "fn calculate(a, b) {\n"
+        "let res = a + b;\n"
+        "return res;\n"
+        "}\n";
+
+    std::string formatted = Formatter::format(unformatted);
+    EXPECT_EQ(formatted,
+        "fn calculate(a, b) {\n"
+        "    let res = a + b;\n"
+        "    return res;\n"
+        "}\n");
+}
+
+TEST(ParserTest, DocGeneratorExtraction) {
+    std::string source =
+        "// Adds two numbers together\n"
+        "fn add(x, y) {\n"
+        "    return x + y;\n"
+        "}\n";
+
+    auto items = DocGenerator::extract(source);
+    ASSERT_EQ(items.size(), 1);
+    EXPECT_EQ(items[0].name, "add");
+    EXPECT_EQ(items[0].params.size(), 2);
+    EXPECT_EQ(items[0].comment, "Adds two numbers together");
+
+    std::string md = DocGenerator::to_markdown("math", items);
+    EXPECT_NE(md.find("Module `math`"), std::string::npos);
+    EXPECT_NE(md.find("fn add(x, y)"), std::string::npos);
 }
