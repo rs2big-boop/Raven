@@ -27,6 +27,7 @@ class PropertyExpr;
 class PropertyAssignExpr;
 class LambdaExpr;
 class PipelineExpr;
+class MatchExpr;
 
 template <typename R>
 class ExprVisitor {
@@ -48,6 +49,7 @@ public:
     virtual R visit(const PropertyAssignExpr& expr) = 0;
     virtual R visit(const LambdaExpr& expr) = 0;
     virtual R visit(const PipelineExpr& expr) = 0;
+    virtual R visit(const MatchExpr& expr) = 0;
 };
 
 class Expr {
@@ -266,6 +268,25 @@ public:
     std::unique_ptr<Expr> right;
 };
 
+struct MatchArm {
+    std::unique_ptr<Expr> pattern;
+    bool is_wildcard = false;
+    std::unique_ptr<Expr> body;
+};
+
+class MatchExpr : public Expr {
+public:
+    MatchExpr(std::unique_ptr<Expr> value, std::vector<MatchArm> arms)
+        : value(std::move(value)), arms(std::move(arms)) {}
+
+    Value accept(ExprVisitor<Value>& visitor) const override { return visitor.visit(*this); }
+    std::string accept(ExprVisitor<std::string>& visitor) const override { return visitor.visit(*this); }
+    void accept(ExprVisitor<void>& visitor) const override { visitor.visit(*this); }
+
+    std::unique_ptr<Expr> value;
+    std::vector<MatchArm> arms;
+};
+
 // Forward declarations of Statements
 class ExpressionStmt;
 class PrintStmt;
@@ -276,6 +297,7 @@ class WhileStmt;
 class ForInStmt;
 class TryCatchStmt;
 class ThrowStmt;
+class ImportStmt;
 class FunctionStmt;
 class ReturnStmt;
 
@@ -292,6 +314,7 @@ public:
     virtual R visit(const ForInStmt& stmt) = 0;
     virtual R visit(const TryCatchStmt& stmt) = 0;
     virtual R visit(const ThrowStmt& stmt) = 0;
+    virtual R visit(const ImportStmt& stmt) = 0;
     virtual R visit(const FunctionStmt& stmt) = 0;
     virtual R visit(const ReturnStmt& stmt) = 0;
 };
@@ -403,6 +426,17 @@ public:
 
     Token keyword;
     std::unique_ptr<Expr> value;
+};
+
+class ImportStmt : public Stmt {
+public:
+    ImportStmt(Token keyword, std::string module_path)
+        : keyword(std::move(keyword)), module_path(std::move(module_path)) {}
+
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+
+    Token keyword;
+    std::string module_path;
 };
 
 class FunctionStmt : public Stmt {

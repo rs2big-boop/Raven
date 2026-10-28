@@ -10,12 +10,14 @@ program        -> declaration* EOF ;
 
 declaration    -> funDecl
                 | varDecl
+                | importStmt
                 | statement ;
 
 funDecl        -> "fn" IDENTIFIER "(" parameters? ")" block ;
 parameters     -> IDENTIFIER ( "," IDENTIFIER )* ;
 
 varDecl        -> "let" IDENTIFIER ( "=" expression )? ";" ;
+importStmt     -> "import" ( STRING | IDENTIFIER ) ";" ;
 
 statement      -> exprStmt
                 | printStmt
@@ -24,6 +26,7 @@ statement      -> exprStmt
                 | forInStmt
                 | tryCatchStmt
                 | throwStmt
+                | importStmt
                 | returnStmt
                 | block ;
 
@@ -57,7 +60,10 @@ primary        -> NUMBER | STRING | "true" | "false"
                 | "[" ( expression ( "," expression )* )? "]"
                 | "{" ( expression ":" expression ( "," expression ":" expression )* )? "}"
                 | "fn" "(" parameters? ")" block
+                | "match" "("? expression ")"? "{" matchArm* "}"
                 | "(" expression ")" ;
+
+matchArm       -> ( expression | "_" ) "=>" expression ( "," | ";" )? ;
 ```
 
 ## Data Types

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "raven/ast.hpp"
@@ -48,6 +49,7 @@ public:
     Value visit(const PropertyAssignExpr& expr) override;
     Value visit(const LambdaExpr& expr) override;
     Value visit(const PipelineExpr& expr) override;
+    Value visit(const MatchExpr& expr) override;
 
     // StmtVisitor overrides
     void visit(const ExpressionStmt& stmt) override;
@@ -59,6 +61,7 @@ public:
     void visit(const ForInStmt& stmt) override;
     void visit(const TryCatchStmt& stmt) override;
     void visit(const ThrowStmt& stmt) override;
+    void visit(const ImportStmt& stmt) override;
     void visit(const FunctionStmt& stmt) override;
     void visit(const ReturnStmt& stmt) override;
 
@@ -70,6 +73,7 @@ private:
     std::ostream& out_;
     std::shared_ptr<Environment> globals_;
     std::shared_ptr<Environment> environment_;
+    std::unordered_set<std::string> imported_modules_;
 };
 
 } // namespace raven

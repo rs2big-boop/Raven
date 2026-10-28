@@ -112,6 +112,7 @@ Token Lexer::scan_identifier_or_keyword() {
         {"catch", TokenType::Catch},
         {"throw", TokenType::Throw},
         {"match", TokenType::Match},
+        {"import", TokenType::Import},
         {"print", TokenType::Print},
         {"fn", TokenType::Fn},
         {"return", TokenType::Return},

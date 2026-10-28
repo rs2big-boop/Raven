@@ -35,6 +35,9 @@ std::shared_ptr<Stmt> Parser::declaration() {
     if (match({TokenType::Let})) {
         return var_declaration();
     }
+    if (match({TokenType::Import})) {
+        return import_statement();
+    }
     return statement();
 }
 
@@ -90,6 +93,9 @@ std::shared_ptr<Stmt> Parser::statement() {
     }
     if (match({TokenType::Throw})) {
         return throw_statement();
+    }
+    if (match({TokenType::Import})) {
+        return import_statement();
     }
     if (match({TokenType::Return})) {
         return return_statement();
@@ -163,6 +169,20 @@ std::shared_ptr<Stmt> Parser::throw_statement() {
     auto value = expression();
     consume(TokenType::Semicolon, "Expected ';' after throw expression.");
     return std::make_shared<ThrowStmt>(std::move(keyword), std::move(value));
+}
+
+std::shared_ptr<Stmt> Parser::import_statement() {
+    Token keyword = previous();
+    std::string path;
+    if (match({TokenType::String})) {
+        path = previous().lexeme;
+    } else if (match({TokenType::Identifier})) {
+        path = previous().lexeme;
+    } else {
+        throw error(peek(), "Expected module path (string or identifier) after 'import'.");
+    }
+    consume(TokenType::Semicolon, "Expected ';' after import statement.");
+    return std::make_shared<ImportStmt>(std::move(keyword), std::move(path));
 }
 
 std::shared_ptr<Stmt> Parser::return_statement() {
@@ -418,6 +438,36 @@ std::unique_ptr<Expr> Parser::primary() {
         }
         consume(TokenType::RightBrace, "Expected '}' after function body.");
         return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body));
+    }
+
+    // Match expression: match (expr) { pattern => body, _ => default }
+    if (match({TokenType::Match})) {
+        std::unique_ptr<Expr> target;
+        if (match({TokenType::LeftParen})) {
+            target = expression();
+            consume(TokenType::RightParen, "Expected ')' after match target.");
+        } else {
+            target = expression();
+        }
+
+        consume(TokenType::LeftBrace, "Expected '{' before match arms.");
+        std::vector<MatchArm> arms;
+        while (!check(TokenType::RightBrace) && !is_at_end()) {
+            MatchArm arm;
+            if (check(TokenType::Identifier) && peek().lexeme == "_") {
+                advance();
+                arm.is_wildcard = true;
+            } else {
+                arm.pattern = expression();
+            }
+            consume(TokenType::Arrow, "Expected '=>' after match pattern.");
+            arm.body = expression();
+            arms.push_back(std::move(arm));
+
+            match({TokenType::Comma, TokenType::Semicolon});
+        }
+        consume(TokenType::RightBrace, "Expected '}' after match arms.");
+        return std::make_unique<MatchExpr>(std::move(target), std::move(arms));
     }
 
     if (match({TokenType::LeftParen})) {

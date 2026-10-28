@@ -1,7 +1,12 @@
 #include "raven/interpreter.hpp"
 
 #include <chrono>
+#include <fstream>
 #include <functional>
+#include <sstream>
+
+#include "raven/lexer.hpp"
+#include "raven/parser.hpp"
 
 namespace raven {
 
@@ -510,6 +515,20 @@ Value Interpreter::visit(const PipelineExpr& expr) {
     return right.as_callable()->call(*this, {left});
 }
 
+Value Interpreter::visit(const MatchExpr& expr) {
+    Value target = evaluate(*expr.value);
+    for (const auto& arm : expr.arms) {
+        if (arm.is_wildcard) {
+            return evaluate(*arm.body);
+        }
+        Value pattern_val = evaluate(*arm.pattern);
+        if (target == pattern_val) {
+            return evaluate(*arm.body);
+        }
+    }
+    return Value();
+}
+
 void Interpreter::visit(const ExpressionStmt& stmt) {
     evaluate(*stmt.expression);
 }
@@ -584,6 +603,70 @@ void Interpreter::visit(const TryCatchStmt& stmt) {
 void Interpreter::visit(const ThrowStmt& stmt) {
     Value val = evaluate(*stmt.value);
     throw UserException{val};
+}
+
+void Interpreter::visit(const ImportStmt& stmt) {
+    std::string path = stmt.module_path;
+    std::vector<std::string> candidates = {
+        path,
+        path + ".rvn",
+        "../" + path,
+        "../" + path + ".rvn",
+        "stdlib/" + path + ".rvn",
+        "stdlib/" + path,
+        "../stdlib/" + path + ".rvn",
+        "../stdlib/" + path
+    };
+
+    std::string resolved;
+    for (const auto& c : candidates) {
+        std::ifstream test(c);
+        if (test.good()) {
+            resolved = c;
+            break;
+        }
+    }
+
+    if (resolved.empty()) {
+        throw RuntimeError(stmt.keyword, "Could not resolve module: " + stmt.module_path);
+    }
+
+    if (imported_modules_.find(resolved) != imported_modules_.end()) {
+        return;
+    }
+    imported_modules_.insert(resolved);
+
+    std::ifstream file(resolved);
+    if (!file.is_open()) {
+        throw RuntimeError(stmt.keyword, "Could not open module file: " + resolved);
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string source = buffer.str();
+
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto statements = parser.parse();
+    if (parser.has_error()) {
+        std::string err_msg = "Parse error in module '" + resolved + "':";
+        for (const auto& e : parser.errors()) {
+            err_msg += "\n  " + e;
+        }
+        throw RuntimeError(stmt.keyword, err_msg);
+    }
+
+    auto previous = environment_;
+    environment_ = globals_;
+    try {
+        for (const auto& s : statements) {
+            if (s) execute(*s);
+        }
+        environment_ = previous;
+    } catch (...) {
+        environment_ = previous;
+        throw;
+    }
 }
 
 void Interpreter::visit(const FunctionStmt& stmt) {

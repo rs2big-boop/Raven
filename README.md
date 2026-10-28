@@ -82,7 +82,46 @@ Adult
 
 ---
 
+## Language Highlights
+
+### Rust-Style Pattern Matching (`match`)
+```raven
+let status_code = 404;
+let message = match (status_code) {
+    200 => "OK",
+    404 => "Not Found",
+    500 => "Internal Server Error",
+    _   => "Unknown Status"
+};
+print(message); // Prints: Not Found
+```
+
+### Modular Standard Library (`import`)
+```raven
+import "stdlib/math";
+import "stdlib/string";
+
+print("pow(2, 8) = " + pow(2, 8));           // 256
+print("factorial(5) = " + factorial(5));     // 120
+print(pad_left("42", 6, "0"));               // 000042
+```
+
+### Functional Pipelines (`|>`) and First-Class Functions
+```raven
+let numbers = range(1, 10);
+let square = fn(x) { return x * x; };
+let is_even = fn(x) { return x % 2 == 0; };
+
+let result = numbers 
+    |> fn(arr) { return filter(arr, is_even); }
+    |> fn(arr) { return map(arr, square); };
+```
+
+---
+
 ## Building and Testing
+
+Raven includes a comprehensive test suite (39 automated unit & regression tests):
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release

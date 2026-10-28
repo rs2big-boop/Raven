@@ -18,6 +18,7 @@ enum class TokenType {
     Catch,
     Throw,
     Match,
+    Import,
     Print,
     Fn,
     Return,
@@ -91,6 +92,7 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Catch: return "Catch";
         case TokenType::Throw: return "Throw";
         case TokenType::Match: return "Match";
+        case TokenType::Import: return "Import";
         case TokenType::Print: return "Print";
         case TokenType::Fn: return "Fn";
         case TokenType::Return: return "Return";

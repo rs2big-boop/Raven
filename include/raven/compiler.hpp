@@ -31,6 +31,7 @@ public:
     void visit(const PropertyAssignExpr& expr) override;
     void visit(const LambdaExpr& expr) override;
     void visit(const PipelineExpr& expr) override;
+    void visit(const MatchExpr& expr) override;
 
     // StmtVisitor
     void visit(const ExpressionStmt& stmt) override;
@@ -42,6 +43,7 @@ public:
     void visit(const ForInStmt& stmt) override;
     void visit(const TryCatchStmt& stmt) override;
     void visit(const ThrowStmt& stmt) override;
+    void visit(const ImportStmt& stmt) override;
     void visit(const FunctionStmt& stmt) override;
     void visit(const ReturnStmt& stmt) override;
 

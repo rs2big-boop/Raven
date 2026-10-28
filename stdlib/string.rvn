@@ -1,0 +1,27 @@
+// Raven Standard Library: String utilities module
+
+fn repeat(s, count) {
+    let res = "";
+    let i = 0;
+    while (i < count) {
+        res = res + s;
+        i = i + 1;
+    }
+    return res;
+}
+
+fn pad_left(s, target_len, pad_char) {
+    let cur_len = len(s);
+    if (cur_len >= target_len) {
+        return s;
+    }
+    return repeat(pad_char, target_len - cur_len) + s;
+}
+
+fn pad_right(s, target_len, pad_char) {
+    let cur_len = len(s);
+    if (cur_len >= target_len) {
+        return s;
+    }
+    return s + repeat(pad_char, target_len - cur_len);
+}

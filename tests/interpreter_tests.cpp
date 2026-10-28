@@ -244,3 +244,61 @@ TEST(InterpreterTest, RuntimeErrorUndefinedVariable) {
     Interpreter interpreter(out);
     EXPECT_THROW(interpreter.interpret(stmts), RuntimeError);
 }
+
+TEST(InterpreterTest, PatternMatching) {
+    std::string source =
+        "let code = 404;\n"
+        "let msg = match (code) {\n"
+        "    200 => \"Success\",\n"
+        "    404 => \"Not Found\",\n"
+        "    _ => \"Unknown\"\n"
+        "};\n"
+        "print(msg);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "Not Found\n");
+}
+
+TEST(InterpreterTest, ImportStandardLibraryMath) {
+    std::string source =
+        "import \"stdlib/math\";\n"
+        "let m = max(10, 42);\n"
+        "let p = pow(2, 5);\n"
+        "let f = factorial(5);\n"
+        "print(m);\n"
+        "print(p);\n"
+        "print(f);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "42\n32\n120\n");
+}
+
+TEST(InterpreterTest, ImportStandardLibraryString) {
+    std::string source =
+        "import \"stdlib/string\";\n"
+        "let rep = repeat(\"ha\", 3);\n"
+        "let pad = pad_left(\"7\", 4, \"0\");\n"
+        "print(rep);\n"
+        "print(pad);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "hahaha\n0007\n");
+}

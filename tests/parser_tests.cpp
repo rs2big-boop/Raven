@@ -90,6 +90,18 @@ public:
     std::string visit(const PipelineExpr& expr) override {
         return "(pipeline " + expr.left->accept(*this) + " " + expr.right->accept(*this) + ")";
     }
+
+    std::string visit(const MatchExpr& expr) override {
+        std::string res = "(match " + expr.value->accept(*this);
+        for (const auto& arm : expr.arms) {
+            res += " (arm ";
+            if (arm.is_wildcard) res += "_";
+            else res += arm.pattern->accept(*this);
+            res += " => " + arm.body->accept(*this) + ")";
+        }
+        res += ")";
+        return res;
+    }
 };
 
 TEST(ParserTest, OperatorPrecedence) {
@@ -188,4 +200,25 @@ TEST(ParserTest, ArrayAndMapLiterals) {
     ASSERT_NE(expr, nullptr);
     AstStringifier printer;
     EXPECT_EQ(printer.print(*expr), "[1, 2, 3]");
+}
+
+TEST(ParserTest, MatchExpression) {
+    Lexer lexer("match (status) { 200 => \"OK\", 404 => \"Not Found\", _ => \"Unknown\" }");
+    Parser parser(lexer.tokenize());
+    auto expr = parser.parse_expression();
+
+    ASSERT_NE(expr, nullptr);
+    AstStringifier printer;
+    EXPECT_EQ(printer.print(*expr), "(match status (arm 200 => OK) (arm 404 => Not Found) (arm _ => Unknown))");
+}
+
+TEST(ParserTest, ImportStatement) {
+    Lexer lexer("import \"stdlib/math\";");
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    ASSERT_EQ(stmts.size(), 1);
+    auto import_stmt = dynamic_cast<ImportStmt*>(stmts[0].get());
+    ASSERT_NE(import_stmt, nullptr);
+    EXPECT_EQ(import_stmt->module_path, "stdlib/math");
 }

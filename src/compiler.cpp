@@ -169,6 +169,8 @@ void Compiler::visit(const PipelineExpr& expr) {
     emit_byte(1);
 }
 
+void Compiler::visit(const MatchExpr& /*expr*/) {}
+
 void Compiler::visit(const ExpressionStmt& stmt) {
     stmt.expression->accept(*this);
     emit_op(OpCode::Pop);
@@ -230,6 +232,7 @@ void Compiler::visit(const WhileStmt& stmt) {
 void Compiler::visit(const ForInStmt& /*stmt*/) {}
 void Compiler::visit(const TryCatchStmt& /*stmt*/) {}
 void Compiler::visit(const ThrowStmt& /*stmt*/) {}
+void Compiler::visit(const ImportStmt& /*stmt*/) {}
 void Compiler::visit(const FunctionStmt& /*stmt*/) {}
 void Compiler::visit(const ReturnStmt& stmt) {
     if (stmt.value) {
