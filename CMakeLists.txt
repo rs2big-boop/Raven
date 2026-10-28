@@ -54,3 +54,20 @@ gtest_discover_tests(parser_tests)
 add_executable(interpreter_tests tests/interpreter_tests.cpp)
 target_link_libraries(interpreter_tests PRIVATE raven_core GTest::gtest_main)
 gtest_discover_tests(interpreter_tests)
+
+# Installation targets
+include(GNUInstallDirs)
+install(TARGETS raven ravenc rvm
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(DIRECTORY stdlib/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/raven/stdlib
+    FILES_MATCHING PATTERN "*.rvn"
+)
+install(DIRECTORY include/raven/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/raven
+    FILES_MATCHING PATTERN "*.hpp"
+)
+install(TARGETS raven_core
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)

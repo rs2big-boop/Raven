@@ -1093,7 +1093,13 @@ void Interpreter::visit(const ImportStmt& stmt) {
         "stdlib/" + path + ".rvn",
         "stdlib/" + path,
         "../stdlib/" + path + ".rvn",
-        "../stdlib/" + path
+        "../stdlib/" + path,
+        "raven_modules/" + path + ".rvn",
+        "raven_modules/" + path,
+        "/usr/local/share/raven/" + path + ".rvn",
+        "/usr/local/share/raven/" + path,
+        "/usr/local/share/raven/stdlib/" + path + ".rvn",
+        "/usr/local/share/raven/stdlib/" + path
     };
 
     std::string resolved;
@@ -1145,6 +1151,40 @@ void Interpreter::visit(const ImportStmt& stmt) {
         environment_ = previous;
         throw;
     }
+}
+
+class StructConstructor : public Callable {
+public:
+    StructConstructor(std::string name, std::vector<std::string> fields)
+        : name_(std::move(name)), fields_(std::move(fields)) {}
+
+    int arity() const override { return static_cast<int>(fields_.size()); }
+
+    Value call(Interpreter&, const std::vector<Value>& args) override {
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*map)["__type__"] = Value(name_);
+        for (size_t i = 0; i < fields_.size() && i < args.size(); ++i) {
+            (*map)[fields_[i]] = args[i];
+        }
+        return Value(map);
+    }
+
+    std::string to_string() const override {
+        return "<struct " + name_ + ">";
+    }
+
+private:
+    std::string name_;
+    std::vector<std::string> fields_;
+};
+
+void Interpreter::visit(const StructStmt& stmt) {
+    std::vector<std::string> field_names;
+    for (const auto& f : stmt.fields) {
+        field_names.push_back(f.lexeme);
+    }
+    auto constructor = std::make_shared<StructConstructor>(stmt.name.lexeme, std::move(field_names));
+    environment_->define(stmt.name.lexeme, Value(constructor));
 }
 
 void Interpreter::visit(const FunctionStmt& stmt) {

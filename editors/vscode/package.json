@@ -1,0 +1,30 @@
+{
+  "name": "raven-lang",
+  "displayName": "Raven Language",
+  "description": "Rich language support and syntax highlighting for the Raven Programming Language (.rvn)",
+  "version": "0.1.0",
+  "publisher": "raven-lang",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "raven",
+        "aliases": ["Raven", "raven"],
+        "extensions": [".rvn"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "raven",
+        "scopeName": "source.raven",
+        "path": "./syntaxes/raven.tmLanguage.json"
+      }
+    ]
+  }
+}

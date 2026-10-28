@@ -25,6 +25,7 @@ private:
     Token scan_number();
     Token scan_identifier_or_keyword();
     Token scan_string();
+    std::vector<Token> scan_format_string();
 
     std::string source_;
     std::size_t position_ = 0;

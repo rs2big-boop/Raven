@@ -96,6 +96,24 @@ let message = match (status_code) {
 print(message); // Prints: Not Found
 ```
 
+### Structs and Object Construction (`struct`)
+```raven
+struct User { name, role, karma };
+
+let user = User("Ran", "Lead Architect", 9000);
+print(user.name);    // Ran
+print(user.__type__); // User
+user.karma = 9001;
+```
+
+### Python-Style String Interpolation (`f"..."`)
+```raven
+let name = "Raven";
+let version = 2.0;
+print(f"Welcome to {name} v{version}! 2 + 2 = {2 + 2}");
+// Prints: Welcome to Raven v2! 2 + 2 = 4
+```
+
 ### Modular Standard Library (`import`)
 ```raven
 import "stdlib/math";
@@ -180,12 +198,29 @@ Raven ships with an extensive, batteries-included standard library:
 
 ---
 
-## Building and Testing
+## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (46 automated unit, regression & VM integration tests):
+Raven includes a comprehensive test suite (48 automated unit, regression & VM integration tests):
 
 ```bash
+# 1. Build & Test
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
+
+# 2. System-wide Installation (optional)
+./install.sh
 ```
+
+## VS Code Extension
+
+Raven comes with an official Visual Studio Code syntax highlighting extension in `editors/vscode`:
+```bash
+cp -r editors/vscode ~/.vscode/extensions/raven-lang
+```
+
+---
+
+## License
+
+Raven is licensed under the [MIT License](LICENSE).

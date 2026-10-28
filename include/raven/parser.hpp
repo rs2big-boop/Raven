@@ -44,6 +44,7 @@ private:
     std::shared_ptr<Stmt> try_catch_statement();
     std::shared_ptr<Stmt> throw_statement();
     std::shared_ptr<Stmt> import_statement();
+    std::shared_ptr<Stmt> struct_declaration();
     std::shared_ptr<Stmt> return_statement();
     std::shared_ptr<Stmt> block_statement();
     std::shared_ptr<Stmt> expression_statement();

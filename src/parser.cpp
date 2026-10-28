@@ -38,6 +38,9 @@ std::shared_ptr<Stmt> Parser::declaration() {
     if (match({TokenType::Import})) {
         return import_statement();
     }
+    if (match({TokenType::Struct})) {
+        return struct_declaration();
+    }
     return statement();
 }
 
@@ -96,6 +99,9 @@ std::shared_ptr<Stmt> Parser::statement() {
     }
     if (match({TokenType::Import})) {
         return import_statement();
+    }
+    if (match({TokenType::Struct})) {
+        return struct_declaration();
     }
     if (match({TokenType::Return})) {
         return return_statement();
@@ -183,6 +189,20 @@ std::shared_ptr<Stmt> Parser::import_statement() {
     }
     consume(TokenType::Semicolon, "Expected ';' after import statement.");
     return std::make_shared<ImportStmt>(std::move(keyword), std::move(path));
+}
+
+std::shared_ptr<Stmt> Parser::struct_declaration() {
+    Token name = consume(TokenType::Identifier, "Expected struct name.");
+    consume(TokenType::LeftBrace, "Expected '{' after struct name.");
+    std::vector<Token> fields;
+    if (!check(TokenType::RightBrace)) {
+        do {
+            fields.push_back(consume(TokenType::Identifier, "Expected field name in struct."));
+        } while (match({TokenType::Comma}));
+    }
+    consume(TokenType::RightBrace, "Expected '}' after struct fields.");
+    match({TokenType::Semicolon});
+    return std::make_shared<StructStmt>(std::move(name), std::move(fields));
 }
 
 std::shared_ptr<Stmt> Parser::return_statement() {

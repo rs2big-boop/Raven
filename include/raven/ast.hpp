@@ -298,6 +298,7 @@ class ForInStmt;
 class TryCatchStmt;
 class ThrowStmt;
 class ImportStmt;
+class StructStmt;
 class FunctionStmt;
 class ReturnStmt;
 
@@ -315,6 +316,7 @@ public:
     virtual R visit(const TryCatchStmt& stmt) = 0;
     virtual R visit(const ThrowStmt& stmt) = 0;
     virtual R visit(const ImportStmt& stmt) = 0;
+    virtual R visit(const StructStmt& stmt) = 0;
     virtual R visit(const FunctionStmt& stmt) = 0;
     virtual R visit(const ReturnStmt& stmt) = 0;
 };
@@ -437,6 +439,17 @@ public:
 
     Token keyword;
     std::string module_path;
+};
+
+class StructStmt : public Stmt {
+public:
+    StructStmt(Token name, std::vector<Token> fields)
+        : name(std::move(name)), fields(std::move(fields)) {}
+
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+
+    Token name;
+    std::vector<Token> fields;
 };
 
 class FunctionStmt : public Stmt {

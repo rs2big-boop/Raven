@@ -113,6 +113,7 @@ Token Lexer::scan_identifier_or_keyword() {
         {"throw", TokenType::Throw},
         {"match", TokenType::Match},
         {"import", TokenType::Import},
+        {"struct", TokenType::Struct},
         {"print", TokenType::Print},
         {"fn", TokenType::Fn},
         {"return", TokenType::Return},
@@ -184,6 +185,92 @@ Token Lexer::scan_string() {
     return Token{TokenType::String, std::move(value), start_line, start_col};
 }
 
+std::vector<Token> Lexer::scan_format_string() {
+    int start_line = line_;
+    int start_col = column_;
+    advance(); // consume 'f'
+    advance(); // consume '"'
+
+    std::vector<Token> result;
+    result.push_back(Token{TokenType::LeftParen, "(", start_line, start_col});
+    result.push_back(Token{TokenType::String, "", start_line, start_col});
+
+    std::string text_chunk;
+    while (!is_at_end() && peek() != '"') {
+        char c = peek();
+        if (c == '\\') {
+            advance();
+            if (is_at_end()) break;
+            char escaped = advance();
+            switch (escaped) {
+                case 'n': text_chunk += '\n'; break;
+                case 't': text_chunk += '\t'; break;
+                case 'r': text_chunk += '\r'; break;
+                case '"': text_chunk += '"'; break;
+                case '\\': text_chunk += '\\'; break;
+                case '{': text_chunk += '{'; break;
+                case '}': text_chunk += '}'; break;
+                default: text_chunk += escaped; break;
+            }
+        } else if (c == '{') {
+            if (!text_chunk.empty()) {
+                result.push_back(Token{TokenType::Plus, "+", line_, column_});
+                result.push_back(Token{TokenType::String, std::move(text_chunk), line_, column_});
+                text_chunk.clear();
+            }
+            advance(); // consume '{'
+            std::string expr_str;
+            int brace_depth = 1;
+            while (!is_at_end() && brace_depth > 0) {
+                if (peek() == '\\') {
+                    advance(); // skip backslash
+                    if (!is_at_end()) expr_str += advance();
+                } else if (peek() == '{') {
+                    brace_depth++;
+                    expr_str += advance();
+                } else if (peek() == '}') {
+                    brace_depth--;
+                    if (brace_depth == 0) {
+                        advance(); // consume matching '}'
+                        break;
+                    }
+                    expr_str += advance();
+                } else {
+                    expr_str += advance();
+                }
+            }
+            Lexer sub_lexer(expr_str);
+            auto expr_tokens = sub_lexer.tokenize();
+            if (!expr_tokens.empty() && expr_tokens.back().type == TokenType::EndOfFile) {
+                expr_tokens.pop_back();
+            }
+            result.push_back(Token{TokenType::Plus, "+", line_, column_});
+            result.push_back(Token{TokenType::Identifier, "str", line_, column_});
+            result.push_back(Token{TokenType::LeftParen, "(", line_, column_});
+            result.insert(result.end(), expr_tokens.begin(), expr_tokens.end());
+            result.push_back(Token{TokenType::RightParen, ")", line_, column_});
+        } else {
+            if (c == '\n') {
+                line_++;
+                column_ = 0;
+            }
+            text_chunk += advance();
+        }
+    }
+
+    if (!text_chunk.empty()) {
+        result.push_back(Token{TokenType::Plus, "+", line_, column_});
+        result.push_back(Token{TokenType::String, std::move(text_chunk), line_, column_});
+    }
+
+    if (!is_at_end() && peek() == '"') {
+        advance(); // consume closing '"'
+    }
+
+    result.push_back(Token{TokenType::RightParen, ")", start_line, start_col});
+    return result;
+}
+
 std::vector<Token> Lexer::tokenize() {
     std::vector<Token> tokens;
 
@@ -199,7 +286,10 @@ std::vector<Token> Lexer::tokenize() {
         int start_col = column_;
         char c = peek();
 
-        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
+        if (c == 'f' && peek_next() == '"') {
+            auto f_tokens = scan_format_string();
+            tokens.insert(tokens.end(), f_tokens.begin(), f_tokens.end());
+        } else if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
             tokens.push_back(scan_identifier_or_keyword());
         } else if (std::isdigit(static_cast<unsigned char>(c))) {
             tokens.push_back(scan_number());

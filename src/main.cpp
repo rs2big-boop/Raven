@@ -141,12 +141,52 @@ int main(int argc, char* argv[]) {
 
         if (first_arg == "--help" || first_arg == "-h") {
             std::cout << "Raven Programming Language (C++20)\n\n"
-                      << "Usage: raven [options] [script.rvn]\n\n"
+                      << "Usage: raven [command|options] [arguments]\n\n"
+                      << "Commands:\n"
+                      << "  run <file.rvn>          Execute a Raven script file\n"
+                      << "  test                    Execute all test scripts in tests/ directory\n"
+                      << "  pkg install <repo-url>  Clone/install a package into raven_modules/\n\n"
                       << "Options:\n"
-                      << "  --vm       Execute using the Raven Bytecode Virtual Machine\n"
-                      << "  --disasm   Compile and display the Bytecode disassembly\n"
-                      << "  --help, -h Show this help message\n";
+                      << "  -e, -c <code>           Execute inline Raven code\n"
+                      << "  --vm <file.rvn>         Execute using the Raven Bytecode Virtual Machine (Corvus)\n"
+                      << "  --disasm <file.rvn>     Compile and display the Bytecode disassembly\n"
+                      << "  --version, -v           Print Raven version\n"
+                      << "  --help, -h              Show this help message\n";
             return 0;
+        }
+
+        if (first_arg == "--version" || first_arg == "-v") {
+            std::cout << "Raven 0.2.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
+            return 0;
+        }
+
+        if ((first_arg == "-e" || first_arg == "-c") && argc > 2) {
+            std::string code = argv[2];
+            raven::Interpreter interpreter;
+            return raven::run(code, interpreter);
+        }
+
+        if (first_arg == "run" && argc > 2) {
+            return raven::run_file(argv[2]);
+        }
+
+        if (first_arg == "pkg" && argc > 3 && std::string(argv[2]) == "install") {
+            std::string repo = argv[3];
+            std::cout << "📦 Installing package '" << repo << "' into raven_modules/...\n";
+            std::string cmd = "mkdir -p raven_modules && cd raven_modules && git clone " + repo;
+            int ret = std::system(cmd.c_str());
+            if (ret == 0) {
+                std::cout << "✅ Package installed successfully!\n";
+            } else {
+                std::cerr << "❌ Failed to install package.\n";
+            }
+            return ret;
+        }
+
+        if (first_arg == "test") {
+            std::cout << "🧪 Running Raven test suite...\n";
+            int ret = std::system("ctest --test-dir build --output-on-failure");
+            return ret;
         }
 
         if (first_arg == "--disasm" && argc > 2) {

@@ -422,3 +422,24 @@ TEST(InterpreterTest, StandardLibrarySortAndStringUtils) {
 
     EXPECT_EQ(run_code(source), "1\n8\n1\n8\ntrue\ntrue\n2\n");
 }
+
+TEST(InterpreterTest, StringInterpolation) {
+    std::string source =
+        "let name = \"Raven\";\n"
+        "let ver = 2;\n"
+        "let msg = f\"Welcome to {name} v{ver + 0.5}!\";\n"
+        "print(msg);\n";
+    EXPECT_EQ(run_code(source), "Welcome to Raven v2.5!\n");
+}
+
+TEST(InterpreterTest, StructDeclarationAndAccess) {
+    std::string source =
+        "struct Vector2D { x, y };\n"
+        "let v = Vector2D(3, 4);\n"
+        "print(v.__type__);\n"
+        "print(v.x);\n"
+        "print(v.y);\n"
+        "v.x = 100;\n"
+        "print(v.x);\n";
+    EXPECT_EQ(run_code(source), "Vector2D\n3\n4\n100\n");
+}
