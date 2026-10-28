@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Raven VERSION 0.1.0 LANGUAGES CXX)
+project(Raven VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +17,8 @@ add_library(raven_core
     src/parser.cpp
     src/interpreter.cpp
     src/compiler.cpp
+    src/optimizer.cpp
+    src/bytecode_serializer.cpp
     src/vm.cpp
 )
 
@@ -24,12 +26,17 @@ target_include_directories(raven_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# CLI Binary
-add_executable(raven
-    src/main.cpp
-)
-
+# Unified CLI Tool (raven)
+add_executable(raven src/main.cpp)
 target_link_libraries(raven PRIVATE raven_core)
+
+# Dedicated Bytecode Compiler (ravenc)
+add_executable(ravenc src/ravenc_main.cpp)
+target_link_libraries(ravenc PRIVATE raven_core)
+
+# Dedicated Raven Virtual Machine (rvm)
+add_executable(rvm src/rvm_main.cpp)
+target_link_libraries(rvm PRIVATE raven_core)
 
 # Tests
 find_package(GTest REQUIRED)

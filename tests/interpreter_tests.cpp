@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
+#include "raven/bytecode_serializer.hpp"
 #include "raven/compiler.hpp"
 #include "raven/interpreter.hpp"
 #include "raven/lexer.hpp"
+#include "raven/optimizer.hpp"
 #include "raven/parser.hpp"
 #include "raven/vm.hpp"
 
@@ -177,6 +179,48 @@ TEST(InterpreterTest, BytecodeVMExecution) {
         "print(arr[0] + arr[1]);\n";
 
     EXPECT_EQ(run_vm_code(source), "40\n3\n");
+}
+
+TEST(InterpreterTest, BytecodeSerializationRoundtrip) {
+    std::string source =
+        "let msg = \"Bytecode Binary Serializer\";\n"
+        "print(msg);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    Chunk original_chunk;
+    Compiler compiler(original_chunk);
+    compiler.compile(stmts);
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    ASSERT_TRUE(BytecodeSerializer::serialize(original_chunk, stream));
+
+    Chunk loaded_chunk;
+    ASSERT_TRUE(BytecodeSerializer::deserialize(stream, loaded_chunk));
+
+    std::ostringstream out;
+    VM vm(out);
+    vm.run(loaded_chunk);
+    EXPECT_EQ(out.str(), "Bytecode Binary Serializer\n");
+}
+
+TEST(InterpreterTest, OptimizerConstantFolding) {
+    std::string source = "let x = 10 + 20 * 3;\n";
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    auto optimized = Optimizer::optimize(stmts);
+    ASSERT_EQ(optimized.size(), 1);
+
+    auto* var = dynamic_cast<VarDeclStmt*>(optimized[0].get());
+    ASSERT_NE(var, nullptr);
+
+    auto* lit = dynamic_cast<LiteralExpr*>(var->initializer.get());
+    ASSERT_NE(lit, nullptr);
+    EXPECT_EQ(lit->value.as_number(), 70); // 10 + (20 * 3) = 70 pre-computed!
 }
 
 TEST(InterpreterTest, RuntimeErrorDivisionByZero) {

@@ -21,17 +21,22 @@ jobs:
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Build Raven
+    - name: Build Raven Toolchain (raven, ravenc, rvm)
       run: cmake --build build --config Release
 
-    - name: Run Unit Tests
+    - name: Run Full Test Suite (34 Unit Tests)
       run: ctest --test-dir build --output-on-failure
 
-    - name: Run Demo Scripts (Tree-Walk & Bytecode VM)
+    - name: Test Tree-Walk Interpreter (raven)
       run: |
         ./build/raven examples/hello.rvn
-        ./build/raven --vm examples/hello.rvn
-        ./build/raven --disasm examples/hello.rvn
         ./build/raven examples/fibonacci.rvn
         ./build/raven examples/while.rvn
         ./build/raven examples/showcase.rvn
+
+    - name: Test Raven Bytecode Compiler (ravenc) & RVM (rvm)
+      run: |
+        ./build/ravenc examples/hello.rvn -o examples/hello.rvc -O -d
+        ./build/rvm -b examples/hello.rvc
+        ./build/ravenc examples/while.rvn -o examples/while.rvc -O
+        ./build/rvm -b examples/while.rvc
