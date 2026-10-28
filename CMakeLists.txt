@@ -14,6 +14,8 @@ endif()
 # Core Library
 add_library(minilang_core
     src/lexer.cpp
+    src/parser.cpp
+    src/interpreter.cpp
 )
 
 target_include_directories(minilang_core PUBLIC
@@ -32,13 +34,14 @@ find_package(GTest REQUIRED)
 include(GoogleTest)
 enable_testing()
 
-add_executable(lexer_tests
-    tests/lexer_tests.cpp
-)
-
-target_link_libraries(lexer_tests PRIVATE
-    minilang_core
-    GTest::gtest_main
-)
-
+add_executable(lexer_tests tests/lexer_tests.cpp)
+target_link_libraries(lexer_tests PRIVATE minilang_core GTest::gtest_main)
 gtest_discover_tests(lexer_tests)
+
+add_executable(parser_tests tests/parser_tests.cpp)
+target_link_libraries(parser_tests PRIVATE minilang_core GTest::gtest_main)
+gtest_discover_tests(parser_tests)
+
+add_executable(interpreter_tests tests/interpreter_tests.cpp)
+target_link_libraries(interpreter_tests PRIVATE minilang_core GTest::gtest_main)
+gtest_discover_tests(interpreter_tests)

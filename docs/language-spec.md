@@ -1,26 +1,63 @@
 # MiniLang Language Specification
 
-## Tokens & Lexical Rules (Phase 1)
+## Formal Grammar (EBNF)
 
-### Keywords
-- `let`: Variable declaration keyword.
+```ebnf
+program        -> declaration* EOF ;
 
-### Identifiers
-- Format: `[a-zA-Z_][a-zA-Z0-9_]*`
-- Must not collide with reserved keywords.
+declaration    -> funDecl
+                | varDecl
+                | statement ;
 
-### Numbers
-- Format: `[0-9]+`
-- Currently supports non-negative integers.
+funDecl        -> "fn" IDENTIFIER "(" parameters? ")" block ;
+parameters     -> IDENTIFIER ( "," IDENTIFIER )* ;
 
-### Operators and Punctuation
-- `+` : Addition
-- `-` : Subtraction
-- `*` : Multiplication
-- `/` : Division
-- `=` : Variable assignment
-- `;` : Statement terminator
+varDecl        -> "let" IDENTIFIER ( "=" expression )? ";" ;
 
-### Whitespace
-- Spaces, tabs (`\t`), and carriage returns (`\r`) are ignored.
-- Newlines (`\n`) increment the line number and reset the column counter to 1.
+statement      -> exprStmt
+                | printStmt
+                | ifStmt
+                | whileStmt
+                | returnStmt
+                | block ;
+
+exprStmt       -> expression ";" ;
+printStmt      -> "print" ( "(" expression ")" | expression ) ";" ;
+ifStmt         -> "if" "(" expression ")" statement ( "else" statement )? ;
+whileStmt      -> "while" "(" expression ")" statement ;
+returnStmt     -> "return" expression? ";" ;
+block          -> "{" declaration* "}" ;
+
+expression     -> assignment ;
+assignment     -> IDENTIFIER "=" assignment
+                | logic_or ;
+logic_or       -> logic_and ( "||" logic_and )* ;
+logic_and      -> equality ( "&&" equality )* ;
+equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
+comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term           -> factor ( ( "-" | "+" ) factor )* ;
+factor         -> unary ( ( "/" | "*" | "%" ) unary )* ;
+unary          -> ( "!" | "-" ) unary
+                | call ;
+call           -> primary ( "(" arguments? ")" )* ;
+arguments      -> expression ( "," expression )* ;
+primary        -> NUMBER | STRING | "true" | "false"
+                | IDENTIFIER
+                | "(" expression ")" ;
+```
+
+## Data Types
+
+| Type | Examples | Description |
+|---|---|---|
+| `Number` | `0`, `42`, `3.14` | IEEE 754 64-bit floating-point numbers |
+| `String` | `"Ran"`, `"Hello\nWorld"` | UTF-8 string literals with escape sequences |
+| `Boolean` | `true`, `false` | Boolean values |
+| `Nil` | uninitialized variables | Represents absence of a value |
+| `Function` | `fn add(a, b) { ... }` | First-class callable objects |
+
+## Control Flow & Scopes
+- Block scopes `{ ... }` support variable shadowing.
+- `if (condition) { ... } else { ... }` executes conditionally based on truthiness.
+- `while (condition) { ... }` loops while condition is truthy.
+- `fn` definitions support recursion and lexical closures.

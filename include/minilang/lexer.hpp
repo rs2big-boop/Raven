@@ -18,11 +18,13 @@ private:
     char peek() const;
     char peek_next() const;
     char advance();
+    bool match(char expected);
     bool is_at_end() const;
 
-    void skip_whitespace();
+    void skip_whitespace_and_comments();
     Token scan_number();
     Token scan_identifier_or_keyword();
+    Token scan_string();
 
     std::string source_;
     std::size_t position_ = 0;

@@ -1,0 +1,10 @@
+// Counting and summation with while loop
+let count = 1;
+let total = 0;
+
+while (count <= 10) {
+    total = total + count;
+    count = count + 1;
+}
+
+print("Sum 1..10 is: " + total);

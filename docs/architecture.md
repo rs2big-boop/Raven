@@ -1,11 +1,11 @@
-# MiniLang Architecture
+# MiniLang Architecture & Design
 
-This document describes the architectural design and roadmap for MiniLang.
+MiniLang is an educational, production-style tree-walk interpreter written from scratch in modern C++20.
 
 ```
 +-----------------------------------------------------------+
 |                       Source Code                         |
-|                   (e.g., main.mini)                       |
+|                   (e.g., hello.mini)                      |
 +-----------------------------+-----------------------------+
                               |
                               v
@@ -29,12 +29,47 @@ This document describes the architectural design and roadmap for MiniLang.
 +-----------------------------------------------------------+
 ```
 
-## Stage 1: The Lexer (Lexical Analysis)
+---
 
-The Lexer's job is to scan the raw source characters linearly and group them into logical units called **Tokens**.
+## 1. Pipeline Stages
 
-### Responsibilities:
-1. **Tokenization**: Classifying sequences of characters into keywords (`let`), identifiers (`age`), literals (numbers like `20`), operators (`+`, `-`, `*`, `/`, `=`), and delimiters (`;`).
-2. **Whitespace and Comment Stripping**: Filtering out meaningless whitespace (spaces, tabs, carriage returns) while keeping track of line and column counters.
-3. **Source Location Tracking**: Storing the 1-based `line` and `column` for each token so subsequent stages (Parser, Interpreter) can report clear, user-friendly compiler errors.
-4. **Invalid Character Reporting**: Instead of crashing on unexpected characters, the lexer yields `TokenType::Invalid` tokens, allowing the diagnostic pipeline to aggregate errors gracefully.
+### 01. Lexical Analysis (`Lexer`)
+- **Input**: Raw text (`std::string`).
+- **Output**: Linear stream of `Token` structures (`std::vector<Token>`).
+- **Role**:
+  - Classifies character sequences into `TokenType` (Keywords, Identifiers, Numbers, Strings, Operators).
+  - Skips non-semantic whitespace and comments (both single-line `//` and block `/* ... */`).
+  - Records precise 1-based `line` and `column` for actionable error diagnostics.
+  - Generates `TokenType::Invalid` instead of crashing on unrecognized characters.
+
+### 02. Syntactic Analysis (`Parser`)
+- **Input**: `std::vector<Token>`.
+- **Output**: `std::vector<std::shared_ptr<Stmt>>` (AST root nodes).
+- **Technique**: Recursive Descent with Precedence Climbing.
+  - Implements unambiguous operator precedence:
+    `Assignment < Logical OR < Logical AND < Equality < Comparison < Term (+,-) < Factor (*,/,%) < Unary (!,-) < Call < Primary`.
+  - Panic-mode error recovery (`synchronize()`): recovers at statement boundaries (`let`, `if`, `while`, `;`) to report multiple diagnostics in a single run.
+
+### 03. Abstract Syntax Tree (`AST`)
+- **Design**: Strongly-typed node hierarchies with modern C++ Visitor pattern:
+  - `Expr`: `BinaryExpr`, `UnaryExpr`, `LiteralExpr`, `VariableExpr`, `AssignExpr`, `LogicalExpr`, `CallExpr`, `GroupingExpr`.
+  - `Stmt`: `VarDeclStmt`, `ExpressionStmt`, `PrintStmt`, `BlockStmt`, `IfStmt`, `WhileStmt`, `FunctionStmt`, `ReturnStmt`.
+- Node lifecycles are managed cleanly using `std::unique_ptr` and `std::shared_ptr`.
+
+### 04. Environment & Scopes (`Environment`)
+- Implements **lexical scoping** via linked environment frames (`enclosing_`).
+- Variable declaration (`define`): binds variable in current scope.
+- Variable assignment (`assign`): mutates the variable in the innermost scope where it was defined, or throws `RuntimeError`.
+- Nested blocks `{ ... }` create child environments; when the block terminates, the outer scope is restored.
+
+### 05. Execution Engine (`Interpreter`)
+- Implements `ExprVisitor<Value>` and `StmtVisitor<void>`.
+- **Dynamic Typing (`Value`)**:
+  - Encapsulated via `std::variant<Nil, bool, double, std::string, std::shared_ptr<Callable>>`.
+  - Natural operator semantics:
+    - `+` performs arithmetic addition for numbers, and string concatenation if an operand is a string.
+    - Short-circuit evaluation for `&&` and `||`.
+    - Truthiness semantics: `nil`, `false`, `0`, and empty strings are falsy.
+- **Functions & Recursion**:
+  - First-class user functions (`UserFunction`) capturing their lexical environment (closures).
+  - Return statements unwind the call stack via a lightweight `ReturnException`.

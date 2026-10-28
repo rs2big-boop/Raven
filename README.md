@@ -1,11 +1,43 @@
 # MiniLang
 
-A modern, educational programming language built in C++20 from scratch.
+> A modern, clean programming language built from scratch in C++20.
 
-MiniLang demonstrates the core concepts of language implementation:
-- **Lexical Analysis (Lexer)**: Streaming characters into structured Tokens with line and column tracking.
-- **Syntactic Analysis (Parser)**: Recursive descent parsing generating an Abstract Syntax Tree (AST). *(Coming next)*
-- **Tree-Walk Interpreter**: Evaluating expressions, handling variables, scopes, and control flow. *(Coming next)*
+MiniLang is an educational yet production-grade tree-walk interpreter implementing lexical analysis, recursive descent parsing with operator precedence, lexical environments, functions with closures, and control flow.
+
+---
+
+## Example
+
+```minilang
+let name = "Ran";
+let age = 20;
+
+print("Hello, " + name);
+
+if (age >= 18) {
+    print("Adult");
+}
+```
+
+**Output:**
+```text
+Hello, Ran
+Adult
+```
+
+---
+
+## Features
+
+- **Lexer**: Tokenization with 1-based line and column tracking, string escape handling, comments (`//` and `/* ... */`).
+- **Parser**: Recursive descent parser supporting operator precedence, grouping, and error recovery (`synchronize()`).
+- **Data Types**: Numbers (doubles/integers), Strings (with `+` concatenation), Booleans (`true`/`false`), Nil, and First-class Functions.
+- **Variables & Scopes**: Lexical scoping with `let`, variable mutation, and nested block shadowing `{ ... }`.
+- **Control Flow**: `if` / `else` branching and `while` loops.
+- **Functions**: User-defined functions `fn name(params) { ... }`, recursion, and `return` statements.
+- **Interactive REPL & CLI**: Run `.mini` scripts or launch an interactive shell.
+- **Automated Tests**: Comprehensive GoogleTest test suite covering Lexer, Parser, and Interpreter.
+- **CI / GitHub Actions**: Automated builds and test runs on every commit.
 
 ---
 
@@ -19,37 +51,40 @@ MiniLang/
 │   ├── architecture.md
 │   └── language-spec.md
 ├── examples/
-│   └── hello.mini
+│   ├── hello.mini
+│   ├── fibonacci.mini
+│   └── while.mini
 ├── include/
 │   └── minilang/
-│       ├── token.hpp
+│       ├── ast.hpp
+│       ├── environment.hpp
+│       ├── interpreter.hpp
 │       ├── lexer.hpp
-│       ├── ast.hpp          (planned)
-│       ├── parser.hpp       (planned)
-│       └── interpreter.hpp  (planned)
+│       ├── token.hpp
+│       └── value.hpp
 ├── src/
-│   ├── main.cpp
+│   ├── interpreter.cpp
 │   ├── lexer.cpp
-│   ├── parser.cpp           (planned)
-│   └── interpreter.cpp      (planned)
+│   ├── main.cpp
+│   └── parser.cpp
 └── tests/
+    ├── interpreter_tests.cpp
     ├── lexer_tests.cpp
-    ├── parser_tests.cpp      (planned)
-    └── interpreter_tests.cpp (planned)
+    └── parser_tests.cpp
 ```
 
 ---
 
-## Building and Testing
+## Building & Testing
 
 ### Prerequisites
-- C++20 compatible compiler (e.g., GCC 12+, Clang 15+)
+- C++20 compiler (GCC 12+, Clang 15+, or MSVC)
 - CMake 3.20+
 - GoogleTest
 
 ### Build
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
@@ -58,7 +93,23 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-### Run the CLI
+### Run Scripts
 ```bash
 ./build/minilang examples/hello.mini
+./build/minilang examples/fibonacci.mini
+./build/minilang examples/while.mini
+```
+
+### Start Interactive REPL
+```bash
+./build/minilang
+```
+```text
+MiniLang 0.1.0 Interactive Shell
+Type 'exit' or press Ctrl+D to quit.
+minilang> let a = 10;
+minilang> let b = 20;
+minilang> print(a + b);
+30
+minilang> exit
 ```
