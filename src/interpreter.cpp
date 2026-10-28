@@ -1,9 +1,18 @@
 #include "raven/interpreter.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <functional>
+#include <memory>
+#include <random>
 #include <sstream>
+#include <thread>
 
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -66,6 +75,199 @@ private:
     std::vector<Token> params_;
     std::vector<std::shared_ptr<Stmt>> body_;
     std::shared_ptr<Environment> closure_;
+};
+
+static std::string value_to_json(const Value& val) {
+    if (val.is_nil()) return "null";
+    if (val.is_bool()) return val.as_bool() ? "true" : "false";
+    if (val.is_number()) {
+        std::ostringstream ss;
+        double n = val.as_number();
+        if (std::floor(n) == n) {
+            ss << static_cast<int64_t>(n);
+        } else {
+            ss << n;
+        }
+        return ss.str();
+    }
+    if (val.is_string()) {
+        std::string res = "\"";
+        for (char c : val.as_string()) {
+            if (c == '"') res += "\\\"";
+            else if (c == '\\') res += "\\\\";
+            else if (c == '\n') res += "\\n";
+            else if (c == '\t') res += "\\t";
+            else if (c == '\r') res += "\\r";
+            else res += c;
+        }
+        res += "\"";
+        return res;
+    }
+    if (val.is_array()) {
+        std::string res = "[";
+        const auto& arr = *val.as_array();
+        for (size_t i = 0; i < arr.size(); ++i) {
+            res += value_to_json(arr[i]);
+            if (i + 1 < arr.size()) res += ", ";
+        }
+        res += "]";
+        return res;
+    }
+    if (val.is_map()) {
+        std::string res = "{";
+        const auto& m = *val.as_map();
+        size_t count = 0;
+        for (const auto& [k, v] : m) {
+            res += "\"" + k + "\": " + value_to_json(v);
+            if (++count < m.size()) res += ", ";
+        }
+        res += "}";
+        return res;
+    }
+    return "\"<callable>\"";
+}
+
+class SimpleJsonParser {
+public:
+    explicit SimpleJsonParser(std::string src) : src_(std::move(src)), pos_(0) {}
+
+    Value parse() {
+        skip_ws();
+        if (pos_ >= src_.size()) return Value();
+        return parse_value();
+    }
+
+private:
+    std::string src_;
+    size_t pos_;
+
+    void skip_ws() {
+        while (pos_ < src_.size() && (src_[pos_] == ' ' || src_[pos_] == '\t' || src_[pos_] == '\n' || src_[pos_] == '\r')) {
+            pos_++;
+        }
+    }
+
+    Value parse_value() {
+        skip_ws();
+        if (pos_ >= src_.size()) return Value();
+        char c = src_[pos_];
+        if (c == '{') return parse_object();
+        if (c == '[') return parse_array();
+        if (c == '"') return parse_string();
+        if (c == 't' || c == 'f') return parse_bool();
+        if (c == 'n') return parse_null();
+        if (c == '-' || std::isdigit(static_cast<unsigned char>(c))) return parse_number();
+        return Value();
+    }
+
+    Value parse_object() {
+        pos_++; // '{'
+        skip_ws();
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        if (pos_ < src_.size() && src_[pos_] == '}') {
+            pos_++;
+            return Value(map);
+        }
+        while (pos_ < src_.size()) {
+            skip_ws();
+            if (pos_ >= src_.size() || src_[pos_] != '"') break;
+            Value key = parse_string();
+            skip_ws();
+            if (pos_ < src_.size() && src_[pos_] == ':') pos_++;
+            skip_ws();
+            Value val = parse_value();
+            (*map)[key.as_string()] = val;
+            skip_ws();
+            if (pos_ < src_.size() && src_[pos_] == ',') {
+                pos_++;
+            } else if (pos_ < src_.size() && src_[pos_] == '}') {
+                pos_++;
+                break;
+            } else {
+                break;
+            }
+        }
+        return Value(map);
+    }
+
+    Value parse_array() {
+        pos_++; // '['
+        skip_ws();
+        auto arr = std::make_shared<std::vector<Value>>();
+        if (pos_ < src_.size() && src_[pos_] == ']') {
+            pos_++;
+            return Value(arr);
+        }
+        while (pos_ < src_.size()) {
+            skip_ws();
+            arr->push_back(parse_value());
+            skip_ws();
+            if (pos_ < src_.size() && src_[pos_] == ',') {
+                pos_++;
+            } else if (pos_ < src_.size() && src_[pos_] == ']') {
+                pos_++;
+                break;
+            } else {
+                break;
+            }
+        }
+        return Value(arr);
+    }
+
+    Value parse_string() {
+        pos_++; // '"'
+        std::string s;
+        while (pos_ < src_.size() && src_[pos_] != '"') {
+            if (src_[pos_] == '\\' && pos_ + 1 < src_.size()) {
+                pos_++;
+                char esc = src_[pos_];
+                if (esc == 'n') s += '\n';
+                else if (esc == 't') s += '\t';
+                else if (esc == 'r') s += '\r';
+                else if (esc == '"') s += '"';
+                else if (esc == '\\') s += '\\';
+                else s += esc;
+            } else {
+                s += src_[pos_];
+            }
+            pos_++;
+        }
+        if (pos_ < src_.size() && src_[pos_] == '"') pos_++;
+        return Value(s);
+    }
+
+    Value parse_number() {
+        size_t start = pos_;
+        if (src_[pos_] == '-') pos_++;
+        while (pos_ < src_.size() && (std::isdigit(static_cast<unsigned char>(src_[pos_])) || src_[pos_] == '.' || src_[pos_] == 'e' || src_[pos_] == 'E' || src_[pos_] == '+' || src_[pos_] == '-')) {
+            pos_++;
+        }
+        std::string num_str = src_.substr(start, pos_ - start);
+        try {
+            return Value(std::stod(num_str));
+        } catch (...) {
+            return Value(0.0);
+        }
+    }
+
+    Value parse_bool() {
+        if (src_.substr(pos_, 4) == "true") {
+            pos_ += 4;
+            return Value(true);
+        }
+        if (src_.substr(pos_, 5) == "false") {
+            pos_ += 5;
+            return Value(false);
+        }
+        return Value(false);
+    }
+
+    Value parse_null() {
+        if (src_.substr(pos_, 4) == "null") {
+            pos_ += 4;
+        }
+        return Value();
+    }
 };
 
 Interpreter::Interpreter(std::ostream& out)
@@ -211,6 +413,242 @@ void Interpreter::register_builtins() {
             }
         }
         return Value(0.0);
+    });
+
+    // Math Native Functions
+    def("min", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number() || !args[1].is_number()) {
+            throw RuntimeError(Token{TokenType::Identifier, "min", 0, 0}, "min() expects two numbers.");
+        }
+        return Value(std::min(args[0].as_number(), args[1].as_number()));
+    });
+    def("max", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number() || !args[1].is_number()) {
+            throw RuntimeError(Token{TokenType::Identifier, "max", 0, 0}, "max() expects two numbers.");
+        }
+        return Value(std::max(args[0].as_number(), args[1].as_number()));
+    });
+    def("sqrt", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "sqrt", 0, 0}, "sqrt() expects number.");
+        return Value(std::sqrt(args[0].as_number()));
+    });
+    def("sin", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "sin", 0, 0}, "sin() expects number.");
+        return Value(std::sin(args[0].as_number()));
+    });
+    def("cos", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "cos", 0, 0}, "cos() expects number.");
+        return Value(std::cos(args[0].as_number()));
+    });
+    def("tan", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "tan", 0, 0}, "tan() expects number.");
+        return Value(std::tan(args[0].as_number()));
+    });
+    def("floor", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "floor", 0, 0}, "floor() expects number.");
+        return Value(std::floor(args[0].as_number()));
+    });
+    def("ceil", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "ceil", 0, 0}, "ceil() expects number.");
+        return Value(std::ceil(args[0].as_number()));
+    });
+    def("round", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "round", 0, 0}, "round() expects number.");
+        return Value(std::round(args[0].as_number()));
+    });
+    def("log", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "log", 0, 0}, "log() expects number.");
+        return Value(std::log(args[0].as_number()));
+    });
+    def("exp", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "exp", 0, 0}, "exp() expects number.");
+        return Value(std::exp(args[0].as_number()));
+    });
+    def("rand", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        static std::mt19937_64 rng(std::random_device{}());
+        static std::uniform_real_distribution<double> dist(0.0, 1.0);
+        return Value(dist(rng));
+    });
+    def("rand_int", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number() || !args[1].is_number()) {
+            throw RuntimeError(Token{TokenType::Identifier, "rand_int", 0, 0}, "rand_int() expects two numbers.");
+        }
+        static std::mt19937_64 rng(std::random_device{}());
+        int64_t low = static_cast<int64_t>(args[0].as_number());
+        int64_t high = static_cast<int64_t>(args[1].as_number());
+        if (low > high) std::swap(low, high);
+        std::uniform_int_distribution<int64_t> dist(low, high);
+        return Value(static_cast<double>(dist(rng)));
+    });
+
+    // String & Array Native Functions
+    def("split", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string() || !args[1].is_string()) {
+            throw RuntimeError(Token{TokenType::Identifier, "split", 0, 0}, "split() expects two strings.");
+        }
+        const std::string& s = args[0].as_string();
+        const std::string& delim = args[1].as_string();
+        auto res = std::make_shared<std::vector<Value>>();
+        if (delim.empty()) {
+            for (char c : s) res->push_back(Value(std::string(1, c)));
+            return Value(res);
+        }
+        size_t start = 0;
+        size_t end = s.find(delim);
+        while (end != std::string::npos) {
+            res->push_back(Value(s.substr(start, end - start)));
+            start = end + delim.length();
+            end = s.find(delim, start);
+        }
+        res->push_back(Value(s.substr(start)));
+        return Value(res);
+    });
+
+    def("join", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_array() || !args[1].is_string()) {
+            throw RuntimeError(Token{TokenType::Identifier, "join", 0, 0}, "join() expects array and delimiter string.");
+        }
+        const auto& arr = *args[0].as_array();
+        const std::string& delim = args[1].as_string();
+        std::string res;
+        for (size_t i = 0; i < arr.size(); ++i) {
+            res += arr[i].to_string();
+            if (i + 1 < arr.size()) res += delim;
+        }
+        return Value(res);
+    });
+
+    def("contains", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        const auto& h = args[0];
+        const auto& n = args[1];
+        if (h.is_string() && n.is_string()) {
+            return Value(h.as_string().find(n.as_string()) != std::string::npos);
+        }
+        if (h.is_array()) {
+            for (const auto& item : *h.as_array()) {
+                if (item == n) return Value(true);
+            }
+            return Value(false);
+        }
+        if (h.is_map() && n.is_string()) {
+            return Value(h.as_map()->find(n.as_string()) != h.as_map()->end());
+        }
+        return Value(false);
+    });
+
+    def("to_upper", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "to_upper", 0, 0}, "to_upper() expects a string.");
+        std::string s = args[0].as_string();
+        for (char& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        return Value(s);
+    });
+
+    def("to_lower", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "to_lower", 0, 0}, "to_lower() expects a string.");
+        std::string s = args[0].as_string();
+        for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return Value(s);
+    });
+
+    def("trim", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "trim", 0, 0}, "trim() expects a string.");
+        const std::string& s = args[0].as_string();
+        auto start = s.find_first_not_of(" \t\n\r");
+        if (start == std::string::npos) return Value("");
+        auto end = s.find_last_not_of(" \t\n\r");
+        return Value(s.substr(start, end - start + 1));
+    });
+
+    def("replace", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string() || !args[1].is_string() || !args[2].is_string()) {
+            throw RuntimeError(Token{TokenType::Identifier, "replace", 0, 0}, "replace() expects three strings.");
+        }
+        std::string s = args[0].as_string();
+        const std::string& from = args[1].as_string();
+        const std::string& to = args[2].as_string();
+        if (from.empty()) return Value(s);
+        size_t pos = 0;
+        while ((pos = s.find(from, pos)) != std::string::npos) {
+            s.replace(pos, from.length(), to);
+            pos += to.length();
+        }
+        return Value(s);
+    });
+
+    def("index_of", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        const auto& h = args[0];
+        const auto& n = args[1];
+        if (h.is_string() && n.is_string()) {
+            auto pos = h.as_string().find(n.as_string());
+            return Value(pos == std::string::npos ? -1.0 : static_cast<double>(pos));
+        }
+        if (h.is_array()) {
+            const auto& arr = *h.as_array();
+            for (size_t i = 0; i < arr.size(); ++i) {
+                if (arr[i] == n) return Value(static_cast<double>(i));
+            }
+            return Value(-1.0);
+        }
+        return Value(-1.0);
+    });
+
+    // File I/O
+    def("read_file", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "read_file", 0, 0}, "read_file() expects path string.");
+        std::ifstream f(args[0].as_string());
+        if (!f.is_open()) return Value();
+        std::stringstream buf;
+        buf << f.rdbuf();
+        return Value(buf.str());
+    });
+    def("write_file", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string() || !args[1].is_string()) {
+            throw RuntimeError(Token{TokenType::Identifier, "write_file", 0, 0}, "write_file() expects path and content strings.");
+        }
+        std::ofstream f(args[0].as_string());
+        if (!f.is_open()) return Value(false);
+        f << args[1].as_string();
+        return Value(true);
+    });
+    def("file_exists", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) return Value(false);
+        return Value(std::filesystem::exists(args[0].as_string()));
+    });
+
+    // System & Execution
+    def("sleep", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_number()) throw RuntimeError(Token{TokenType::Identifier, "sleep", 0, 0}, "sleep() expects milliseconds number.");
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(args[0].as_number())));
+        return Value();
+    });
+    def("env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) return Value();
+        const char* val = std::getenv(args[0].as_string().c_str());
+        if (!val) return Value();
+        return Value(std::string(val));
+    });
+    def("exec", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "exec", 0, 0}, "exec() expects shell command string.");
+        std::string cmd = args[0].as_string();
+        std::array<char, 256> buffer;
+        std::string result;
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) return Value();
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+            result += buffer.data();
+        }
+        pclose(pipe);
+        return Value(result);
+    });
+
+    // JSON Serialization
+    def("to_json", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(value_to_json(args[0]));
+    });
+    def("parse_json", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "parse_json", 0, 0}, "parse_json() expects JSON string.");
+        SimpleJsonParser parser(args[0].as_string());
+        return parser.parse();
     });
 }
 

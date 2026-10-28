@@ -1,0 +1,103 @@
+// Raven Standard Library: Iterator & Sequence Utilities
+import "stdlib/math";
+
+fn zip(a, b) {
+    let limit = min(len(a), len(b));
+    let res = [];
+    let i = 0;
+    while (i < limit) {
+        push(res, [a[i], b[i]]);
+        i = i + 1;
+    }
+    return res;
+}
+
+fn take(arr, count) {
+    let limit = min(len(arr), count);
+    let res = [];
+    let i = 0;
+    while (i < limit) {
+        push(res, arr[i]);
+        i = i + 1;
+    }
+    return res;
+}
+
+fn drop(arr, count) {
+    let res = [];
+    let i = count;
+    while (i < len(arr)) {
+        push(res, arr[i]);
+        i = i + 1;
+    }
+    return res;
+}
+
+fn chunk(arr, size) {
+    let res = [];
+    let cur = [];
+    let i = 0;
+    while (i < len(arr)) {
+        push(cur, arr[i]);
+        if (len(cur) == size) {
+            push(res, cur);
+            cur = [];
+        }
+        i = i + 1;
+    }
+    if (len(cur) > 0) {
+        push(res, cur);
+    }
+    return res;
+}
+
+fn flatten(matrix) {
+    let res = [];
+    for (let sub in matrix) {
+        if (type(sub) == "array") {
+            for (let item in sub) {
+                push(res, item);
+            }
+        } else {
+            push(res, sub);
+        }
+    }
+    return res;
+}
+
+fn any(arr, pred) {
+    for (let x in arr) {
+        if (pred(x)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn all(arr, pred) {
+    for (let x in arr) {
+        if (!pred(x)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+fn find(arr, pred) {
+    for (let x in arr) {
+        if (pred(x)) {
+            return x;
+        }
+    }
+    return nil;
+}
+
+fn reversed(arr) {
+    let res = [];
+    let i = len(arr) - 1;
+    while (i >= 0) {
+        push(res, arr[i]);
+        i = i - 1;
+    }
+    return res;
+}

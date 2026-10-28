@@ -1,0 +1,65 @@
+// Raven Standard Library: Collections & Data Structures
+
+fn create_stack() {
+    let items = [];
+    return {
+        "push": fn(val) { push(items, val); },
+        "pop": fn() { return pop(items); },
+        "peek": fn() {
+            if (len(items) == 0) { return nil; }
+            return items[len(items) - 1];
+        },
+        "size": fn() { return len(items); },
+        "is_empty": fn() { return len(items) == 0; },
+        "to_array": fn() { return items; }
+    };
+}
+
+fn create_queue() {
+    let items = [];
+    return {
+        "enqueue": fn(val) { push(items, val); },
+        "dequeue": fn() {
+            if (len(items) == 0) { return nil; }
+            let front = items[0];
+            let new_items = [];
+            let i = 1;
+            while (i < len(items)) {
+                push(new_items, items[i]);
+                i = i + 1;
+            }
+            items = new_items;
+            return front;
+        },
+        "peek": fn() {
+            if (len(items) == 0) { return nil; }
+            return items[0];
+        },
+        "size": fn() { return len(items); },
+        "is_empty": fn() { return len(items) == 0; },
+        "to_array": fn() { return items; }
+    };
+}
+
+fn create_set() {
+    let data = {};
+    return {
+        "add": fn(val) { data[str(val)] = true; },
+        "has": fn(val) { return contains(data, str(val)); },
+        "remove": fn(val) { data[str(val)] = nil; },
+        "size": fn() {
+            let count = 0;
+            for (let k in keys(data)) {
+                if (data[k]) { count = count + 1; }
+            }
+            return count;
+        },
+        "to_array": fn() {
+            let res = [];
+            for (let k in keys(data)) {
+                if (data[k]) { push(res, k); }
+            }
+            return res;
+        }
+    };
+}

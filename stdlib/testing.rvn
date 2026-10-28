@@ -1,0 +1,40 @@
+// Raven Standard Library: Unit Testing Framework
+
+let _test_passed_count = 0;
+let _test_failed_count = 0;
+
+fn describe(suite_name, fn_block) {
+    print("▶ Suite: " + suite_name);
+    fn_block();
+    print("✓ Completed Suite: " + suite_name);
+    print("");
+}
+
+fn test(test_name, fn_block) {
+    try {
+        fn_block();
+        _test_passed_count = _test_passed_count + 1;
+        print("  ✓ " + test_name);
+    } catch (err) {
+        _test_failed_count = _test_failed_count + 1;
+        print("  ✗ " + test_name + " FAILED: " + err);
+    }
+}
+
+fn expect_eq(actual, expected) {
+    if (actual != expected) {
+        throw "Expected " + str(expected) + " but got " + str(actual);
+    }
+}
+
+fn expect_true(cond) {
+    if (!cond) {
+        throw "Expected condition to be true";
+    }
+}
+
+fn expect_false(cond) {
+    if (cond) {
+        throw "Expected condition to be false";
+    }
+}

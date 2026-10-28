@@ -302,3 +302,91 @@ TEST(InterpreterTest, ImportStandardLibraryString) {
     interpreter.interpret(stmts);
     EXPECT_EQ(out.str(), "hahaha\n0007\n");
 }
+
+TEST(InterpreterTest, NativeMathAndStringBuiltins) {
+    std::string source =
+        "let s = sqrt(49);\n"
+        "let r = round(4.8);\n"
+        "let words = split(\"alpha,beta,gamma\", \",\");\n"
+        "let upper = to_upper(words[0]);\n"
+        "let joined = join(words, \":\");\n"
+        "print(s);\n"
+        "print(r);\n"
+        "print(upper);\n"
+        "print(joined);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "7\n5\nALPHA\nalpha:beta:gamma\n");
+}
+
+TEST(InterpreterTest, NativeJsonSerializationAndParsing) {
+    std::string source =
+        "let data = {\"name\": \"Raven\", \"version\": 2, \"active\": true};\n"
+        "let json_str = to_json(data);\n"
+        "let parsed = parse_json(json_str);\n"
+        "print(parsed.name);\n"
+        "print(parsed.version);\n"
+        "print(parsed.active);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "Raven\n2\ntrue\n");
+}
+
+TEST(InterpreterTest, StandardLibraryCollections) {
+    std::string source =
+        "import \"stdlib/collections\";\n"
+        "let stack = create_stack();\n"
+        "stack.push(\"first\");\n"
+        "stack.push(\"second\");\n"
+        "print(stack.pop());\n"
+        "print(stack.peek());\n"
+        "let q = create_queue();\n"
+        "q.enqueue(\"A\");\n"
+        "q.enqueue(\"B\");\n"
+        "print(q.dequeue());\n"
+        "let set = create_set();\n"
+        "set.add(\"x\");\n"
+        "set.add(\"x\");\n"
+        "print(set.size());\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "second\nfirst\nA\n1\n");
+}
+
+TEST(InterpreterTest, StandardLibraryIterators) {
+    std::string source =
+        "import \"stdlib/iter\";\n"
+        "let paired = zip([1, 2], [\"a\", \"b\"]);\n"
+        "print(paired[0][0] + \":\" + paired[0][1]);\n"
+        "let chunks = chunk([1, 2, 3, 4], 2);\n"
+        "print(len(chunks));\n"
+        "let flat = flatten([[10, 20], [30]]);\n"
+        "print(len(flat));\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    std::ostringstream out;
+    Interpreter interpreter(out);
+    interpreter.interpret(stmts);
+    EXPECT_EQ(out.str(), "1:a\n2\n3\n");
+}

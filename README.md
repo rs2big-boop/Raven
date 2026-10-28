@@ -99,11 +99,29 @@ print(message); // Prints: Not Found
 ### Modular Standard Library (`import`)
 ```raven
 import "stdlib/math";
+import "stdlib/collections";
+import "stdlib/iter";
 import "stdlib/string";
 
+// 1. Data Structures: Stack, Queue, Set
+let stack = create_stack();
+stack.push("hello");
+stack.push("world");
+print(stack.pop()); // world
+
+// 2. Sequence Processing
+let paired = zip(["A", "B"], [1, 2]); // [["A", 1], ["B", 2]]
+let chunks = chunk([1, 2, 3, 4], 2);  // [[1, 2], [3, 4]]
+
+// 3. Math & Statistics
 print("pow(2, 8) = " + pow(2, 8));           // 256
-print("factorial(5) = " + factorial(5));     // 120
-print(pad_left("42", 6, "0"));               // 000042
+print("hypot(3, 4) = " + hypot(3, 4));       // 5
+print("mean([10, 20, 30]) = " + mean([10, 20, 30])); // 20
+
+// 4. Native JSON & File I/O
+let json_str = to_json({"language": "Raven", "score": 100});
+let obj = parse_json(json_str);
+print(obj.language); // Raven
 ```
 
 ### Functional Pipelines (`|>`) and First-Class Functions
@@ -121,7 +139,7 @@ let result = numbers
 
 ## Building and Testing
 
-Raven includes a comprehensive test suite (39 automated unit & regression tests):
+Raven includes a comprehensive test suite (43 automated unit & regression tests):
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release

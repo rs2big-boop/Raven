@@ -1,0 +1,113 @@
+// Raven Standard Library & Native Capabilities Tour
+import "stdlib/math";
+import "stdlib/collections";
+import "stdlib/iter";
+import "stdlib/testing";
+
+print("==================================================");
+print("          RAVEN EXTENSIVE CAPABILITIES TOUR       ");
+print("==================================================");
+
+// 1. Collections: Stack, Queue, Set
+describe("Collections & Data Structures", fn() {
+    test("Stack LIFO behavior", fn() {
+        let s = create_stack();
+        s.push(10);
+        s.push(20);
+        s.push(30);
+        expect_eq(s.size(), 3);
+        expect_eq(s.pop(), 30);
+        expect_eq(s.peek(), 20);
+    });
+
+    test("Queue FIFO behavior", fn() {
+        let q = create_queue();
+        q.enqueue("first");
+        q.enqueue("second");
+        q.enqueue("third");
+        expect_eq(q.size(), 3);
+        expect_eq(q.dequeue(), "first");
+        expect_eq(q.peek(), "second");
+    });
+
+    test("Set uniqueness", fn() {
+        let set = create_set();
+        set.add("apple");
+        set.add("banana");
+        set.add("apple");
+        expect_eq(set.size(), 2);
+        expect_true(set.has("apple"));
+        expect_false(set.has("cherry"));
+    });
+});
+
+// 2. Advanced Iterators
+describe("Iterator & Sequence Processing", fn() {
+    test("Zip pairs arrays together", fn() {
+        let names = ["Alice", "Bob", "Charlie"];
+        let scores = [95, 88, 72];
+        let paired = zip(names, scores);
+        expect_eq(len(paired), 3);
+        expect_eq(paired[0][0], "Alice");
+        expect_eq(paired[0][1], 95);
+    });
+
+    test("Chunking and Flattening", fn() {
+        let nums = [1, 2, 3, 4, 5, 6];
+        let chunked = chunk(nums, 2);
+        expect_eq(len(chunked), 3);
+        let flat = flatten(chunked);
+        expect_eq(flat, nums);
+    });
+});
+
+// 3. Native JSON & String Power
+describe("Native JSON & Text Utilities", fn() {
+    test("JSON Serialization & Parsing", fn() {
+        let original = {
+            "language": "Raven",
+            "fast": true,
+            "version": 2
+        };
+        let json_text = to_json(original);
+        let parsed = parse_json(json_text);
+        expect_eq(parsed.language, "Raven");
+        expect_eq(parsed.fast, true);
+        expect_eq(parsed.version, 2);
+    });
+
+    test("String split, join & casing", fn() {
+        let words = split("one,two,three", ",");
+        expect_eq(len(words), 3);
+        let joined = join(words, " - ");
+        expect_eq(joined, "one - two - three");
+        expect_eq(to_upper("raven"), "RAVEN");
+        expect_eq(replace("Hello World", "World", "Raven"), "Hello Raven");
+    });
+});
+
+// 4. Advanced Math & Statistics
+describe("Math & Statistics", fn() {
+    test("Statistics computation", fn() {
+        let dataset = [10, 20, 30, 40, 50];
+        expect_eq(sum(dataset), 150);
+        expect_eq(mean(dataset), 30);
+        expect_eq(hypot(3, 4), 5);
+        expect_eq(round(3.7), 4);
+        expect_eq(floor(3.7), 3);
+        expect_eq(ceil(3.2), 4);
+    });
+});
+
+// 5. File I/O
+describe("File System Access", fn() {
+    test("File writing and reading", fn() {
+        let test_file = "test_raven_io.tmp";
+        write_file(test_file, "Raven I/O Works Perfectly!");
+        expect_true(file_exists(test_file));
+        let content = read_file(test_file);
+        expect_eq(content, "Raven I/O Works Perfectly!");
+    });
+});
+
+print("All capability test suites executed!");

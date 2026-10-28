@@ -78,8 +78,9 @@ matchArm       -> ( expression | "_" ) "=>" expression ( "," | ";" )? ;
 | `Nil` | uninitialized variables | Absence of value |
 | `Function` | `fn(x) { ... }`, named functions | First-class callable objects with closures |
 
-## Built-in Standard Library Functions
+## Built-in Functions
 
+### Collections & Sequence Functions
 - `len(collection)`: Length of string, array, or map.
 - `push(array, item)`: Appends an item to an array.
 - `pop(array)`: Removes and returns the last element of an array.
@@ -89,8 +90,51 @@ matchArm       -> ( expression | "_" ) "=>" expression ( "," | ";" )? ;
 - `map(array, fn)`: Returns a new array with `fn` applied to each element.
 - `filter(array, fn)`: Returns a new array of elements that satisfy `fn`.
 - `reduce(array, fn, initial)`: Folds an array with `fn`.
-- `type(val)`: Returns the type name as a string.
+- `contains(haystack, needle)`: Checks if string, array, or map contains element.
+- `index_of(haystack, needle)`: Returns index of element/substring or -1.
+
+### Math Functions
+- `min(a, b)`, `max(a, b)`: Minimum and maximum of two numbers.
+- `sqrt(x)`: Square root.
+- `sin(x)`, `cos(x)`, `tan(x)`: Trigonometric functions.
+- `floor(x)`, `ceil(x)`, `round(x)`: Number rounding.
+- `log(x)`, `exp(x)`: Natural logarithm and exponential.
+- `rand()`: Random floating point number between 0.0 and 1.0.
+- `rand_int(min, max)`: Uniform random integer between min and max.
+
+### String Processing
+- `split(str, delim)`: Splits string by delimiter into an array of strings.
+- `join(arr, delim)`: Joins elements of an array with a delimiter string.
+- `to_upper(str)`: Converts string to uppercase.
+- `to_lower(str)`: Converts string to lowercase.
+- `trim(str)`: Strips leading and trailing whitespace.
+- `replace(str, old_sub, new_sub)`: Replaces occurrences of substring.
+
+### File I/O & System
+- `read_file(path)`: Reads entire file as string.
+- `write_file(path, content)`: Writes string to file (returns bool).
+- `file_exists(path)`: Checks if file exists on disk.
+- `sleep(ms)`: Pauses execution for milliseconds.
+- `env(name)`: Retrieves environment variable value.
+- `exec(cmd)`: Executes a shell command and captures its standard output.
+
+### JSON Serialization
+- `to_json(val)`: Serializes Raven data into a JSON string.
+- `parse_json(str)`: Parses a JSON string into Raven maps, arrays, numbers, and strings.
+
+### Introspection & Utilities
+- `type(val)`: Returns the type name as a string (`"number"`, `"string"`, `"array"`, `"map"`, `"bool"`, `"nil"`, `"function"`).
 - `time()`: Returns Unix time in milliseconds.
 - `assert(condition, message)`: Asserts condition is truthy.
 - `str(val)`: Converts value to string.
 - `num(val)`: Converts value to number.
+
+---
+
+## Standard Library Modules (`stdlib/`)
+
+- `import "stdlib/math";` — Constants (`PI`, `E`), `deg_to_rad`, `rad_to_deg`, `hypot`, statistics (`sum`, `mean`, `variance`, `std_dev`).
+- `import "stdlib/collections";` — Object-oriented data structures: `create_stack()`, `create_queue()`, `create_set()`.
+- `import "stdlib/iter";` — Sequence helpers: `zip`, `take`, `drop`, `chunk`, `flatten`, `any`, `all`, `find`, `reversed`.
+- `import "stdlib/string";` — String helpers: `repeat`, `pad_left`, `pad_right`.
+- `import "stdlib/testing";` — Unit test suite runner: `describe`, `test`, `expect_eq`, `expect_true`, `expect_false`.
