@@ -1,4 +1,4 @@
-// Recursive Fibonacci in MiniLang
+// Recursive Fibonacci in Raven
 fn fib(n) {
     if (n <= 1) {
         return n;

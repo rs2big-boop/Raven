@@ -299,6 +299,8 @@ class TryCatchStmt;
 class ThrowStmt;
 class ImportStmt;
 class StructStmt;
+class BreakStmt;
+class ContinueStmt;
 class FunctionStmt;
 class ReturnStmt;
 
@@ -317,6 +319,8 @@ public:
     virtual R visit(const ThrowStmt& stmt) = 0;
     virtual R visit(const ImportStmt& stmt) = 0;
     virtual R visit(const StructStmt& stmt) = 0;
+    virtual R visit(const BreakStmt& stmt) = 0;
+    virtual R visit(const ContinueStmt& stmt) = 0;
     virtual R visit(const FunctionStmt& stmt) = 0;
     virtual R visit(const ReturnStmt& stmt) = 0;
 };
@@ -450,6 +454,20 @@ public:
 
     Token name;
     std::vector<Token> fields;
+};
+
+class BreakStmt : public Stmt {
+public:
+    explicit BreakStmt(Token keyword) : keyword(std::move(keyword)) {}
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+    Token keyword;
+};
+
+class ContinueStmt : public Stmt {
+public:
+    explicit ContinueStmt(Token keyword) : keyword(std::move(keyword)) {}
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+    Token keyword;
 };
 
 class FunctionStmt : public Stmt {

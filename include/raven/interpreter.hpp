@@ -19,6 +19,9 @@ struct UserException {
     Value value;
 };
 
+struct BreakException {};
+struct ContinueException {};
+
 class Interpreter : public ExprVisitor<Value>, public StmtVisitor<void> {
 public:
     explicit Interpreter(std::ostream& out = std::cout);
@@ -63,6 +66,8 @@ public:
     void visit(const ThrowStmt& stmt) override;
     void visit(const ImportStmt& stmt) override;
     void visit(const StructStmt& stmt) override;
+    void visit(const BreakStmt& stmt) override;
+    void visit(const ContinueStmt& stmt) override;
     void visit(const FunctionStmt& stmt) override;
     void visit(const ReturnStmt& stmt) override;
 

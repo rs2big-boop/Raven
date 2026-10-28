@@ -103,6 +103,12 @@ std::shared_ptr<Stmt> Parser::statement() {
     if (match({TokenType::Struct})) {
         return struct_declaration();
     }
+    if (match({TokenType::Break})) {
+        return break_statement();
+    }
+    if (match({TokenType::Continue})) {
+        return continue_statement();
+    }
     if (match({TokenType::Return})) {
         return return_statement();
     }
@@ -205,6 +211,18 @@ std::shared_ptr<Stmt> Parser::struct_declaration() {
     return std::make_shared<StructStmt>(std::move(name), std::move(fields));
 }
 
+std::shared_ptr<Stmt> Parser::break_statement() {
+    Token keyword = previous();
+    consume(TokenType::Semicolon, "Expected ';' after 'break'.");
+    return std::make_shared<BreakStmt>(keyword);
+}
+
+std::shared_ptr<Stmt> Parser::continue_statement() {
+    Token keyword = previous();
+    consume(TokenType::Semicolon, "Expected ';' after 'continue'.");
+    return std::make_shared<ContinueStmt>(keyword);
+}
+
 std::shared_ptr<Stmt> Parser::return_statement() {
     Token keyword = previous();
     std::unique_ptr<Expr> value = nullptr;
@@ -237,12 +255,25 @@ std::unique_ptr<Expr> Parser::expression() {
 std::unique_ptr<Expr> Parser::assignment() {
     auto expr = pipeline();
 
-    if (match({TokenType::Equal})) {
+    if (match({TokenType::Equal, TokenType::PlusEqual, TokenType::MinusEqual, TokenType::StarEqual, TokenType::SlashEqual, TokenType::PercentEqual})) {
         Token equals = previous();
         auto value = assignment();
 
         if (auto* var_expr = dynamic_cast<VariableExpr*>(expr.get())) {
             Token name = var_expr->name;
+            if (equals.type != TokenType::Equal) {
+                TokenType bin_op;
+                std::string op_lexeme;
+                if (equals.type == TokenType::PlusEqual) { bin_op = TokenType::Plus; op_lexeme = "+"; }
+                else if (equals.type == TokenType::MinusEqual) { bin_op = TokenType::Minus; op_lexeme = "-"; }
+                else if (equals.type == TokenType::StarEqual) { bin_op = TokenType::Star; op_lexeme = "*"; }
+                else if (equals.type == TokenType::SlashEqual) { bin_op = TokenType::Slash; op_lexeme = "/"; }
+                else { bin_op = TokenType::Percent; op_lexeme = "%"; }
+
+                auto left = std::make_unique<VariableExpr>(name);
+                Token bin_token{bin_op, op_lexeme, equals.line, equals.column};
+                value = std::make_unique<BinaryExpr>(std::move(left), bin_token, std::move(value));
+            }
             return std::make_unique<AssignExpr>(std::move(name), std::move(value));
         }
 

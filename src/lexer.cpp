@@ -114,6 +114,8 @@ Token Lexer::scan_identifier_or_keyword() {
         {"match", TokenType::Match},
         {"import", TokenType::Import},
         {"struct", TokenType::Struct},
+        {"break", TokenType::Break},
+        {"continue", TokenType::Continue},
         {"print", TokenType::Print},
         {"fn", TokenType::Fn},
         {"return", TokenType::Return},
@@ -299,19 +301,29 @@ std::vector<Token> Lexer::tokenize() {
             advance();
             switch (c) {
                 case '+':
-                    tokens.push_back(Token{TokenType::Plus, "+", start_line, start_col});
+                    tokens.push_back(match('=')
+                        ? Token{TokenType::PlusEqual, "+=", start_line, start_col}
+                        : Token{TokenType::Plus, "+", start_line, start_col});
                     break;
                 case '-':
-                    tokens.push_back(Token{TokenType::Minus, "-", start_line, start_col});
+                    tokens.push_back(match('=')
+                        ? Token{TokenType::MinusEqual, "-=", start_line, start_col}
+                        : Token{TokenType::Minus, "-", start_line, start_col});
                     break;
                 case '*':
-                    tokens.push_back(Token{TokenType::Star, "*", start_line, start_col});
+                    tokens.push_back(match('=')
+                        ? Token{TokenType::StarEqual, "*=", start_line, start_col}
+                        : Token{TokenType::Star, "*", start_line, start_col});
                     break;
                 case '/':
-                    tokens.push_back(Token{TokenType::Slash, "/", start_line, start_col});
+                    tokens.push_back(match('=')
+                        ? Token{TokenType::SlashEqual, "/=", start_line, start_col}
+                        : Token{TokenType::Slash, "/", start_line, start_col});
                     break;
                 case '%':
-                    tokens.push_back(Token{TokenType::Percent, "%", start_line, start_col});
+                    tokens.push_back(match('=')
+                        ? Token{TokenType::PercentEqual, "%=", start_line, start_col}
+                        : Token{TokenType::Percent, "%", start_line, start_col});
                     break;
                 case ';':
                     tokens.push_back(Token{TokenType::Semicolon, ";", start_line, start_col});

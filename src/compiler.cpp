@@ -265,6 +265,8 @@ void Compiler::visit(const TryCatchStmt& /*stmt*/) {}
 void Compiler::visit(const ThrowStmt& /*stmt*/) {}
 void Compiler::visit(const ImportStmt& /*stmt*/) {}
 void Compiler::visit(const StructStmt& /*stmt*/) {}
+void Compiler::visit(const BreakStmt& /*stmt*/) {}
+void Compiler::visit(const ContinueStmt& /*stmt*/) {}
 void Compiler::visit(const FunctionStmt& stmt) {
     int jump_over = emit_jump(OpCode::Jump);
     size_t entry_ip = chunk_.code.size();

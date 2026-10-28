@@ -20,6 +20,8 @@ enum class TokenType {
     Match,
     Import,
     Struct,
+    Break,
+    Continue,
     Print,
     Fn,
     Return,
@@ -57,6 +59,11 @@ enum class TokenType {
     BangEqual,
     LessEqual,
     GreaterEqual,
+    PlusEqual,
+    MinusEqual,
+    StarEqual,
+    SlashEqual,
+    PercentEqual,
     AmpAmp,
     PipePipe,
     PipeGreater, // |>
@@ -95,6 +102,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Match: return "Match";
         case TokenType::Import: return "Import";
         case TokenType::Struct: return "Struct";
+        case TokenType::Break: return "Break";
+        case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";
         case TokenType::Fn: return "Fn";
         case TokenType::Return: return "Return";
@@ -129,6 +138,11 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::BangEqual: return "BangEqual";
         case TokenType::LessEqual: return "LessEqual";
         case TokenType::GreaterEqual: return "GreaterEqual";
+        case TokenType::PlusEqual: return "PlusEqual";
+        case TokenType::MinusEqual: return "MinusEqual";
+        case TokenType::StarEqual: return "StarEqual";
+        case TokenType::SlashEqual: return "SlashEqual";
+        case TokenType::PercentEqual: return "PercentEqual";
         case TokenType::AmpAmp: return "AmpAmp";
         case TokenType::PipePipe: return "PipePipe";
         case TokenType::PipeGreater: return "PipeGreater";

@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <random>
+#include <regex>
 #include <sstream>
 #include <thread>
 
@@ -690,6 +691,119 @@ void Interpreter::register_builtins() {
         SimpleJsonParser parser(args[0].as_string());
         return parser.parse();
     });
+
+    // Sequence Slicing
+    def("slice", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t start = static_cast<int64_t>(args[1].as_number());
+        int64_t end = static_cast<int64_t>(args[2].as_number());
+        if (args[0].is_string()) {
+            const std::string& s = args[0].as_string();
+            int64_t len = static_cast<int64_t>(s.size());
+            if (start < 0) start += len;
+            if (end < 0) end += len;
+            start = std::max<int64_t>(0, std::min<int64_t>(start, len));
+            end = std::max<int64_t>(0, std::min<int64_t>(end, len));
+            if (start >= end) return Value("");
+            return Value(s.substr(start, end - start));
+        }
+        if (args[0].is_array()) {
+            const auto& arr = *args[0].as_array();
+            int64_t len = static_cast<int64_t>(arr.size());
+            if (start < 0) start += len;
+            if (end < 0) end += len;
+            start = std::max<int64_t>(0, std::min<int64_t>(start, len));
+            end = std::max<int64_t>(0, std::min<int64_t>(end, len));
+            auto res = std::make_shared<std::vector<Value>>();
+            for (int64_t i = start; i < end; ++i) {
+                res->push_back(arr[i]);
+            }
+            return Value(res);
+        }
+        return Value();
+    });
+
+    // Regular Expressions
+    def("regex_match", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        try {
+            std::regex re(args[1].as_string());
+            return Value(std::regex_search(args[0].as_string(), re));
+        } catch (...) {
+            return Value(false);
+        }
+    });
+
+    def("regex_replace", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        try {
+            std::regex re(args[1].as_string());
+            return Value(std::regex_replace(args[0].as_string(), re, args[2].as_string()));
+        } catch (...) {
+            return args[0];
+        }
+    });
+
+    // Encoding & Hashing
+    def("hash", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        const std::string& s = args[0].as_string();
+        uint64_t h = 14695981039346656037ULL;
+        for (unsigned char c : s) {
+            h ^= c;
+            h *= 1099511628211ULL;
+        }
+        std::stringstream ss;
+        ss << std::hex << h;
+        return Value(ss.str());
+    });
+
+    def("base64_encode", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        static const std::string b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const std::string& in = args[0].as_string();
+        std::string out;
+        int val = 0, valb = -6;
+        for (unsigned char c : in) {
+            val = (val << 8) + c;
+            valb += 8;
+            while (valb >= 0) {
+                out.push_back(b64[(val >> valb) & 0x3F]);
+                valb -= 6;
+            }
+        }
+        if (valb > -6) out.push_back(b64[((val << 8) >> (valb + 8)) & 0x3F]);
+        while (out.size() % 4) out.push_back('=');
+        return Value(out);
+    });
+
+    def("base64_decode", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        static const std::string b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const std::string& in = args[0].as_string();
+        std::string out;
+        std::vector<int> T(256, -1);
+        for (int i = 0; i < 64; i++) T[static_cast<unsigned char>(b64[i])] = i;
+        int val = 0, valb = -8;
+        for (unsigned char c : in) {
+            if (T[c] == -1) break;
+            val = (val << 6) + T[c];
+            valb += 6;
+            if (valb >= 0) {
+                out.push_back(static_cast<char>((val >> valb) & 0xFF));
+                valb -= 8;
+            }
+        }
+        return Value(out);
+    });
+
+    // Networking HTTP
+    def("http_get", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string cmd = "curl -s -L \"" + args[0].as_string() + "\"";
+        std::array<char, 256> buffer;
+        std::string result;
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) return Value();
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+            result += buffer.data();
+        }
+        pclose(pipe);
+        return Value(result);
+    });
 }
 
 void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements) {
@@ -1038,7 +1152,13 @@ void Interpreter::visit(const IfStmt& stmt) {
 
 void Interpreter::visit(const WhileStmt& stmt) {
     while (evaluate(*stmt.condition).is_truthy()) {
-        execute(*stmt.body);
+        try {
+            execute(*stmt.body);
+        } catch (const BreakException&) {
+            break;
+        } catch (const ContinueException&) {
+            continue;
+        }
     }
 }
 
@@ -1050,14 +1170,26 @@ void Interpreter::visit(const ForInStmt& stmt) {
         for (const auto& item : arr) {
             auto loop_env = std::make_shared<Environment>(environment_);
             loop_env->define(stmt.variable.lexeme, item);
-            execute_block({stmt.body}, loop_env);
+            try {
+                execute_block({stmt.body}, loop_env);
+            } catch (const BreakException&) {
+                break;
+            } catch (const ContinueException&) {
+                continue;
+            }
         }
     } else if (iterable.is_map()) {
         const auto& m = *iterable.as_map();
         for (const auto& [k, v] : m) {
             auto loop_env = std::make_shared<Environment>(environment_);
             loop_env->define(stmt.variable.lexeme, Value(k));
-            execute_block({stmt.body}, loop_env);
+            try {
+                execute_block({stmt.body}, loop_env);
+            } catch (const BreakException&) {
+                break;
+            } catch (const ContinueException&) {
+                continue;
+            }
         }
     } else {
         throw RuntimeError(stmt.variable, "Can only iterate over arrays or maps.");
@@ -1185,6 +1317,14 @@ void Interpreter::visit(const StructStmt& stmt) {
     }
     auto constructor = std::make_shared<StructConstructor>(stmt.name.lexeme, std::move(field_names));
     environment_->define(stmt.name.lexeme, Value(constructor));
+}
+
+void Interpreter::visit(const BreakStmt& /*stmt*/) {
+    throw BreakException{};
+}
+
+void Interpreter::visit(const ContinueStmt& /*stmt*/) {
+    throw ContinueException{};
 }
 
 void Interpreter::visit(const FunctionStmt& stmt) {
