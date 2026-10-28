@@ -60,6 +60,34 @@ Raven combines the expressiveness of Python, the functional elegance of Rust/Eli
 
 ---
 
+## 2. Source Code Architecture (`src/`)
+
+Organized following modern industry compiler & toolchain standards (mirroring Go and LLVM):
+
+```text
+src/
+├── cmd/                          # Command-line entrypoints (like Go's cmd/)
+│   ├── raven/main.cpp            # Unified Raven CLI (run, fmt, vet, doc, bench, test)
+│   ├── ravenc/main.cpp           # Standalone bytecode compiler
+│   └── rvm/main.cpp              # Standalone virtual machine runtime
+├── frontend/                     # Syntactic & Lexical analysis
+│   ├── lexer.cpp                 # Tokenizer & f-string scanner
+│   └── parser.cpp                # Pratt Precedence Recursive Descent Parser
+├── compiler/                     # Intermediate & Bytecode Generation
+│   ├── compiler.cpp              # AST to Bytecode instruction emitter
+│   ├── optimizer.cpp             # AST constant folding & dead code elimination
+│   └── bytecode_serializer.cpp   # Binary .rvc file encoding & decoding
+├── runtime/                      # Execution Engines
+│   ├── interpreter.cpp           # Tree-walk AST execution & built-in native functions
+│   └── vm.cpp                    # Corvus stack-based virtual machine
+└── tools/                        # Developer Toolchain
+    ├── linter.cpp                # Static semantic analyzer (raven vet / lint)
+    ├── formatter.cpp             # Code auto-formatter (raven fmt)
+    └── doc_generator.cpp         # API documentation generator (raven doc)
+```
+
+---
+
 ## 2. Revolutionary Features
 
 1. **Native Collections**:

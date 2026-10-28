@@ -13,32 +13,37 @@ endif()
 
 # Core Library
 add_library(raven_core
-    src/lexer.cpp
-    src/parser.cpp
-    src/interpreter.cpp
-    src/compiler.cpp
-    src/optimizer.cpp
-    src/bytecode_serializer.cpp
-    src/vm.cpp
-    src/linter.cpp
-    src/formatter.cpp
-    src/doc_generator.cpp
+    # Frontend (Lexer, Parser, AST)
+    src/frontend/lexer.cpp
+    src/frontend/parser.cpp
+
+    # Compiler & Optimization (AST -> Bytecode, Constant Folding, Serialization)
+    src/compiler/compiler.cpp
+    src/compiler/optimizer.cpp
+    src/compiler/bytecode_serializer.cpp
+
+    # Execution Runtime (Tree-Walk Interpreter, Corvus VM)
+    src/runtime/interpreter.cpp
+    src/runtime/vm.cpp
+
+    # Developer Tooling (Linter/Vet, Formatter, Documentation Generator)
+    src/tools/linter.cpp
+    src/tools/formatter.cpp
+    src/tools/doc_generator.cpp
 )
 
 target_include_directories(raven_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Unified CLI Tool (raven)
-add_executable(raven src/main.cpp)
+# CLI Binaries (like Go's cmd/)
+add_executable(raven src/cmd/raven/main.cpp)
 target_link_libraries(raven PRIVATE raven_core)
 
-# Dedicated Bytecode Compiler (ravenc)
-add_executable(ravenc src/ravenc_main.cpp)
+add_executable(ravenc src/cmd/ravenc/main.cpp)
 target_link_libraries(ravenc PRIVATE raven_core)
 
-# Dedicated Raven Virtual Machine (rvm)
-add_executable(rvm src/rvm_main.cpp)
+add_executable(rvm src/cmd/rvm/main.cpp)
 target_link_libraries(rvm PRIVATE raven_core)
 
 # Tests
