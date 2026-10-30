@@ -1,19 +1,13 @@
-// stdlib/crypto.rvn - Cryptographic and hash functions (inspired by Go's crypto package)
+// stdlib/crypto.rvn - Cryptographic and hash functions (pure native C++ implementation)
 
 fn fnv_hash(s) {
     return hash(s);
 }
 
 fn sha256_sum(s) {
-    let tmp = "/tmp/_raven_sha256_in.txt";
-    write_file(tmp, s);
-    let out = exec("sha256sum " + tmp + " 2>/dev/null | cut -d' ' -f1");
-    return trim(out);
+    return native_sha256(s);
 }
 
 fn md5_sum(s) {
-    let tmp = "/tmp/_raven_md5_in.txt";
-    write_file(tmp, s);
-    let out = exec("md5sum " + tmp + " 2>/dev/null | cut -d' ' -f1");
-    return trim(out);
+    return native_md5(s);
 }

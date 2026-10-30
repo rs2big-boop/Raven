@@ -1,19 +1,39 @@
-// stdlib/net/http.rvn - HTTP client utilities (inspired by Go's net/http package)
+// stdlib/net/http.rvn - Modern HTTP client and server primitives for Raven
+import "stdlib/net/http/status";
+import "stdlib/net/http/headers";
+import "stdlib/net/http/request";
+import "stdlib/net/http/response";
+import "stdlib/net/http/client";
 
+let default_client = create_client(nil);
+
+// Legacy string return for backward compatibility
 fn http_get_url(url) {
-    return http_get(url);
+    let res = default_client.get(url, nil);
+    return res["body"];
 }
 
+// Full response object with status, headers, body, json() helper
+fn http_fetch(req_or_url) {
+    if (type(req_or_url) == "string") {
+        return default_client.get(req_or_url, nil);
+    }
+    return default_client.do_request(req_or_url);
+}
+
+// Standard post request
 fn http_post(url, body) {
-    let tmp = "/tmp/_raven_post_body.txt";
-    write_file(tmp, body);
-    let out = exec("curl -s -L -X POST -d @" + tmp + " \"" + url + "\"");
-    return out;
+    let res = default_client.post(url, body, nil);
+    return res["body"];
 }
 
+// Standard JSON post request
 fn http_post_json(url, json_data) {
-    let tmp = "/tmp/_raven_post_json.txt";
-    write_file(tmp, to_json(json_data));
-    let out = exec("curl -s -L -X POST -H \"Content-Type: application/json\" -d @" + tmp + " \"" + url + "\"");
-    return out;
+    let res = default_client.post_json(url, json_data, nil);
+    return res["body"];
+}
+
+// Custom client constructor with configured timeouts, headers
+fn new_http_client(opts) {
+    return create_client(opts);
 }

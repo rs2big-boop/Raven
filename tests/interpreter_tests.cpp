@@ -1033,6 +1033,30 @@ TEST(InterpreterTest, SemanticResolver) {
     EXPECT_EQ(run_code("let x = 10; print(x);\n"), "10\n");
 }
 
+TEST(InterpreterTest, NativeCryptographySHA256AndMD5) {
+    EXPECT_EQ(run_code("print(native_sha256(\"hello\"));\n"),
+              "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824\n");
+    EXPECT_EQ(run_code("print(native_md5(\"hello\"));\n"),
+              "5d41402abc4b2a76b9719d911017c592\n");
+    EXPECT_EQ(run_code("import \"stdlib/crypto\"; print(sha256_sum(\"hello\"));\n"),
+              "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824\n");
+}
+
+TEST(InterpreterTest, ModularNetHttpPackage) {
+    // Verify HTTP modular structures compile and execute in Raven
+    std::string code =
+        "import \"stdlib/net/http/status\";\n"
+        "import \"stdlib/net/http/headers\";\n"
+        "import \"stdlib/net/http/response\";\n"
+        "print(status_text(STATUS_OK));\n"
+        "let h = new_headers();\n"
+        "header_set(h, \"Authorization\", \"Bearer test-token\");\n"
+        "print(header_get(h, \"authorization\", \"none\"));\n";
+
+    EXPECT_EQ(run_code(code), "OK\nBearer test-token\n");
+}
+
+
 
 
 

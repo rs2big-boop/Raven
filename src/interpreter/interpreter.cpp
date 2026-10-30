@@ -26,6 +26,11 @@
 #include "raven/concurrency/wait_group.hpp"
 #include "raven/concurrency/mutex.hpp"
 #include "raven/concurrency/spawn_registry.hpp"
+#include "raven/platform/crypto.hpp"
+#include "raven/platform/http_client.hpp"
+#include "raven/platform/sockets.hpp"
+#include "raven/platform/filesystem.hpp"
+#include "raven/platform/system_info.hpp"
 
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -859,18 +864,53 @@ void Interpreter::register_builtins() {
         return Value(out);
     });
 
-    // Networking HTTP
-    def("http_get", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
-        std::string cmd = "curl -s -L \"" + args[0].as_string() + "\"";
-        std::array<char, 256> buffer;
-        std::string result;
-        FILE* pipe = popen(cmd.c_str(), "r");
-        if (!pipe) return Value();
-        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-            result += buffer.data();
+    // Networking HTTP & Request
+    def("http_request", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        platform::HttpRequest req;
+        if (args[0].is_string()) {
+            req.url = args[0].to_string();
+        } else if (args[0].is_map()) {
+            auto m = args[0].as_map();
+            if (m->count("url")) req.url = (*m)["url"].to_string();
+            if (m->count("method")) req.method = (*m)["method"].to_string();
+            if (m->count("body")) req.body = (*m)["body"].to_string();
+            if (m->count("timeout")) req.timeout_ms = static_cast<int>((*m)["timeout"].as_number());
+            if (m->count("headers") && (*m)["headers"].is_map()) {
+                for (const auto& [hk, hv] : *(*m)["headers"].as_map()) {
+                    req.headers[hk] = hv.to_string();
+                }
+            }
         }
-        pclose(pipe);
-        return Value(result);
+        auto resp = platform::http_request(req);
+        auto res_map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*res_map)["status"] = Value(static_cast<double>(resp.status));
+        (*res_map)["status_text"] = Value(resp.status_text);
+        (*res_map)["body"] = Value(resp.body);
+        (*res_map)["ok"] = Value(resp.ok);
+        (*res_map)["error"] = Value(resp.error);
+
+        auto headers_map = std::make_shared<std::unordered_map<std::string, Value>>();
+        for (const auto& [hk, hv] : resp.headers) {
+            (*headers_map)[hk] = Value(hv);
+        }
+        (*res_map)["headers"] = Value(headers_map);
+        return Value(res_map);
+    });
+
+    def("http_get", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        platform::HttpRequest req;
+        req.url = args[0].to_string();
+        auto resp = platform::http_request(req);
+        return Value(resp.body);
+    });
+
+    // Native Cryptography
+    def("native_sha256", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::sha256_hex(args[0].to_string()));
+    });
+
+    def("native_md5", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::md5_hex(args[0].to_string()));
     });
 
     // String manipulation additions

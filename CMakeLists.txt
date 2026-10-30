@@ -67,6 +67,13 @@ add_library(raven_core
     src/runtime/memory/root_registry.cpp
     src/runtime/memory/managed_heap.cpp
 
+    # Platform Subsystem (Sockets, HTTP Client, Crypto, Filesystem, System Info)
+    src/platform/crypto.cpp
+    src/platform/sockets.cpp
+    src/platform/http_client.cpp
+    src/platform/filesystem.cpp
+    src/platform/system_info.cpp
+
     # Developer Tooling (Linter/Vet, Formatter, Documentation Generator, Language Server)
     src/tools/linter.cpp
     src/tools/formatter.cpp
