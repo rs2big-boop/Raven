@@ -17,53 +17,38 @@ fn create_channel(capacity) {
 }
 
 fn create_wait_group() {
-    let counter = 0;
-    let notify_ch = chan_create(100);
+    let id = wg_create();
     let obj = {};
 
     obj["add"] = fn(delta) {
-        counter += delta;
+        return wg_add(id, delta);
     };
 
     obj["done"] = fn() {
-        counter -= 1;
-        if (counter == 0) {
-            chan_send(notify_ch, true);
-        }
+        return wg_done(id);
     };
 
     obj["wait"] = fn() {
-        if (counter > 0) {
-            chan_recv(notify_ch);
-        }
+        return wg_wait(id);
     };
 
-    obj["count"] = fn() {
-        return counter;
-    };
-
+    obj["id"] = id;
     return obj;
 }
 
 fn create_mutex() {
-    let locked = false;
+    let id = mutex_create();
     let obj = {};
 
     obj["lock"] = fn() {
-        if (locked) {
-            panic("deadlock: mutex already locked");
-        }
-        locked = true;
+        return mutex_lock(id);
     };
 
     obj["unlock"] = fn() {
-        locked = false;
+        return mutex_unlock(id);
     };
 
-    obj["is_locked"] = fn() {
-        return locked;
-    };
-
+    obj["id"] = id;
     return obj;
 }
 

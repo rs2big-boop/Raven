@@ -1,0 +1,14 @@
+// benchmarks/array_ops.rvn — Dynamic Array Allocation & Traversal Benchmark
+let arr = [];
+let i = 0;
+while (i < 20000) {
+    push(arr, i * 2);
+    i += 1;
+}
+
+let sum = 0;
+for (let item in arr) {
+    sum += item;
+}
+
+print("Array size: " + len(arr) + ", Sum: " + sum);

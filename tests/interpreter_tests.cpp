@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "raven/bytecode_serializer.hpp"
+#include "raven/bytecode_verifier.hpp"
 #include "raven/compiler.hpp"
 #include "raven/interpreter.hpp"
 #include "raven/lexer.hpp"
@@ -741,4 +742,82 @@ TEST(InterpreterTest, NewStdlibModules) {
         "print(len(errs));\n";
 
     EXPECT_EQ(run_code(source), "42\n1\n2\n0\n");
+}
+
+TEST(InterpreterTest, BytecodeVerifierValidChunk) {
+    std::string source =
+        "let x = 100;\n"
+        "let y = 200;\n"
+        "print(x + y);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    Chunk chunk;
+    Compiler compiler(chunk);
+    ASSERT_TRUE(compiler.compile(stmts));
+
+    auto res = BytecodeVerifier::verify(chunk);
+    EXPECT_TRUE(res.is_valid);
+    EXPECT_TRUE(res.error_message.empty());
+}
+
+TEST(InterpreterTest, BytecodeVerifierDetectsInvalidOpcode) {
+    Chunk chunk;
+    chunk.write(254, 1); // Invalid opcode
+    auto res = BytecodeVerifier::verify(chunk);
+    EXPECT_FALSE(res.is_valid);
+    EXPECT_NE(res.error_message.find("Invalid opcode byte"), std::string::npos);
+}
+
+TEST(InterpreterTest, BytecodeVerifierDetectsOutOfBoundsConstant) {
+    Chunk chunk;
+    chunk.write_op(OpCode::Constant, 1);
+    chunk.write(99, 1); // Out of bounds constant pool index (pool is empty)
+    auto res = BytecodeVerifier::verify(chunk);
+    EXPECT_FALSE(res.is_valid);
+    EXPECT_NE(res.error_message.find("out of bounds"), std::string::npos);
+}
+
+TEST(InterpreterTest, BytecodeVerifierDetectsOutOfBoundsJump) {
+    Chunk chunk;
+    chunk.write_op(OpCode::Jump, 1);
+    chunk.write(0xFF, 1);
+    chunk.write(0xFF, 1); // Jump +65535 exceeds chunk bounds
+    auto res = BytecodeVerifier::verify(chunk);
+    EXPECT_FALSE(res.is_valid);
+    EXPECT_NE(res.error_message.find("exceeds code bounds"), std::string::npos);
+}
+
+TEST(InterpreterTest, DualEngineDifferentialParityArithmetic) {
+    std::string source =
+        "let a = 12 * 8 + 4;\n"
+        "let b = (a - 10) / 2;\n"
+        "print(a);\n"
+        "print(b);\n"
+        "print(a > b);\n"
+        "print(a == b);\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "100\n45\ntrue\nfalse\n");
+}
+
+TEST(InterpreterTest, DualEngineDifferentialParityArraysAndLoops) {
+    std::string source =
+        "let arr = [10, 20, 30];\n"
+        "let sum = 0;\n"
+        "let i = 0;\n"
+        "while (i < 3) {\n"
+        "    sum = sum + arr[i];\n"
+        "    i = i + 1;\n"
+        "}\n"
+        "print(sum);\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "60\n");
 }

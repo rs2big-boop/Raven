@@ -555,4 +555,4 @@ print("${5} squared is ${5 * 5}");           // 5 squared is 25
 - **Full Call Stack Traces**: Runtime errors now include the full chain of function calls with name, line and column.
 - **Package Manager**: `raven pkg install <git-url>[@tag]` clones packages into `raven_modules/` and produces a `raven.lock` file for reproducible builds. `raven pkg list` inspects installed packages.
 - **Release Distributions**: `dist.bash` builds, tests, assembles, and SHA-256-checksums a `raven-v1.0.0-linux-x86_64.tar.gz` archive ready for upload.
-- **68/68 Tests Passing**: Full test coverage across lexer, parser, interpreter, bytecode VM, stdlib, concurrency, and toolchain integration.
+- **74/74 Tests Passing**: Full test coverage across lexer, parser, interpreter, bytecode VM, stdlib, concurrency, differential parity, and toolchain integration.

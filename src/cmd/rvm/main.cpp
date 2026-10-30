@@ -5,6 +5,7 @@
 #include <string>
 
 #include "raven/bytecode_serializer.hpp"
+#include "raven/bytecode_verifier.hpp"
 #include "raven/compiler.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -92,6 +93,12 @@ int main(int argc, char* argv[]) {
 
     if (disasm) {
         chunk.disassemble(std::cout, file_path);
+    }
+
+    auto verify_res = BytecodeVerifier::verify(chunk);
+    if (!verify_res.is_valid) {
+        std::cerr << "Bytecode Verification Error: " << verify_res.error_message << "\n";
+        return 70;
     }
 
     VM vm(std::cout);

@@ -1,0 +1,34 @@
+// benchmarks/concurrency_fanout.rvn — Native CSP Concurrency Benchmark
+import "stdlib/sync";
+
+let num_threads = 20;
+let results = create_channel(25);
+let wg = create_wait_group();
+
+let i = 0;
+while (i < num_threads) {
+    wg.add(1);
+    let worker_id = i;
+    go(fn() {
+        let acc = 0;
+        let k = 0;
+        while (k < 1000) {
+            acc += k;
+            k += 1;
+        }
+        results.send(acc);
+        wg.done();
+    });
+    i += 1;
+}
+
+wg.wait();
+
+let total = 0;
+let count = 0;
+while (count < num_threads) {
+    total += results.recv();
+    count += 1;
+}
+
+print("Completed " + count + " concurrent threads. Aggregate: " + total);

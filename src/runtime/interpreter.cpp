@@ -60,6 +60,25 @@ static std::mutex g_channels_mutex;
 static std::unordered_map<int64_t, std::shared_ptr<NativeChannel>> g_channels;
 static int64_t g_next_channel_id = 1;
 
+struct NativeWaitGroup {
+    std::mutex mtx;
+    std::condition_variable cv;
+    int64_t counter = 0;
+};
+
+static std::mutex g_wait_groups_mutex;
+static std::unordered_map<int64_t, std::shared_ptr<NativeWaitGroup>> g_wait_groups;
+static int64_t g_next_wg_id = 1;
+
+struct NativeMutex {
+    std::recursive_mutex mtx;
+    std::atomic<bool> locked{false};
+};
+
+static std::mutex g_native_mutexes_mutex;
+static std::unordered_map<int64_t, std::shared_ptr<NativeMutex>> g_native_mutexes;
+static int64_t g_next_mutex_id = 1;
+
 struct CallStackGuard {
     Interpreter& interp;
     CallStackGuard(Interpreter& i, const std::string& name, size_t line, size_t col) : interp(i) {
@@ -1285,6 +1304,99 @@ void Interpreter::register_builtins() {
             } catch (...) {
             }
         }).detach();
+        return Value(true);
+    });
+
+    // Native WaitGroup Builtins
+    def("wg_create", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        auto wg = std::make_shared<NativeWaitGroup>();
+        std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
+        int64_t id = g_next_wg_id++;
+        g_wait_groups[id] = wg;
+        return Value(static_cast<double>(id));
+    });
+
+    def("wg_add", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        int64_t delta = static_cast<int64_t>(args[1].as_number());
+        std::shared_ptr<NativeWaitGroup> wg;
+        {
+            std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
+            auto it = g_wait_groups.find(id);
+            if (it == g_wait_groups.end()) return Value(false);
+            wg = it->second;
+        }
+        std::lock_guard<std::mutex> lk(wg->mtx);
+        wg->counter += delta;
+        return Value(true);
+    });
+
+    def("wg_done", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeWaitGroup> wg;
+        {
+            std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
+            auto it = g_wait_groups.find(id);
+            if (it == g_wait_groups.end()) return Value(false);
+            wg = it->second;
+        }
+        std::lock_guard<std::mutex> lk(wg->mtx);
+        wg->counter--;
+        if (wg->counter <= 0) {
+            wg->counter = 0;
+            wg->cv.notify_all();
+        }
+        return Value(true);
+    });
+
+    def("wg_wait", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeWaitGroup> wg;
+        {
+            std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
+            auto it = g_wait_groups.find(id);
+            if (it == g_wait_groups.end()) return Value(false);
+            wg = it->second;
+        }
+        std::unique_lock<std::mutex> lk(wg->mtx);
+        wg->cv.wait(lk, [&]() { return wg->counter <= 0; });
+        return Value(true);
+    });
+
+    // Native Mutex Builtins
+    def("mutex_create", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        auto m = std::make_shared<NativeMutex>();
+        std::lock_guard<std::mutex> lock(g_native_mutexes_mutex);
+        int64_t id = g_next_mutex_id++;
+        g_native_mutexes[id] = m;
+        return Value(static_cast<double>(id));
+    });
+
+    def("mutex_lock", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeMutex> m;
+        {
+            std::lock_guard<std::mutex> lock(g_native_mutexes_mutex);
+            auto it = g_native_mutexes.find(id);
+            if (it == g_native_mutexes.end()) return Value(false);
+            m = it->second;
+        }
+        m->mtx.lock();
+        m->locked = true;
+        return Value(true);
+    });
+
+    def("mutex_unlock", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::shared_ptr<NativeMutex> m;
+        {
+            std::lock_guard<std::mutex> lock(g_native_mutexes_mutex);
+            auto it = g_native_mutexes.find(id);
+            if (it == g_native_mutexes.end()) return Value(false);
+            m = it->second;
+        }
+        m->locked = false;
+        m->mtx.unlock();
         return Value(true);
     });
 }

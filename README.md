@@ -7,9 +7,15 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-68%2F68%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-74%2F74%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
 > [![License](https://img.shields.io/badge/license-MIT-green)](#)
+
+---
+
+## 📖 The Raven Vision
+Read our project manifesto: [**RAVEN_VISION.md — Building in the Open**](RAVEN_VISION.md)  
+Discover why Raven exists, the problems it solves, its unique design, and the 5-Year Roadmap (2026–2031).
 
 ---
 
@@ -54,7 +60,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (68/68 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (74/74 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -284,7 +290,7 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (68 automated unit, regression, toolchain & VM integration tests):
+Raven includes a comprehensive test suite (74 automated unit, regression, toolchain, differential & VM integration tests):
 
 ```bash
 # Fast build and test
@@ -298,6 +304,14 @@ ctest --test-dir build --output-on-failure
 # System-wide Installation (optional)
 sudo ./install.sh
 ```
+
+## Real-World Reference Projects
+
+Four production-pattern reference projects are included under `examples/projects/`:
+1. **[HTTP REST API Server](examples/projects/01_rest_api_server.rvn)**: Routing, Middleware Pipeline, JSON Serialization, and Thread-Safe Mutex Store.
+2. **[Production CLI Application](examples/projects/02_cli_tool.rvn)**: Subcommands, Flags, JSON Configuration, and File System I/O.
+3. **[Key-Value Database Client](examples/projects/03_kv_database_client.rvn)**: Client Session Management, CRUD, Atomic Counters, and Batch Pipeline Execution.
+4. **[Concurrent Task Runner](examples/projects/04_concurrent_task_runner.rvn)**: Native POSIX Threads, WaitGroup Barrier Synchronization, and CSP Channel Queue.
 
 ## VS Code Extension
 
@@ -318,6 +332,19 @@ cp -r editors/vscode ~/.vscode/extensions/raven-lang
 
 ---
 
+## Community & Open Source
+
+Raven is **built in the open**. We welcome developers from all backgrounds to help shape the language:
+- 📜 [**Manifesto & 5-Year Vision**](RAVEN_VISION.md)
+- 🤝 [**Contributing Guide**](CONTRIBUTING.md)
+- 💖 [**Code of Conduct**](CODE_OF_CONDUCT.md)
+- 🔒 [**Security Policy**](SECURITY.md)
+- 🏛️ [**Architecture Specification**](docs/architecture.md) & [**Architecture Decisions (ADRs)**](docs/architecture/decisions/)
+- 📋 [**Changelog**](CHANGELOG.md)
+
+---
+
 ## License
 
 Raven is licensed under the [MIT License](LICENSE).
+Copyright (c) 2026 Ran & The Raven Language Contributors.

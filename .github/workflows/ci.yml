@@ -24,8 +24,15 @@ jobs:
     - name: Build Raven Toolchain (raven, ravenc, rvm)
       run: cmake --build build --config Release
 
-    - name: Run Full Test Suite (57 Tests)
+    - name: Run Full Test Suite (74 Tests)
       run: ctest --test-dir build --output-on-failure
+
+    - name: Run Real-World Projects
+      run: |
+        ./build/raven examples/projects/01_rest_api_server.rvn
+        ./build/raven examples/projects/02_cli_tool.rvn
+        ./build/raven examples/projects/03_kv_database_client.rvn
+        ./build/raven examples/projects/04_concurrent_task_runner.rvn
 
     - name: Test Developer Tooling (fmt, vet, doc, bench, init)
       run: |
