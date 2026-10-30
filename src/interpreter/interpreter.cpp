@@ -2028,12 +2028,15 @@ void Interpreter::visit(const ImportStmt& stmt) {
         "../stdlib/" + rel_path + "/" + base + ".rvn",
         "/home/ran/Raven/stdlib/" + rel_path + ".rvn",
         "/home/ran/Raven/stdlib/" + rel_path + "/" + base + ".rvn",
+        "/home/ran/MiniLang/stdlib/" + rel_path + ".rvn",
+        "/home/ran/MiniLang/stdlib/" + rel_path + "/" + base + ".rvn",
         "/usr/local/share/raven/stdlib/" + rel_path + ".rvn",
         "/usr/local/share/raven/stdlib/" + rel_path + "/" + base + ".rvn",
         "raven_modules/" + path + ".rvn",
         path,
         "stdlib/" + rel_path,
         "/home/ran/Raven/stdlib/" + rel_path,
+        "/home/ran/MiniLang/stdlib/" + rel_path,
         "/usr/local/share/raven/stdlib/" + rel_path
     };
 
