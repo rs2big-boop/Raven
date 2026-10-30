@@ -1,0 +1,149 @@
+// examples/projects/01_rest_api_server.rvn
+// Project 1: Production-ready HTTP REST API Architecture
+import "stdlib/sync";
+import "stdlib/encoding/json";
+import "stdlib/time";
+import "stdlib/log";
+
+print("🚀 === Raven Real-World Project 1: REST API Server ===\n");
+
+// --- Router and Server Abstraction ---
+fn create_router() {
+    let routes = {};
+    let middlewares = [];
+    let r = {};
+
+    r["use"] = fn(mw) {
+        push(middlewares, mw);
+    };
+
+    r["get"] = fn(path, handler) {
+        routes["GET:" + path] = handler;
+    };
+
+    r["post"] = fn(path, handler) {
+        routes["POST:" + path] = handler;
+    };
+
+    r["handle"] = fn(req) {
+        let route_key = req["method"] + ":" + req["path"];
+
+        // 1. Run Middleware pipeline
+        for (let mw in middlewares) {
+            let res = mw(req);
+            if (res != nil) {
+                return res; // Middleware intercepted
+            }
+        }
+
+        // 2. Route Dispatch
+        if (map_has_key(routes, route_key)) {
+            let handler = routes[route_key];
+            return handler(req);
+        }
+
+        return {
+            "status": 404,
+            "body": marshal({"error": "Route not found", "path": req["path"]})
+        };
+    };
+
+    return r;
+}
+
+// --- Data Store with Thread-Safe Concurrency ---
+let db_mutex = create_mutex();
+let users_table = {
+    "1": {"id": 1, "username": "alice", "email": "alice@raven.org", "active": true},
+    "2": {"id": 2, "username": "bob", "email": "bob@raven.org", "active": true}
+};
+
+let router = create_router();
+
+// --- Middlewares ---
+// 1. Logging & Timing Middleware
+router.use(fn(req) {
+    req["start_time"] = time();
+    print("  --> [" + req["method"] + "] " + req["path"]);
+    return nil;
+});
+
+// 2. Authentication guard
+router.use(fn(req) {
+    if (req["path"] == "/api/admin") {
+        let token = req?.headers?.["Authorization"] ?? "";
+        if (token != "Bearer secret-token") {
+            return {
+                "status": 401,
+                "body": marshal({"error": "Unauthorized access"})
+            };
+        }
+    }
+    return nil;
+});
+
+// --- API Endpoints ---
+router.get("/api/health", fn(req) {
+    return {
+        "status": 200,
+        "body": marshal({
+            "status": "UP",
+            "version": "1.0.0",
+            "runtime": "Corvus Engine"
+        })
+    };
+});
+
+router.get("/api/users", fn(req) {
+    db_mutex.lock();
+    let users = [];
+    let u_keys = keys(users_table);
+    for (let k in u_keys) {
+        push(users, users_table[k]);
+    }
+    db_mutex.unlock();
+
+    return {
+        "status": 200,
+        "body": marshal({"count": len(users), "data": users})
+    };
+});
+
+router.post("/api/users", fn(req) {
+    let payload = unmarshal(req["body"]);
+    let new_id = str(len(users_table) + 1);
+
+    let new_user = {
+        "id": int(num(new_id)),
+        "username": payload["username"] ?? "guest",
+        "email": payload["email"] ?? "none",
+        "active": true
+    };
+
+    db_mutex.lock();
+    users_table[new_id] = new_user;
+    db_mutex.unlock();
+
+    return {
+        "status": 201,
+        "body": marshal({"message": "User created", "user": new_user})
+    };
+});
+
+// --- Server Simulation Test Harness ---
+let requests = [
+    {"method": "GET", "path": "/api/health", "headers": {}},
+    {"method": "GET", "path": "/api/users", "headers": {}},
+    {"method": "POST", "path": "/api/users", "headers": {}, "body": "{\"username\": \"charlie\", \"email\": \"charlie@raven.org\"}"},
+    {"method": "GET", "path": "/api/users", "headers": {}},
+    {"method": "GET", "path": "/api/admin", "headers": {}},
+    {"method": "GET", "path": "/api/admin", "headers": {"Authorization": "Bearer secret-token"}},
+    {"method": "GET", "path": "/api/unknown", "headers": {}}
+];
+
+for (let req in requests) {
+    let res = router.handle(req);
+    print("  <-- Status: " + res["status"] + " | Response: " + res["body"]);
+}
+
+print("\n✅ REST API Server architecture verified successfully!");

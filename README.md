@@ -284,7 +284,7 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (59 automated unit, regression, toolchain & VM integration tests):
+Raven includes a comprehensive test suite (68 automated unit, regression, toolchain & VM integration tests):
 
 ```bash
 # Fast build and test

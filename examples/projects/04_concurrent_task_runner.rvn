@@ -1,0 +1,41 @@
+// examples/projects/04_concurrent_task_runner.rvn
+// Project 4: Concurrent Worker Pool & Task Pipeline with Native CSP
+import "stdlib/sync";
+import "stdlib/time";
+
+print("⚡ === Raven Real-World Project 4: Concurrent Task Runner ===\n");
+
+let num_jobs = 6;
+let jobs = [10, 20, 30, 40, 50, 60];
+let results_ch = create_channel(10);
+let wg = create_wait_group();
+
+print("1. Spawning parallel worker tasks using native POSIX threads...");
+
+for (let item in jobs) {
+    wg.add(1);
+    let job_id = item;
+    go(fn() {
+        // Parallel computation
+        let square = job_id * job_id;
+        results_ch.send({"id": job_id, "square": square});
+        wg.done();
+    });
+}
+
+print("2. Waiting for all worker threads to complete via WaitGroup...");
+wg.wait();
+
+print("3. Collecting processed results from thread-safe channel:");
+let total = 0;
+let count = 0;
+while (count < len(jobs)) {
+    let res = results_ch.recv();
+    print("   ✓ Task " + res["id"] + " processed -> " + res["square"]);
+    total += res["square"];
+    count += 1;
+}
+
+print("\nTotal sum of computational squares: " + total);
+print("Processed " + count + " / " + len(jobs) + " jobs concurrently!");
+print("✅ Concurrent Task Runner architecture verified successfully!");

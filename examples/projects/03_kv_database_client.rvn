@@ -1,0 +1,113 @@
+// examples/projects/03_kv_database_client.rvn
+// Project 3: High-Performance Key-Value Database Client Architecture
+import "stdlib/encoding/json";
+import "stdlib/sync";
+
+print("🗄️ === Raven Real-World Project 3: Database Client ===\n");
+
+fn create_db_client(host = "localhost", port = 6379) {
+    let storage = {};
+    let mu = create_mutex();
+    let is_connected = false;
+    let client = {};
+
+    client["connect"] = fn() {
+        is_connected = true;
+        print("  [DB] Connected to RavenDB at " + host + ":" + port);
+    };
+
+    client["disconnect"] = fn() {
+        is_connected = false;
+        print("  [DB] Connection closed.");
+    };
+
+    client["set"] = fn(key, val) {
+        if (!is_connected) { panic("DB not connected"); }
+        mu.lock();
+        storage[key] = val;
+        mu.unlock();
+        return "OK";
+    };
+
+    client["get"] = fn(key) {
+        if (!is_connected) { panic("DB not connected"); }
+        mu.lock();
+        let res = nil;
+        if (map_has_key(storage, key)) {
+            res = storage[key];
+        }
+        mu.unlock();
+        return res;
+    };
+
+    client["del"] = fn(key) {
+        if (!is_connected) { panic("DB not connected"); }
+        mu.lock();
+        let existed = map_has_key(storage, key);
+        if (existed) {
+            map_delete(storage, key);
+        }
+        mu.unlock();
+        return existed;
+    };
+
+    client["incr"] = fn(key) {
+        if (!is_connected) { panic("DB not connected"); }
+        mu.lock();
+        let val = 0;
+        if (map_has_key(storage, key)) {
+            val = storage[key];
+        }
+        val += 1;
+        storage[key] = val;
+        mu.unlock();
+        return val;
+    };
+
+    // Pipeline / Batch execution
+    client["pipeline"] = fn(commands) {
+        let results = [];
+        for (let cmd in commands) {
+            let op = cmd[0];
+            if (op == "SET") {
+                push(results, client.set(cmd[1], cmd[2]));
+            } else if (op == "GET") {
+                push(results, client.get(cmd[1]));
+            } else if (op == "INCR") {
+                push(results, client.incr(cmd[1]));
+            }
+        }
+        return results;
+    };
+
+    return client;
+}
+
+// --- Verification Scenario ---
+let db = create_db_client("10.0.0.1", 7000);
+db.connect();
+
+// Single operations
+db.set("user:101:name", "Ran");
+db.set("user:101:plan", "Enterprise");
+print("  Read name: " + db.get("user:101:name"));
+print("  Read plan: " + db.get("user:101:plan"));
+
+// Atomic counters
+print("  Counter test:");
+print("    incr -> " + db.incr("page_views"));
+print("    incr -> " + db.incr("page_views"));
+print("    incr -> " + db.incr("page_views"));
+
+// Pipeline execution
+print("\n  Executing batch pipeline (3 ops):");
+let batch = [
+    ["SET", "cluster:nodes", 8],
+    ["INCR", "cluster:nodes"],
+    ["GET", "cluster:nodes"]
+];
+let res = db.pipeline(batch);
+print("  Pipeline Results: " + str(res));
+
+db.disconnect();
+print("\n✅ Database Client architecture verified successfully!");

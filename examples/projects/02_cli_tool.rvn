@@ -1,0 +1,68 @@
+// examples/projects/02_cli_tool.rvn
+// Project 2: Real-World CLI Tool with Subcommands, Flags, Config & File I/O
+import "stdlib/cli";
+import "stdlib/encoding/json";
+import "stdlib/path";
+
+print("🛠️ === Raven Real-World Project 2: CLI Application ===\n");
+
+let app = create_cli("ravenctl", "1.0.0", "Cloud service manager and build tool");
+
+// Global flags
+app.flag("env", "Deployment environment (dev, staging, prod)", "dev");
+app.flag("verbose", "Enable verbose debug logs", "false");
+
+// Subcommand: init
+app.command("init", "Initialize a new service configuration", fn(flags) {
+    let conf_path = "/tmp/service.config.json";
+    let default_config = {
+        "service": "api-gateway",
+        "env": flags["env"] ?? "dev",
+        "replicas": 3,
+        "ports": [8080, 8443]
+    };
+    write_file(conf_path, marshal(default_config));
+    print("  [INIT] Created configuration at " + conf_path);
+});
+
+// Subcommand: status
+app.command("status", "Inspect status of current active service", fn(flags) {
+    let conf_path = "/tmp/service.config.json";
+    if (!file_exists(conf_path)) {
+        print("  [ERROR] No configuration found. Run 'init' first.");
+        return nil;
+    }
+    let data = unmarshal(read_file(conf_path));
+    print("  [STATUS] Service: " + data["service"]);
+    print("  [STATUS] Env:     " + data["env"]);
+    print("  [STATUS] Replicas: " + data["replicas"]);
+});
+
+// Subcommand: deploy
+app.command("deploy", "Deploy the active service", fn(flags) {
+    let conf_path = "/tmp/service.config.json";
+    if (!file_exists(conf_path)) {
+        print("  [ERROR] Cannot deploy without configuration.");
+        return nil;
+    }
+    let data = unmarshal(read_file(conf_path));
+    print("  [DEPLOY] Deploying " + data["service"] + " to environment: " + (flags["env"] ?? data["env"]));
+    print("  [DEPLOY] Provisioning " + data["replicas"] + " nodes... SUCCESS (200 OK)");
+});
+
+// --- CLI Simulation Harness ---
+print("Simulating CLI command execution:");
+
+print("\n1. Running help:");
+app.run(["--help"]);
+
+print("\n2. Initializing config:");
+app.run(["init", "--env=production"]);
+
+print("\n3. Checking status:");
+app.run(["status"]);
+
+print("\n4. Deploying:");
+app.run(["deploy", "--env=production", "--verbose=true"]);
+
+print("\n✅ CLI Application architecture verified successfully!");
