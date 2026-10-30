@@ -22,6 +22,10 @@
 #include <dlfcn.h>
 
 #include "raven/gc.hpp"
+#include "raven/concurrency/channel.hpp"
+#include "raven/concurrency/wait_group.hpp"
+#include "raven/concurrency/mutex.hpp"
+#include "raven/concurrency/spawn_registry.hpp"
 
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -51,81 +55,18 @@ private:
     NativeFn fn_;
 };
 
-struct NativeChannel {
-    std::mutex mtx;
-    std::condition_variable cv_recv;
-    std::condition_variable cv_send;
-    std::deque<Value> queue;
-    size_t capacity = 0;
-    bool closed = false;
-};
-
-static std::mutex g_channels_mutex;
-static std::unordered_map<int64_t, std::shared_ptr<NativeChannel>> g_channels;
-static int64_t g_next_channel_id = 1;
-
-// Spawn tracking — for graceful runtime shutdown
-struct SpawnRegistry {
-    std::mutex mtx;
-    std::vector<std::thread> threads;
-
-    void add(std::thread t) {
-        std::lock_guard<std::mutex> lk(mtx);
-        threads.push_back(std::move(t));
-    }
-
-    // Join all tracked threads (called at shutdown).
-    // Threads that do not finish within `timeout_ms` are detached.
-    void join_all(int64_t timeout_ms = 2000) {
-        std::lock_guard<std::mutex> lk(mtx);
-        for (auto& t : threads) {
-            if (t.joinable()) {
-                // Use a detach approach: try join with a timed wait via a helper
-                // future. If joinable threads are still running after timeout,
-                // detach them to avoid blocking the main thread indefinitely.
-                // For now we do a straightforward join (threads are expected to
-                // be short-lived in typical Raven programs).
-                (void)timeout_ms;
-                t.join();
-            }
-        }
-        threads.clear();
-    }
-
-    ~SpawnRegistry() {
-        // Best-effort cleanup on static destruction — detach remaining threads.
-        std::lock_guard<std::mutex> lk(mtx);
-        for (auto& t : threads) {
-            if (t.joinable()) t.detach();
-        }
-    }
-};
-
-static SpawnRegistry g_spawn_registry;
+using concurrency::NativeChannel;
+using concurrency::ChannelManager;
+using concurrency::NativeWaitGroup;
+using concurrency::WaitGroupManager;
+using concurrency::NativeMutex;
+using concurrency::MutexManager;
+using concurrency::SpawnRegistry;
 
 // Foreign Function Interface (FFI) Handles
 static std::mutex g_ffi_mutex;
 static std::unordered_map<int64_t, void*> g_ffi_handles;
 static int64_t g_next_ffi_id = 1;
-
-struct NativeWaitGroup {
-    std::mutex mtx;
-    std::condition_variable cv;
-    int64_t counter = 0;
-};
-
-static std::mutex g_wait_groups_mutex;
-static std::unordered_map<int64_t, std::shared_ptr<NativeWaitGroup>> g_wait_groups;
-static int64_t g_next_wg_id = 1;
-
-struct NativeMutex {
-    std::recursive_mutex mtx;
-    std::atomic<bool> locked{false};
-};
-
-static std::mutex g_native_mutexes_mutex;
-static std::unordered_map<int64_t, std::shared_ptr<NativeMutex>> g_native_mutexes;
-static int64_t g_next_mutex_id = 1;
 
 struct CallStackGuard {
     Interpreter& interp;
@@ -1256,24 +1197,16 @@ void Interpreter::register_builtins() {
 
     // Native Concurrency: CSP Channels & Thread Spawning
     def("chan_create", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
-        auto ch = std::make_shared<NativeChannel>();
-        ch->capacity = static_cast<size_t>(std::max(0.0, args[0].as_number()));
-        std::lock_guard<std::mutex> lock(g_channels_mutex);
-        int64_t id = g_next_channel_id++;
-        g_channels[id] = ch;
+        size_t cap = static_cast<size_t>(std::max(0.0, args[0].as_number()));
+        int64_t id = ChannelManager::instance().create_channel(cap);
         return Value(static_cast<double>(id));
     });
 
     def("chan_send", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeChannel> ch;
-        {
-            std::lock_guard<std::mutex> lock(g_channels_mutex);
-            auto it = g_channels.find(id);
-            if (it == g_channels.end()) {
-                throw RuntimeError(Token{TokenType::Identifier, "chan_send", 0, 0}, "Invalid channel ID.");
-            }
-            ch = it->second;
+        auto ch = ChannelManager::instance().get_channel(id);
+        if (!ch) {
+            throw RuntimeError(Token{TokenType::Identifier, "chan_send", 0, 0}, "Invalid channel ID.");
         }
         std::unique_lock<std::mutex> lk(ch->mtx);
         if (ch->closed) {
@@ -1292,14 +1225,9 @@ void Interpreter::register_builtins() {
 
     def("chan_recv", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeChannel> ch;
-        {
-            std::lock_guard<std::mutex> lock(g_channels_mutex);
-            auto it = g_channels.find(id);
-            if (it == g_channels.end()) {
-                throw RuntimeError(Token{TokenType::Identifier, "chan_recv", 0, 0}, "Invalid channel ID.");
-            }
-            ch = it->second;
+        auto ch = ChannelManager::instance().get_channel(id);
+        if (!ch) {
+            throw RuntimeError(Token{TokenType::Identifier, "chan_recv", 0, 0}, "Invalid channel ID.");
         }
         std::unique_lock<std::mutex> lk(ch->mtx);
         ch->cv_recv.wait(lk, [&]() { return !ch->queue.empty() || ch->closed; });
@@ -1317,14 +1245,9 @@ void Interpreter::register_builtins() {
     def("chan_recv_timeout", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
         int64_t timeout_ms = static_cast<int64_t>(args[1].as_number());
-        std::shared_ptr<NativeChannel> ch;
-        {
-            std::lock_guard<std::mutex> lock(g_channels_mutex);
-            auto it = g_channels.find(id);
-            if (it == g_channels.end()) {
-                throw RuntimeError(Token{TokenType::Identifier, "chan_recv_timeout", 0, 0}, "Invalid channel ID.");
-            }
-            ch = it->second;
+        auto ch = ChannelManager::instance().get_channel(id);
+        if (!ch) {
+            throw RuntimeError(Token{TokenType::Identifier, "chan_recv_timeout", 0, 0}, "Invalid channel ID.");
         }
         std::unique_lock<std::mutex> lk(ch->mtx);
         bool ok = ch->cv_recv.wait_for(lk, std::chrono::milliseconds(timeout_ms), [&]() {
@@ -1343,27 +1266,15 @@ void Interpreter::register_builtins() {
 
     def("chan_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeChannel> ch;
-        {
-            std::lock_guard<std::mutex> lock(g_channels_mutex);
-            auto it = g_channels.find(id);
-            if (it == g_channels.end()) return Value(false);
-            ch = it->second;
-        }
-        std::lock_guard<std::mutex> lk(ch->mtx);
-        ch->closed = true;
-        ch->cv_recv.notify_all();
-        ch->cv_send.notify_all();
-        return Value(true);
+        return Value(ChannelManager::instance().close_channel(id));
     });
 
     def("chan_len", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::lock_guard<std::mutex> lock(g_channels_mutex);
-        auto it = g_channels.find(id);
-        if (it == g_channels.end()) return Value(0.0);
-        std::lock_guard<std::mutex> lk(it->second->mtx);
-        return Value(static_cast<double>(it->second->queue.size()));
+        auto ch = ChannelManager::instance().get_channel(id);
+        if (!ch) return Value(0.0);
+        std::lock_guard<std::mutex> lk(ch->mtx);
+        return Value(static_cast<double>(ch->queue.size()));
     });
 
     def("spawn", 1, [this](Interpreter&, const std::vector<Value>& args) -> Value {
@@ -1372,17 +1283,14 @@ void Interpreter::register_builtins() {
         }
         auto callable = args[0].as_callable();
         auto globals = this->globals_;
-        // Use spawn registry instead of raw detach — enables graceful shutdown.
         std::thread t([callable, globals]() {
             try {
                 Interpreter thread_interp(globals, std::cout);
                 callable->call(thread_interp, {});
             } catch (...) {
-                // Silently swallow unhandled exceptions in spawned tasks.
-                // Future: propagate via a task result channel.
             }
         });
-        g_spawn_registry.add(std::move(t));
+        SpawnRegistry::instance().add(std::move(t));
         return Value(true);
     });
 
@@ -1558,95 +1466,38 @@ void Interpreter::register_builtins() {
 
     // Native WaitGroup Builtins
     def("wg_create", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
-        auto wg = std::make_shared<NativeWaitGroup>();
-        std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
-        int64_t id = g_next_wg_id++;
-        g_wait_groups[id] = wg;
-        return Value(static_cast<double>(id));
+        return Value(static_cast<double>(WaitGroupManager::instance().create()));
     });
 
     def("wg_add", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
         int64_t delta = static_cast<int64_t>(args[1].as_number());
-        std::shared_ptr<NativeWaitGroup> wg;
-        {
-            std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
-            auto it = g_wait_groups.find(id);
-            if (it == g_wait_groups.end()) return Value(false);
-            wg = it->second;
-        }
-        std::lock_guard<std::mutex> lk(wg->mtx);
-        wg->counter += delta;
-        return Value(true);
+        return Value(WaitGroupManager::instance().add(id, delta));
     });
 
     def("wg_done", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeWaitGroup> wg;
-        {
-            std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
-            auto it = g_wait_groups.find(id);
-            if (it == g_wait_groups.end()) return Value(false);
-            wg = it->second;
-        }
-        std::lock_guard<std::mutex> lk(wg->mtx);
-        wg->counter--;
-        if (wg->counter <= 0) {
-            wg->counter = 0;
-            wg->cv.notify_all();
-        }
-        return Value(true);
+        return Value(WaitGroupManager::instance().done(id));
     });
 
     def("wg_wait", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeWaitGroup> wg;
-        {
-            std::lock_guard<std::mutex> lock(g_wait_groups_mutex);
-            auto it = g_wait_groups.find(id);
-            if (it == g_wait_groups.end()) return Value(false);
-            wg = it->second;
-        }
-        std::unique_lock<std::mutex> lk(wg->mtx);
-        wg->cv.wait(lk, [&]() { return wg->counter <= 0; });
-        return Value(true);
+        return Value(WaitGroupManager::instance().wait(id));
     });
 
     // Native Mutex Builtins
     def("mutex_create", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
-        auto m = std::make_shared<NativeMutex>();
-        std::lock_guard<std::mutex> lock(g_native_mutexes_mutex);
-        int64_t id = g_next_mutex_id++;
-        g_native_mutexes[id] = m;
-        return Value(static_cast<double>(id));
+        return Value(static_cast<double>(MutexManager::instance().create()));
     });
 
     def("mutex_lock", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeMutex> m;
-        {
-            std::lock_guard<std::mutex> lock(g_native_mutexes_mutex);
-            auto it = g_native_mutexes.find(id);
-            if (it == g_native_mutexes.end()) return Value(false);
-            m = it->second;
-        }
-        m->mtx.lock();
-        m->locked = true;
-        return Value(true);
+        return Value(MutexManager::instance().lock(id));
     });
 
     def("mutex_unlock", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
-        std::shared_ptr<NativeMutex> m;
-        {
-            std::lock_guard<std::mutex> lock(g_native_mutexes_mutex);
-            auto it = g_native_mutexes.find(id);
-            if (it == g_native_mutexes.end()) return Value(false);
-            m = it->second;
-        }
-        m->locked = false;
-        m->mtx.unlock();
-        return Value(true);
+        return Value(MutexManager::instance().unlock(id));
     });
 }
 

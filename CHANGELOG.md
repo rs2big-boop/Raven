@@ -17,7 +17,10 @@ All notable changes to the Raven programming language are documented in this fil
   - Reorganized project architecture with dedicated `src/interpreter/`, `src/vm/`, and `src/runtime/memory/`.
   - Implemented `MemoryManager` (`raven/runtime/memory/memory_manager.hpp`) unifying reference counting and cycle collection.
   - Mirrored headers in modular `include/raven/{frontend, compiler, interpreter, vm, runtime, tools}/` directories.
-- **Test suite expanded to 84/84 tests passing at 100%**.
+- **Modular Concurrency Subsystem**:
+  - Extracted native CSP concurrency primitives to dedicated `include/raven/concurrency/` and `src/concurrency/`.
+  - Created singleton managers: `ChannelManager`, `WaitGroupManager`, `MutexManager`, and `SpawnRegistry`.
+- **Test suite expanded to 85/85 tests passing at 100%**.
 - **Interactive Step-Through Debugger (`raven debug <file>`)**:
   - Full CLI debugger `rvndb` featuring breakpoints (`break <line>`, `delete <line>`, `info break`), stepping (`step` into, `next` over), continue (`continue`), call stack trace (`bt`), local variable inspection (`locals`), and live expression evaluation (`print <expr>`).
   - Visual source context rendering around current execution line with `->` arrow and breakpoint markers `●`.
@@ -48,7 +51,10 @@ All notable changes to the Raven programming language are documented in this fil
   - Reorganized project architecture with dedicated `src/interpreter/`, `src/vm/`, and `src/runtime/memory/`.
   - Implemented `MemoryManager` (`raven/runtime/memory/memory_manager.hpp`) unifying reference counting and cycle collection.
   - Mirrored headers in modular `include/raven/{frontend, compiler, interpreter, vm, runtime, tools}/` directories.
-- **Test suite expanded to 84/84 tests passing at 100%**.
+- **Modular Concurrency Subsystem**:
+  - Extracted native CSP concurrency primitives to dedicated `include/raven/concurrency/` and `src/concurrency/`.
+  - Created singleton managers: `ChannelManager`, `WaitGroupManager`, `MutexManager`, and `SpawnRegistry`.
+- **Test suite expanded to 85/85 tests passing at 100%**.
 - **Native CSP Concurrency**: `spawn()` running on native POSIX threads, `chan_create()`, `chan_send()`, `chan_recv()`, `chan_close()`, `chan_len()`, and high-level `stdlib/sync` (`go()`, `create_channel()`, `create_wait_group()`, `create_mutex()`, `create_once()`).
 - **Call Stack Traces**: Full multi-frame stack traces on runtime errors with function names, line numbers, and column numbers.
 - **Package Manager**: Built-in `raven pkg init`, `raven pkg install <repo>[@tag]`, `raven pkg list`, with cryptographic-ready `raven.lock` lockfile tracking dependencies and versions.

@@ -11,6 +11,9 @@
 #include "raven/vm.hpp"
 #include "raven/debugger.hpp"
 #include "raven/runtime/memory/memory_manager.hpp"
+#include "raven/concurrency/channel.hpp"
+#include "raven/concurrency/wait_group.hpp"
+#include "raven/concurrency/mutex.hpp"
 
 using namespace raven;
 
@@ -973,6 +976,28 @@ TEST(InterpreterTest, MemoryManagerModularSubsystem) {
     auto stats = mm.statistics();
     EXPECT_GE(stats.total_collections, 1);
 }
+
+TEST(InterpreterTest, ConcurrencyModularSubsystem) {
+    auto& cm = concurrency::ChannelManager::instance();
+    int64_t ch_id = cm.create_channel(2);
+    auto ch = cm.get_channel(ch_id);
+    EXPECT_NE(ch, nullptr);
+    EXPECT_EQ(ch->capacity, 2);
+    EXPECT_TRUE(cm.close_channel(ch_id));
+    EXPECT_TRUE(ch->closed);
+
+    auto& wgm = concurrency::WaitGroupManager::instance();
+    int64_t wg_id = wgm.create();
+    EXPECT_TRUE(wgm.add(wg_id, 1));
+    EXPECT_TRUE(wgm.done(wg_id));
+    EXPECT_TRUE(wgm.wait(wg_id));
+
+    auto& mm = concurrency::MutexManager::instance();
+    int64_t m_id = mm.create();
+    EXPECT_TRUE(mm.lock(m_id));
+    EXPECT_TRUE(mm.unlock(m_id));
+}
+
 
 
 

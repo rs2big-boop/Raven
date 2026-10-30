@@ -28,6 +28,12 @@ add_library(raven_core
     # Corvus Virtual Machine Engine
     src/vm/vm.cpp
 
+    # Concurrency Subsystem
+    src/concurrency/channel.cpp
+    src/concurrency/wait_group.cpp
+    src/concurrency/mutex.cpp
+    src/concurrency/spawn_registry.cpp
+
     # Runtime & Memory Management
     src/runtime/memory/memory_manager.cpp
 
