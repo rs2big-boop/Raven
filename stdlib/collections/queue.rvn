@@ -1,0 +1,37 @@
+// stdlib/collections/queue.rvn - FIFO Queue data structure
+import "stdlib/slices";
+
+fn new_queue() {
+    let items = [];
+    let q = {};
+
+    q["enqueue"] = fn(val) {
+        push(items, val);
+    };
+
+    q["dequeue"] = fn() {
+        if (len(items) == 0) { return nil; }
+        let head = items[0];
+        items = slices_drop(items, 1);
+        return head;
+    };
+
+    q["peek"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return items[0];
+    };
+
+    q["size"] = fn() {
+        return len(items);
+    };
+
+    q["is_empty"] = fn() {
+        return len(items) == 0;
+    };
+
+    q["clear"] = fn() {
+        items = [];
+    };
+
+    return q;
+}

@@ -1132,6 +1132,63 @@ TEST(InterpreterTest, NetHttpServerRequestParsing) {
     EXPECT_EQ(run_code(code), "POST\n/items\nsort=desc\n123\nraven\n");
 }
 
+TEST(InterpreterTest, StdlibCoreResultAndOption) {
+    std::string code =
+        "import \"stdlib/core/result\";\n"
+        "import \"stdlib/core/option\";\n"
+        "let r1 = Ok(100);\n"
+        "print(r1.is_ok());\n"
+        "print(r1.unwrap());\n"
+        "let r2 = Err(\"failed\");\n"
+        "print(r2.is_err());\n"
+        "print(r2.unwrap_or(42));\n"
+        "let o1 = Some(\"raven\");\n"
+        "print(o1.is_some());\n"
+        "print(o1.unwrap());\n"
+        "let o2 = None();\n"
+        "print(o2.is_none());\n"
+        "print(o2.unwrap_or(\"fallback\"));\n";
+    EXPECT_EQ(run_code(code),
+              "true\n"
+              "100\n"
+              "true\n"
+              "42\n"
+              "true\n"
+              "raven\n"
+              "true\n"
+              "fallback\n");
+}
+
+TEST(InterpreterTest, StdlibModularCollections) {
+    std::string code =
+        "import \"stdlib/collections/stack\";\n"
+        "import \"stdlib/collections/queue\";\n"
+        "import \"stdlib/collections/set\";\n"
+        "let st = new_stack();\n"
+        "st.push(10);\n"
+        "st.push(20);\n"
+        "print(st.pop());\n"
+        "print(st.peek());\n"
+        "let q = new_queue();\n"
+        "q.enqueue(\"first\");\n"
+        "q.enqueue(\"second\");\n"
+        "print(q.dequeue());\n"
+        "print(q.peek());\n"
+        "let s = new_set();\n"
+        "s.add(\"alpha\");\n"
+        "s.add(\"beta\");\n"
+        "print(s.has(\"alpha\"));\n"
+        "print(s.size());\n";
+    EXPECT_EQ(run_code(code),
+              "20\n"
+              "10\n"
+              "first\n"
+              "second\n"
+              "true\n"
+              "2\n");
+}
+
+
 
 
 

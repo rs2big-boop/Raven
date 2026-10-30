@@ -1,0 +1,30 @@
+// stdlib/core/option.rvn - Option<T> monad (Some / None)
+
+fn Some(value) {
+    return {
+        "is_option": true,
+        "has_value": true,
+        "value": value,
+        "unwrap": fn() { return value; },
+        "unwrap_or": fn(def) { return value; },
+        "is_some": fn() { return true; },
+        "is_none": fn() { return false; }
+    };
+}
+
+fn None() {
+    return {
+        "is_option": true,
+        "has_value": false,
+        "value": nil,
+        "unwrap": fn() { panic("Called unwrap on None"); },
+        "unwrap_or": fn(def) { return def; },
+        "is_some": fn() { return false; },
+        "is_none": fn() { return true; }
+    };
+}
+
+fn is_option(v) {
+    if (type(v) != "map") { return false; }
+    return map_has_key(v, "is_option") && v["is_option"] == true;
+}
