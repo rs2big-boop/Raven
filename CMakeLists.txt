@@ -32,11 +32,21 @@ add_library(raven_core
 
     # Compiler & Optimization (AST -> Bytecode, Constant Folding, Serialization)
     src/compiler/compiler.cpp
+    src/compiler/bytecode_generator.cpp
     src/compiler/optimizer.cpp
     src/compiler/bytecode_serializer.cpp
 
+    # Intermediate Representation (IR) Subsystem & Passes
+    src/ir/ir_node.cpp
+    src/ir/ir_builder.cpp
+    src/ir/passes/constant_folding.cpp
+    src/ir/passes/dead_code_elimination.cpp
+    src/ir/passes/common_subexpression.cpp
+
     # Tree-Walk Execution Engine
     src/interpreter/interpreter.cpp
+    src/interpreter/evaluator.cpp
+    src/interpreter/environment.cpp
 
     # Corvus Virtual Machine Engine
     src/vm/vm.cpp
@@ -59,6 +69,10 @@ add_library(raven_core
 
     # Runtime & Memory Management
     src/runtime/values/value.cpp
+    src/runtime/values/array.cpp
+    src/runtime/values/map.cpp
+    src/runtime/values/string.cpp
+    src/runtime/values/callable.cpp
     src/runtime/exceptions/runtime_error.cpp
     src/runtime/exceptions/stack_trace.cpp
     src/runtime/modules/module_loader.cpp
@@ -66,6 +80,14 @@ add_library(raven_core
     src/runtime/memory/memory_manager.cpp
     src/runtime/memory/root_registry.cpp
     src/runtime/memory/managed_heap.cpp
+    src/runtime/memory/object_header.cpp
+    src/runtime/memory/reference_counter.cpp
+    src/runtime/memory/cycle_collector.cpp
+
+    # Package Management Subsystem
+    src/packages/lockfile.cpp
+    src/packages/dependency_resolver.cpp
+    src/packages/package_manager.cpp
 
     # Platform Subsystem (Sockets, HTTP Client, Crypto, Filesystem, System Info)
     src/platform/crypto.cpp
@@ -119,6 +141,14 @@ gtest_discover_tests(memory_tests)
 add_executable(semantic_tests tests/semantic/semantic_tests.cpp)
 target_link_libraries(semantic_tests PRIVATE raven_core GTest::gtest_main)
 gtest_discover_tests(semantic_tests)
+
+add_executable(package_tests tests/packages/package_tests.cpp)
+target_link_libraries(package_tests PRIVATE raven_core GTest::gtest_main)
+gtest_discover_tests(package_tests)
+
+add_executable(ir_tests tests/ir/ir_tests.cpp)
+target_link_libraries(ir_tests PRIVATE raven_core GTest::gtest_main)
+gtest_discover_tests(ir_tests)
 
 # Installation targets
 include(GNUInstallDirs)
