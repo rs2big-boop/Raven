@@ -11,6 +11,10 @@
 #include "raven/vm.hpp"
 #include "raven/debugger.hpp"
 #include "raven/runtime/memory/memory_manager.hpp"
+#include "raven/runtime/memory/root_registry.hpp"
+#include "raven/runtime/memory/managed_heap.hpp"
+#include "raven/semantic/resolver.hpp"
+#include "raven/semantic/analyzer.hpp"
 #include "raven/concurrency/channel.hpp"
 #include "raven/concurrency/wait_group.hpp"
 #include "raven/concurrency/mutex.hpp"
@@ -997,6 +1001,39 @@ TEST(InterpreterTest, ConcurrencyModularSubsystem) {
     EXPECT_TRUE(mm.lock(m_id));
     EXPECT_TRUE(mm.unlock(m_id));
 }
+
+TEST(InterpreterTest, ManagedHeapAndRootRegistry) {
+    raven::runtime::memory::HeapStats stats{};
+    EXPECT_EQ(stats.total_objects, 0u);
+    EXPECT_EQ(stats.total_alloc_ops, 0u);
+
+    auto& reg = raven::runtime::memory::RootRegistry::instance();
+    size_t initial_roots = reg.root_count();
+    EXPECT_GE(initial_roots, 0u);
+
+    auto& heap = raven::runtime::memory::ManagedHeap::instance();
+    auto hstats = heap.stats();
+    EXPECT_GE(hstats.total_alloc_ops, 0u);
+
+    EXPECT_EQ(run_code("let x = [1, 2, 3]; print(len(x));\n"), "3\n");
+}
+
+TEST(InterpreterTest, SemanticResolver) {
+    raven::semantic::Resolver resolver;
+
+    Lexer lexer("let x = 42; fn foo(a) { return a + x; }");
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto stmts = parser.parse();
+
+    bool ok = resolver.resolve(stmts);
+    EXPECT_TRUE(ok);
+    EXPECT_FALSE(resolver.has_errors());
+
+    EXPECT_EQ(run_code("let x = 10; print(x);\n"), "10\n");
+}
+
+
 
 
 
