@@ -19,6 +19,7 @@
 #include <set>
 #include <sstream>
 #include <thread>
+#include <dlfcn.h>
 
 #include "raven/gc.hpp"
 
@@ -101,6 +102,11 @@ struct SpawnRegistry {
 };
 
 static SpawnRegistry g_spawn_registry;
+
+// Foreign Function Interface (FFI) Handles
+static std::mutex g_ffi_mutex;
+static std::unordered_map<int64_t, void*> g_ffi_handles;
+static int64_t g_next_ffi_id = 1;
 
 struct NativeWaitGroup {
     std::mutex mtx;
@@ -1394,6 +1400,160 @@ void Interpreter::register_builtins() {
         (*m)["objects_freed"]     = Value(static_cast<double>(stats.objects_freed));
         (*m)["roots_traced"]      = Value(static_cast<double>(stats.roots_traced));
         return Value(m);
+    });
+
+    // Foreign Function Interface (FFI) Native Builtins
+    def("ffi_open", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string path;
+        if (!args[0].is_nil()) {
+            path = args[0].to_string();
+        }
+        void* handle = nullptr;
+        if (path.empty()) {
+            handle = dlopen(nullptr, RTLD_LAZY | RTLD_GLOBAL);
+        } else {
+            handle = dlopen(path.c_str(), RTLD_LAZY);
+        }
+        if (!handle) {
+            const char* err = dlerror();
+            throw RuntimeError(Token{TokenType::Identifier, "ffi_open", 0, 0},
+                               "ffi_open failed: " + std::string(err ? err : "unknown error"));
+        }
+        std::lock_guard<std::mutex> lk(g_ffi_mutex);
+        int64_t id = g_next_ffi_id++;
+        g_ffi_handles[id] = handle;
+        return Value(static_cast<double>(id));
+    });
+
+    def("ffi_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::lock_guard<std::mutex> lk(g_ffi_mutex);
+        auto it = g_ffi_handles.find(id);
+        if (it != g_ffi_handles.end()) {
+            dlclose(it->second);
+            g_ffi_handles.erase(it);
+            return Value(true);
+        }
+        return Value(false);
+    });
+
+    def("ffi_call", 5, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        std::string fn_name = args[1].to_string();
+        std::string ret_type = args[2].to_string();
+        if (!args[3].is_array() || !args[4].is_array()) {
+            throw RuntimeError(Token{TokenType::Identifier, "ffi_call", 0, 0},
+                               "ffi_call expects arg_types and arg_values as arrays.");
+        }
+        const auto& arg_types = *args[3].as_array();
+        const auto& arg_vals = *args[4].as_array();
+
+        void* handle = nullptr;
+        {
+            std::lock_guard<std::mutex> lk(g_ffi_mutex);
+            auto it = g_ffi_handles.find(id);
+            if (it == g_ffi_handles.end()) {
+                throw RuntimeError(Token{TokenType::Identifier, "ffi_call", 0, 0},
+                                   "Invalid FFI handle ID " + std::to_string(id));
+            }
+            handle = it->second;
+        }
+
+        // Clear existing errors
+        dlerror();
+        void* sym = dlsym(handle, fn_name.c_str());
+        const char* dlsym_err = dlerror();
+        if (dlsym_err != nullptr || sym == nullptr) {
+            throw RuntimeError(Token{TokenType::Identifier, "ffi_call", 0, 0},
+                               "dlsym failed for '" + fn_name + "': " + (dlsym_err ? dlsym_err : "symbol not found"));
+        }
+
+        size_t argc = arg_vals.size();
+
+        if (argc == 0) {
+            if (ret_type == "int") {
+                auto fn = reinterpret_cast<int64_t(*)()>(sym);
+                return Value(static_cast<double>(fn()));
+            } else if (ret_type == "double" || ret_type == "number") {
+                auto fn = reinterpret_cast<double(*)()>(sym);
+                return Value(fn());
+            } else if (ret_type == "string") {
+                auto fn = reinterpret_cast<const char*(*)()>(sym);
+                const char* res = fn();
+                return Value(res ? std::string(res) : "");
+            } else {
+                auto fn = reinterpret_cast<void(*)()>(sym);
+                fn();
+                return Value();
+            }
+        } else if (argc == 1) {
+            std::string t0 = arg_types[0].to_string();
+            if (t0 == "string") {
+                std::string s = arg_vals[0].to_string();
+                if (ret_type == "int") {
+                    auto fn = reinterpret_cast<int64_t(*)(const char*)>(sym);
+                    return Value(static_cast<double>(fn(s.c_str())));
+                } else if (ret_type == "string") {
+                    auto fn = reinterpret_cast<const char*(*)(const char*)>(sym);
+                    const char* res = fn(s.c_str());
+                    return Value(res ? std::string(res) : "");
+                } else {
+                    auto fn = reinterpret_cast<void(*)(const char*)>(sym);
+                    fn(s.c_str());
+                    return Value();
+                }
+            } else if (t0 == "double" || t0 == "number") {
+                double num = arg_vals[0].as_number();
+                if (ret_type == "double" || ret_type == "number") {
+                    auto fn = reinterpret_cast<double(*)(double)>(sym);
+                    return Value(fn(num));
+                } else if (ret_type == "int") {
+                    auto fn = reinterpret_cast<int64_t(*)(double)>(sym);
+                    return Value(static_cast<double>(fn(num)));
+                } else {
+                    auto fn = reinterpret_cast<void(*)(double)>(sym);
+                    fn(num);
+                    return Value();
+                }
+            } else { // int
+                int64_t num = static_cast<int64_t>(arg_vals[0].as_number());
+                if (ret_type == "int") {
+                    auto fn = reinterpret_cast<int64_t(*)(int64_t)>(sym);
+                    return Value(static_cast<double>(fn(num)));
+                } else if (ret_type == "double" || ret_type == "number") {
+                    auto fn = reinterpret_cast<double(*)(int64_t)>(sym);
+                    return Value(fn(num));
+                } else {
+                    auto fn = reinterpret_cast<void(*)(int64_t)>(sym);
+                    fn(num);
+                    return Value();
+                }
+            }
+        } else if (argc == 2) {
+            std::string t0 = arg_types[0].to_string();
+            std::string t1 = arg_types[1].to_string();
+            if (t0 == "double" && t1 == "double") {
+                double a = arg_vals[0].as_number();
+                double b = arg_vals[1].as_number();
+                auto fn = reinterpret_cast<double(*)(double, double)>(sym);
+                return Value(fn(a, b));
+            } else if (t0 == "string" && t1 == "string") {
+                std::string s1 = arg_vals[0].to_string();
+                std::string s2 = arg_vals[1].to_string();
+                if (ret_type == "int") {
+                    auto fn = reinterpret_cast<int64_t(*)(const char*, const char*)>(sym);
+                    return Value(static_cast<double>(fn(s1.c_str(), s2.c_str())));
+                }
+            } else if (t0 == "int" && t1 == "int") {
+                int64_t a = static_cast<int64_t>(arg_vals[0].as_number());
+                int64_t b = static_cast<int64_t>(arg_vals[1].as_number());
+                auto fn = reinterpret_cast<int64_t(*)(int64_t, int64_t)>(sym);
+                return Value(static_cast<double>(fn(a, b)));
+            }
+        }
+
+        throw RuntimeError(Token{TokenType::Identifier, "ffi_call", 0, 0},
+                           "Unsupported FFI signature for symbol '" + fn_name + "'");
     });
 
     // Native WaitGroup Builtins

@@ -5,6 +5,15 @@ All notable changes to the Raven programming language are documented in this fil
 ## [1.1.0-dev] — 2026-10-30
 
 ### Added
+- **Foreign Function Interface (FFI)**: Native `ffi_open`, `ffi_close`, `ffi_call` (`<dlfcn.h>`) with `stdlib/ffi.rvn` module for zero-overhead calling into C/shared libraries.
+- **Corvus VM & Compiler Full Parity**:
+  - `MapExpr` & `OpCode::BuildMap` supporting full map literals in Bytecode.
+  - `PropertyExpr` & `PropertyAssignExpr` (`obj.prop`, `obj.prop = val`) in Corvus VM.
+  - `MatchExpr` pattern matching compiled directly to Bytecode branches.
+  - `ForInStmt` and `OpCode::Length` compiling `for (let x in arr)` loops to linear VM instructions.
+  - `BreakStmt` and `ContinueStmt` loop jump backpatching with lexical slot cleanup.
+  - `LambdaExpr` anonymous first-class functions in Bytecode chunks.
+- **Test suite expanded to 83/83 tests passing at 100%**.
 - **Interactive Step-Through Debugger (`raven debug <file>`)**:
   - Full CLI debugger `rvndb` featuring breakpoints (`break <line>`, `delete <line>`, `info break`), stepping (`step` into, `next` over), continue (`continue`), call stack trace (`bt`), local variable inspection (`locals`), and live expression evaluation (`print <expr>`).
   - Visual source context rendering around current execution line with `->` arrow and breakpoint markers `●`.
@@ -23,6 +32,15 @@ All notable changes to the Raven programming language are documented in this fil
 ## [1.0.0] — 2026-10-30
 
 ### Added
+- **Foreign Function Interface (FFI)**: Native `ffi_open`, `ffi_close`, `ffi_call` (`<dlfcn.h>`) with `stdlib/ffi.rvn` module for zero-overhead calling into C/shared libraries.
+- **Corvus VM & Compiler Full Parity**:
+  - `MapExpr` & `OpCode::BuildMap` supporting full map literals in Bytecode.
+  - `PropertyExpr` & `PropertyAssignExpr` (`obj.prop`, `obj.prop = val`) in Corvus VM.
+  - `MatchExpr` pattern matching compiled directly to Bytecode branches.
+  - `ForInStmt` and `OpCode::Length` compiling `for (let x in arr)` loops to linear VM instructions.
+  - `BreakStmt` and `ContinueStmt` loop jump backpatching with lexical slot cleanup.
+  - `LambdaExpr` anonymous first-class functions in Bytecode chunks.
+- **Test suite expanded to 83/83 tests passing at 100%**.
 - **Native CSP Concurrency**: `spawn()` running on native POSIX threads, `chan_create()`, `chan_send()`, `chan_recv()`, `chan_close()`, `chan_len()`, and high-level `stdlib/sync` (`go()`, `create_channel()`, `create_wait_group()`, `create_mutex()`, `create_once()`).
 - **Call Stack Traces**: Full multi-frame stack traces on runtime errors with function names, line numbers, and column numbers.
 - **Package Manager**: Built-in `raven pkg init`, `raven pkg install <repo>[@tag]`, `raven pkg list`, with cryptographic-ready `raven.lock` lockfile tracking dependencies and versions.

@@ -44,6 +44,7 @@ public:
                 case OpCode::GetLocal:
                 case OpCode::SetLocal:
                 case OpCode::BuildArray:
+                case OpCode::BuildMap:
                 case OpCode::Call: {
                     if (offset + 1 >= code.size()) {
                         return {false, "Truncated operand at offset " + std::to_string(offset)};

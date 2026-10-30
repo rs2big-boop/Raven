@@ -56,6 +56,12 @@ private:
         int depth;
     };
 
+    struct LoopContext {
+        int start_ip;
+        int scope_depth;
+        std::vector<int> break_jumps;
+    };
+
     void emit_byte(uint8_t byte, int line = 0);
     void emit_op(OpCode op, int line = 0);
     int emit_jump(OpCode op, int line = 0);
@@ -68,6 +74,7 @@ private:
     Chunk& chunk_;
     int current_line_ = 1;
     std::vector<Local> locals_;
+    std::vector<LoopContext> loop_stack_;
     int scope_depth_ = 0;
 };
 

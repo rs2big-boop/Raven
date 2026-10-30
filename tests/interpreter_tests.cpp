@@ -884,3 +884,87 @@ TEST(InterpreterTest, GarbageCollectorBasics) {
 
     EXPECT_EQ(run_code(source), "0\ntrue\n");
 }
+
+TEST(InterpreterTest, DualEngineDifferentialParityMapsAndMatch) {
+    std::string source =
+        "let user = {\"name\": \"Alice\", \"age\": 30};\n"
+        "print(user[\"name\"]);\n"
+        "print(user.age);\n"
+        "user.age = 31;\n"
+        "print(user.age);\n"
+        "let status = match (user.age) {\n"
+        "    20 => \"junior\",\n"
+        "    31 => \"senior\",\n"
+        "    _ => \"unknown\"\n"
+        "};\n"
+        "print(status);\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "Alice\n30\n31\nsenior\n");
+}
+
+TEST(InterpreterTest, ForeignFunctionInterfaceBasics) {
+    std::string source =
+        "import \"stdlib/ffi\";\n"
+        "let libc = open_lib(nil);\n"
+        "let len = libc.call(\"strlen\", \"int\", [\"string\"], [\"Raven Language\"]);\n"
+        "print(len);\n"
+        "let pid = libc.call(\"getpid\", \"int\", [], []);\n"
+        "print(pid > 0);\n"
+        "libc.close();\n";
+
+    EXPECT_EQ(run_code(source), "14\ntrue\n");
+}
+
+TEST(InterpreterTest, DualEngineDifferentialParityForInLoops) {
+    std::string source =
+        "let items = [10, 20, 30];\n"
+        "let total = 0;\n"
+        "for (let x in items) {\n"
+        "    total = total + x;\n"
+        "}\n"
+        "print(total);\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "60\n");
+}
+
+TEST(InterpreterTest, DualEngineDifferentialParityBreakAndContinue) {
+    std::string source =
+        "let i = 0;\n"
+        "let sum = 0;\n"
+        "while (i < 10) {\n"
+        "    i = i + 1;\n"
+        "    if (i == 2) { continue; }\n"
+        "    if (i == 5) { break; }\n"
+        "    sum = sum + i;\n"
+        "}\n"
+        "print(sum);\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "8\n"); // 1 + 3 + 4 = 8
+}
+
+TEST(InterpreterTest, DualEngineDifferentialParityLambdas) {
+    std::string source =
+        "let square = fn(x) { return x * x; };\n"
+        "print(square(5));\n"
+        "let apply = fn(f, val) { return f(val); };\n"
+        "print(apply(square, 6));\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "25\n36\n");
+}
+
+
+
+
+

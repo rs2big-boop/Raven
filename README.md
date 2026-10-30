@@ -61,7 +61,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (78/78 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (83/83 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum

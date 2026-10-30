@@ -70,8 +70,10 @@ enum class OpCode : uint8_t {
     Loop,
 
     BuildArray,
+    BuildMap,
     IndexGet,
     IndexSet,
+    Length,
 
     CheckType,
     Call,
@@ -239,11 +241,20 @@ public:
                    << static_cast<int>(count) << " elements\n";
                 return offset + 2;
             }
+            case OpCode::BuildMap: {
+                uint8_t count = code[offset + 1];
+                os << std::left << std::setw(18) << "OP_BUILD_MAP" << " "
+                   << static_cast<int>(count) << " pairs\n";
+                return offset + 2;
+            }
             case OpCode::IndexGet:
                 os << "OP_INDEX_GET\n";
                 return offset + 1;
             case OpCode::IndexSet:
                 os << "OP_INDEX_SET\n";
+                return offset + 1;
+            case OpCode::Length:
+                os << "OP_LENGTH\n";
                 return offset + 1;
             case OpCode::CheckType: {
                 uint8_t constant = code[offset + 1];

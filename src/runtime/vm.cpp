@@ -216,6 +216,17 @@ InterpretResult VM::run(const Chunk& chunk) {
                 push(Value(list));
                 break;
             }
+            case OpCode::BuildMap: {
+                uint8_t count = read_byte();
+                auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+                for (int i = 0; i < count; ++i) {
+                    Value val = pop();
+                    Value key = pop();
+                    (*map)[key.to_string()] = val;
+                }
+                push(Value(map));
+                break;
+            }
             case OpCode::IndexGet: {
                 Value idx = pop();
                 Value obj = pop();
@@ -223,7 +234,31 @@ InterpretResult VM::run(const Chunk& chunk) {
                     int i = static_cast<int>(idx.as_number());
                     const auto& arr = *obj.as_array();
                     if (i < 0) i += static_cast<int>(arr.size());
-                    push(arr[i]);
+                    if (i >= 0 && i < static_cast<int>(arr.size())) {
+                        push(arr[i]);
+                    } else {
+                        push(Value());
+                    }
+                } else if (obj.is_map()) {
+                    const auto& map = *obj.as_map();
+                    std::string key = idx.to_string();
+                    auto it = map.find(key);
+                    if (it != map.end()) {
+                        push(it->second);
+                    } else {
+                        push(Value());
+                    }
+                } else if (obj.is_string()) {
+                    int i = static_cast<int>(idx.as_number());
+                    const auto& str = obj.as_string();
+                    if (i < 0) i += static_cast<int>(str.size());
+                    if (i >= 0 && i < static_cast<int>(str.size())) {
+                        push(Value(std::string(1, str[i])));
+                    } else {
+                        push(Value());
+                    }
+                } else {
+                    push(Value());
                 }
                 break;
             }
@@ -235,8 +270,29 @@ InterpretResult VM::run(const Chunk& chunk) {
                     int i = static_cast<int>(idx.as_number());
                     auto& arr = *obj.as_array();
                     if (i < 0) i += static_cast<int>(arr.size());
-                    arr[i] = val;
+                    if (i >= 0 && i < static_cast<int>(arr.size())) {
+                        arr[i] = val;
+                    }
                     push(val);
+                } else if (obj.is_map()) {
+                    auto& map = *obj.as_map();
+                    map[idx.to_string()] = val;
+                    push(val);
+                } else {
+                    push(val);
+                }
+                break;
+            }
+            case OpCode::Length: {
+                Value val = pop();
+                if (val.is_array()) {
+                    push(Value(static_cast<double>(val.as_array()->size())));
+                } else if (val.is_map()) {
+                    push(Value(static_cast<double>(val.as_map()->size())));
+                } else if (val.is_string()) {
+                    push(Value(static_cast<double>(val.as_string().size())));
+                } else {
+                    push(Value(0.0));
                 }
                 break;
             }

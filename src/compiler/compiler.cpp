@@ -187,7 +187,14 @@ void Compiler::visit(const ArrayExpr& expr) {
     emit_byte(static_cast<uint8_t>(expr.elements.size()));
 }
 
-void Compiler::visit(const MapExpr& /*expr*/) {}
+void Compiler::visit(const MapExpr& expr) {
+    for (const auto& entry : expr.entries) {
+        entry.first->accept(*this);
+        entry.second->accept(*this);
+    }
+    emit_op(OpCode::BuildMap);
+    emit_byte(static_cast<uint8_t>(expr.entries.size()));
+}
 
 void Compiler::visit(const IndexExpr& expr) {
     expr.object->accept(*this);
@@ -202,9 +209,51 @@ void Compiler::visit(const IndexAssignExpr& expr) {
     emit_op(OpCode::IndexSet);
 }
 
-void Compiler::visit(const PropertyExpr& /*expr*/) {}
-void Compiler::visit(const PropertyAssignExpr& /*expr*/) {}
-void Compiler::visit(const LambdaExpr& /*expr*/) {}
+void Compiler::visit(const PropertyExpr& expr) {
+    expr.object->accept(*this);
+    uint8_t idx = make_constant(Value(expr.name.lexeme));
+    emit_op(OpCode::Constant);
+    emit_byte(idx);
+    emit_op(OpCode::IndexGet);
+}
+
+void Compiler::visit(const PropertyAssignExpr& expr) {
+    expr.object->accept(*this);
+    uint8_t idx = make_constant(Value(expr.name.lexeme));
+    emit_op(OpCode::Constant);
+    emit_byte(idx);
+    expr.value->accept(*this);
+    emit_op(OpCode::IndexSet);
+}
+
+void Compiler::visit(const LambdaExpr& expr) {
+    int jump_over = emit_jump(OpCode::Jump);
+    size_t entry_ip = chunk_.code.size();
+
+    scope_depth_++;
+    for (const auto& param : expr.params) {
+        locals_.push_back(Local{param, scope_depth_});
+    }
+
+    for (const auto& s : expr.body) {
+        if (s) s->accept(*this);
+    }
+
+    emit_op(OpCode::Nil);
+    emit_op(OpCode::Return);
+
+    while (!locals_.empty() && locals_.back().depth >= scope_depth_) {
+        locals_.pop_back();
+    }
+    scope_depth_--;
+
+    patch_jump(jump_over);
+
+    auto fn_obj = std::make_shared<BytecodeFunction>("<lambda>", static_cast<int>(expr.params.size()), entry_ip);
+    uint8_t fn_const = make_constant(Value(fn_obj));
+    emit_op(OpCode::Constant);
+    emit_byte(fn_const);
+}
 
 void Compiler::visit(const PipelineExpr& expr) {
     expr.right->accept(*this);
@@ -213,7 +262,45 @@ void Compiler::visit(const PipelineExpr& expr) {
     emit_byte(1);
 }
 
-void Compiler::visit(const MatchExpr& /*expr*/) {}
+void Compiler::visit(const MatchExpr& expr) {
+    expr.value->accept(*this);
+    std::string temp_name = "__match_val_" + std::to_string(chunk_.code.size());
+    Token temp_token{TokenType::Identifier, temp_name, 0, 0};
+    locals_.push_back(Local{temp_token, scope_depth_});
+    uint8_t temp_slot = static_cast<uint8_t>(locals_.size() - 1);
+
+    std::vector<int> end_jumps;
+
+    for (const auto& arm : expr.arms) {
+        if (arm.is_wildcard) {
+            arm.body->accept(*this);
+            end_jumps.push_back(emit_jump(OpCode::Jump));
+            break;
+        }
+
+        emit_op(OpCode::GetLocal);
+        emit_byte(temp_slot);
+        arm.pattern->accept(*this);
+        emit_op(OpCode::Equal);
+
+        int next_arm_jump = emit_jump(OpCode::JumpIfFalse);
+        emit_op(OpCode::Pop);
+
+        arm.body->accept(*this);
+        end_jumps.push_back(emit_jump(OpCode::Jump));
+
+        patch_jump(next_arm_jump);
+        emit_op(OpCode::Pop);
+    }
+
+    emit_op(OpCode::Nil);
+
+    for (int j : end_jumps) {
+        patch_jump(j);
+    }
+
+    locals_.pop_back();
+}
 
 void Compiler::visit(const ExpressionStmt& stmt) {
     stmt.expression->accept(*this);
@@ -271,6 +358,8 @@ void Compiler::visit(const IfStmt& stmt) {
 
 void Compiler::visit(const WhileStmt& stmt) {
     int loop_start = static_cast<int>(chunk_.code.size());
+    loop_stack_.push_back(LoopContext{loop_start, scope_depth_, {}});
+
     stmt.condition->accept(*this);
 
     int exit_jump = emit_jump(OpCode::JumpIfFalse);
@@ -281,15 +370,116 @@ void Compiler::visit(const WhileStmt& stmt) {
 
     patch_jump(exit_jump);
     emit_op(OpCode::Pop);
+
+    for (int break_jump : loop_stack_.back().break_jumps) {
+        patch_jump(break_jump);
+    }
+    loop_stack_.pop_back();
 }
 
-void Compiler::visit(const ForInStmt& /*stmt*/) {}
+void Compiler::visit(const ForInStmt& stmt) {
+    scope_depth_++;
+
+    stmt.iterable->accept(*this);
+    std::string iter_name = "__for_iter_" + std::to_string(chunk_.code.size());
+    Token iter_token{TokenType::Identifier, iter_name, stmt.variable.line, 0};
+    locals_.push_back(Local{iter_token, scope_depth_});
+    uint8_t iter_slot = static_cast<uint8_t>(locals_.size() - 1);
+
+    uint8_t zero_idx = make_constant(Value(0.0));
+    emit_op(OpCode::Constant);
+    emit_byte(zero_idx);
+    std::string idx_name = "__for_idx_" + std::to_string(chunk_.code.size());
+    Token idx_token{TokenType::Identifier, idx_name, stmt.variable.line, 0};
+    locals_.push_back(Local{idx_token, scope_depth_});
+    uint8_t idx_slot = static_cast<uint8_t>(locals_.size() - 1);
+
+    emit_op(OpCode::GetLocal);
+    emit_byte(iter_slot);
+    emit_op(OpCode::Length);
+    std::string len_name = "__for_len_" + std::to_string(chunk_.code.size());
+    Token len_token{TokenType::Identifier, len_name, stmt.variable.line, 0};
+    locals_.push_back(Local{len_token, scope_depth_});
+    uint8_t len_slot = static_cast<uint8_t>(locals_.size() - 1);
+
+    emit_op(OpCode::Nil);
+    locals_.push_back(Local{stmt.variable, scope_depth_});
+    uint8_t var_slot = static_cast<uint8_t>(locals_.size() - 1);
+
+    int loop_start = static_cast<int>(chunk_.code.size());
+    loop_stack_.push_back(LoopContext{loop_start, scope_depth_, {}});
+
+    emit_op(OpCode::GetLocal);
+    emit_byte(idx_slot);
+    emit_op(OpCode::GetLocal);
+    emit_byte(len_slot);
+    emit_op(OpCode::Less);
+
+    int exit_jump = emit_jump(OpCode::JumpIfFalse);
+    emit_op(OpCode::Pop);
+
+    emit_op(OpCode::GetLocal);
+    emit_byte(iter_slot);
+    emit_op(OpCode::GetLocal);
+    emit_byte(idx_slot);
+    emit_op(OpCode::IndexGet);
+    emit_op(OpCode::SetLocal);
+    emit_byte(var_slot);
+    emit_op(OpCode::Pop);
+
+    stmt.body->accept(*this);
+
+    emit_op(OpCode::GetLocal);
+    emit_byte(idx_slot);
+    uint8_t one_idx = make_constant(Value(1.0));
+    emit_op(OpCode::Constant);
+    emit_byte(one_idx);
+    emit_op(OpCode::Add);
+    emit_op(OpCode::SetLocal);
+    emit_byte(idx_slot);
+    emit_op(OpCode::Pop);
+
+    emit_loop(loop_start);
+
+    patch_jump(exit_jump);
+    emit_op(OpCode::Pop);
+
+    for (int break_jump : loop_stack_.back().break_jumps) {
+        patch_jump(break_jump);
+    }
+    loop_stack_.pop_back();
+
+    while (!locals_.empty() && locals_.back().depth >= scope_depth_) {
+        emit_op(OpCode::Pop);
+        locals_.pop_back();
+    }
+    scope_depth_--;
+}
 void Compiler::visit(const TryCatchStmt& /*stmt*/) {}
 void Compiler::visit(const ThrowStmt& /*stmt*/) {}
 void Compiler::visit(const ImportStmt& /*stmt*/) {}
 void Compiler::visit(const StructStmt& /*stmt*/) {}
-void Compiler::visit(const BreakStmt& /*stmt*/) {}
-void Compiler::visit(const ContinueStmt& /*stmt*/) {}
+void Compiler::visit(const BreakStmt& /*stmt*/) {
+    if (loop_stack_.empty()) return;
+    int pop_count = 0;
+    for (auto it = locals_.rbegin(); it != locals_.rend(); ++it) {
+        if (it->depth > loop_stack_.back().scope_depth) pop_count++;
+        else break;
+    }
+    for (int i = 0; i < pop_count; ++i) emit_op(OpCode::Pop);
+    int jump = emit_jump(OpCode::Jump);
+    loop_stack_.back().break_jumps.push_back(jump);
+}
+void Compiler::visit(const ContinueStmt& /*stmt*/) {
+    if (loop_stack_.empty()) return;
+    int pop_count = 0;
+    for (auto it = locals_.rbegin(); it != locals_.rend(); ++it) {
+        if (it->depth > loop_stack_.back().scope_depth) pop_count++;
+        else break;
+    }
+    for (int i = 0; i < pop_count; ++i) emit_op(OpCode::Pop);
+    emit_loop(loop_stack_.back().start_ip);
+}
 void Compiler::visit(const FunctionStmt& stmt) {
     int jump_over = emit_jump(OpCode::Jump);
     size_t entry_ip = chunk_.code.size();

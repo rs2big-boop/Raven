@@ -1,0 +1,21 @@
+// stdlib/ffi.rvn — Foreign Function Interface for Raven
+// Enables direct dynamic linking and calling into C/shared libraries (.so)
+
+fn open_lib(path = nil) {
+    let handle = ffi_open(path);
+    let lib = {};
+
+    lib["call"] = fn(symbol, ret_type, arg_types, args) {
+        return ffi_call(handle, symbol, ret_type, arg_types, args);
+    };
+
+    lib["close"] = fn() {
+        return ffi_close(handle);
+    };
+
+    lib["handle"] = fn() {
+        return handle;
+    };
+
+    return lib;
+}
