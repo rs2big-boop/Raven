@@ -1,0 +1,40 @@
+// stdlib/web/template.rvn - Template Engine for Raven
+import "stdlib/html";
+import "stdlib/strings";
+
+fn render_template(template_str, data) {
+    if (data == nil || type(data) != "map") {
+        return template_str;
+    }
+
+    let result = template_str;
+    let ks = keys(data);
+    let i = 0;
+    while (i < len(ks)) {
+        let key = ks[i];
+        let val = str(data[key]);
+
+        // Unescaped: {{{ key }}}
+        let unescaped_tag = "{{{ " + key + " }}}";
+        result = replace(result, unescaped_tag, val);
+        unescaped_tag = "{{{" + key + "}}}";
+        result = replace(result, unescaped_tag, val);
+
+        // Escaped: {{ key }}
+        let escaped_val = html_escape(val);
+        let escaped_tag = "{{ " + key + " }}";
+        result = replace(result, escaped_tag, escaped_val);
+        escaped_tag = "{{" + key + "}}";
+        result = replace(result, escaped_tag, escaped_val);
+
+        i = i + 1;
+    }
+
+    return result;
+}
+
+fn load_and_render_template(file_path, data) {
+    let content = read_file(file_path);
+    if (content == nil) { return ""; }
+    return render_template(content, data);
+}

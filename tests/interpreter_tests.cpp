@@ -1356,6 +1356,17 @@ TEST(InterpreterTest, TypeAnnotationsGradualTyping) {
     EXPECT_THROW(run_code(invalid_code), RuntimeError);
 }
 
+TEST(InterpreterTest, NativeWebFrameworkAndDSL) {
+    std::string code =
+        "import \"stdlib/web/html\";\n"
+        "import \"stdlib/web/template\";\n"
+        "let el = div_el({\"class\": \"card\"}, [h1_el({}, \"Title\"), p_el({}, \"Body\")]);\n"
+        "print(el);\n"
+        "let tmpl = render_template(\"Hello {{ user }}!\", {\"user\": \"World\"});\n"
+        "print(tmpl);\n";
+    EXPECT_EQ(run_code(code), "<div class=\"card\"><h1>Title</h1><p>Body</p></div>\nHello World!\n");
+}
+
 
 
 

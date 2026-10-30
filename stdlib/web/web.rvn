@@ -1,0 +1,8 @@
+// stdlib/web/web.rvn - Raven Native Web Framework & Templating Engine
+import "stdlib/web/html";
+import "stdlib/web/template";
+import "stdlib/web/app";
+
+fn new_web_app() {
+    return create_web_app();
+}

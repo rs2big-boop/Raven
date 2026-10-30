@@ -1,0 +1,21 @@
+// examples/serve_website.rvn - Serve the official website using Raven's native Web Framework
+import "stdlib/web";
+
+let app = new_web_app();
+
+// Serve compiled static assets
+app.static("/assets", "site/dist/assets");
+app.static("/logo.png", "site/dist/logo.png");
+
+// Serve root SPA
+app.get("/", fn(req, res) {
+    let index_html = read_file("site/dist/index.html");
+    if (index_html != nil) {
+        res.html(index_html);
+    } else {
+        res.status(404).send("Site dist not built. Run 'npm run build' in site/");
+    }
+});
+
+print("🐦 Starting Raven Official Web Portal on http://127.0.0.1:8088 ...");
+app.listen(8088);

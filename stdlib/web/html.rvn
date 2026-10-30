@@ -1,0 +1,88 @@
+// stdlib/web/html.rvn - Modern HTML Element Builder DSL for Raven
+import "stdlib/html";
+
+fn _attr_string(attrs) {
+    if (attrs == nil || type(attrs) != "map") { return ""; }
+    let ks = keys(attrs);
+    let out = "";
+    let i = 0;
+    while (i < len(ks)) {
+        let k = ks[i];
+        let v = str(attrs[k]);
+        out = out + " " + k + "=\"" + html_escape(v) + "\"";
+        i = i + 1;
+    }
+    return out;
+}
+
+fn tag(tag_name, attrs, children) {
+    let attr_str = _attr_string(attrs);
+    let self_closing = [
+        "img", "br", "hr", "input", "meta", "link"
+    ];
+
+    let is_sc = false;
+    let s = 0;
+    while (s < len(self_closing)) {
+        if (self_closing[s] == tag_name) {
+            is_sc = true;
+            break;
+        }
+        s = s + 1;
+    }
+
+    if (is_sc && (children == nil || (type(children) == "array" && len(children) == 0))) {
+        return "<" + tag_name + attr_str + " />";
+    }
+
+    let inner = "";
+    if (children != nil) {
+        if (type(children) == "array") {
+            let j = 0;
+            while (j < len(children)) {
+                let c = children[j];
+                if (c != nil) {
+                    inner = inner + str(c);
+                }
+                j = j + 1;
+            }
+        } else {
+            inner = str(children);
+        }
+    }
+
+    return "<" + tag_name + attr_str + ">" + inner + "</" + tag_name + ">";
+}
+
+// Common Element Helpers
+fn html_doc(attrs, children) {
+    return "<!DOCTYPE html>\n" + tag("html", attrs, children);
+}
+
+fn head_el(attrs, children) { return tag("head", attrs, children); }
+fn body_el(attrs, children) { return tag("body", attrs, children); }
+fn div_el(attrs, children) { return tag("div", attrs, children); }
+fn span_el(attrs, children) { return tag("span", attrs, children); }
+fn p_el(attrs, children) { return tag("p", attrs, children); }
+fn h1_el(attrs, children) { return tag("h1", attrs, children); }
+fn h2_el(attrs, children) { return tag("h2", attrs, children); }
+fn h3_el(attrs, children) { return tag("h3", attrs, children); }
+fn a_el(attrs, children) { return tag("a", attrs, children); }
+fn button_el(attrs, children) { return tag("button", attrs, children); }
+fn input_el(attrs) { return tag("input", attrs, nil); }
+fn form_el(attrs, children) { return tag("form", attrs, children); }
+fn ul_el(attrs, children) { return tag("ul", attrs, children); }
+fn ol_el(attrs, children) { return tag("ol", attrs, children); }
+fn li_el(attrs, children) { return tag("li", attrs, children); }
+fn table_el(attrs, children) { return tag("table", attrs, children); }
+fn tr_el(attrs, children) { return tag("tr", attrs, children); }
+fn th_el(attrs, children) { return tag("th", attrs, children); }
+fn td_el(attrs, children) { return tag("td", attrs, children); }
+fn nav_el(attrs, children) { return tag("nav", attrs, children); }
+fn header_el(attrs, children) { return tag("header", attrs, children); }
+fn footer_el(attrs, children) { return tag("footer", attrs, children); }
+fn section_el(attrs, children) { return tag("section", attrs, children); }
+fn code_el(attrs, children) { return tag("code", attrs, children); }
+fn pre_el(attrs, children) { return tag("pre", attrs, children); }
+fn style_tag(css_content) { return "<style>\n" + css_content + "\n</style>"; }
+fn script_tag(js_content) { return "<script>\n" + js_content + "\n</script>"; }

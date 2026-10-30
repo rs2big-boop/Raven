@@ -1,0 +1,109 @@
+// stdlib/web/app.rvn - Sinatra/Express style Web Framework for Raven
+import "stdlib/http/server";
+import "stdlib/http/status";
+import "stdlib/http/headers";
+import "stdlib/strings";
+
+fn create_web_app() {
+    let srv = create_http_server();
+    let static_routes = []; // array of {prefix, dir}
+    let app = {};
+
+    app["get"] = fn(path, handler) {
+        srv.route("GET", path, fn(req, res) {
+            res["header"] = res["set_header"];
+            handler(req, res);
+        });
+        return app;
+    };
+
+    app["post"] = fn(path, handler) {
+        srv.route("POST", path, fn(req, res) {
+            res["header"] = res["set_header"];
+            handler(req, res);
+        });
+        return app;
+    };
+
+    app["put"] = fn(path, handler) {
+        srv.route("PUT", path, fn(req, res) {
+            res["header"] = res["set_header"];
+            handler(req, res);
+        });
+        return app;
+    };
+
+    app["delete"] = fn(path, handler) {
+        srv.route("DELETE", path, fn(req, res) {
+            res["header"] = res["set_header"];
+            handler(req, res);
+        });
+        return app;
+    };
+
+    app["use"] = fn(middleware_fn) {
+        srv.use(middleware_fn);
+        return app;
+    };
+
+    app["static"] = fn(url_prefix, dir_path) {
+        push(static_routes, {
+            "prefix": url_prefix,
+            "dir": dir_path
+        });
+        return app;
+    };
+
+    // Middleware to serve static files
+    srv.use(fn(req, res) {
+        let path = req["path"];
+        let s = 0;
+        while (s < len(static_routes)) {
+            let sr = static_routes[s];
+            if (has_prefix(path, sr["prefix"])) {
+                let rel = slice(path, len(sr["prefix"]), len(path));
+                let filepath = sr["dir"] + rel;
+                if (file_exists(filepath)) {
+                    let file_content = read_file(filepath);
+                    if (file_content != nil) {
+                        if (has_suffix(filepath, ".css")) {
+                            res.set_header("Content-Type", "text/css");
+                        } else if (has_suffix(filepath, ".js")) {
+                            res.set_header("Content-Type", "application/javascript");
+                        } else if (has_suffix(filepath, ".json")) {
+                            res.set_header("Content-Type", "application/json");
+                        } else if (has_suffix(filepath, ".png")) {
+                            res.set_header("Content-Type", "image/png");
+                        } else if (has_suffix(filepath, ".html")) {
+                            res.set_header("Content-Type", "text/html; charset=utf-8");
+                        } else {
+                            res.set_header("Content-Type", "text/plain");
+                        }
+                        res.status(200).send(file_content);
+                        return false; // stop pipeline
+                    }
+                }
+            }
+            s = s + 1;
+        }
+        return true; // continue to route
+    });
+
+    app["listen"] = fn(port) {
+        print("🐦 Raven Web Server listening on http://127.0.0.1:" + str(port));
+        let ok = srv.listen("0.0.0.0", port);
+        if (!ok) {
+            print("Failed to bind port " + str(port));
+            return false;
+        }
+
+        while (true) {
+            let handled = srv.accept_one();
+            if (!handled) {
+                sleep(10);
+            }
+        }
+    };
+
+    return app;
+}
