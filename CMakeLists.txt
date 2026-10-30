@@ -96,11 +96,12 @@ add_library(raven_core
     src/platform/filesystem.cpp
     src/platform/system_info.cpp
 
-    # Developer Tooling (Linter/Vet, Formatter, Documentation Generator, Language Server)
+    # Developer Tooling (Linter/Vet, Formatter, Documentation Generator, Language Server, Debugger)
     src/tools/linter.cpp
     src/tools/formatter.cpp
     src/tools/doc_generator.cpp
     src/tools/lsp.cpp
+    src/tools/debugger.cpp
 )
 
 target_include_directories(raven_core PUBLIC
