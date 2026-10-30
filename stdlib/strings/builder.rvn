@@ -1,0 +1,32 @@
+// Raven Standard Library: String Builder
+
+fn create_string_builder() {
+    let chunks = [];
+    let sb = {};
+
+    sb["write"] = fn(s) {
+        push(chunks, str(s));
+    };
+
+    sb["write_line"] = fn(s) {
+        push(chunks, str(s) + "\n");
+    };
+
+    sb["to_string"] = fn() {
+        return join(chunks, "");
+    };
+
+    sb["clear"] = fn() {
+        chunks = [];
+    };
+
+    sb["len"] = fn() {
+        let total = 0;
+        for (let c in chunks) {
+            total += len(c);
+        }
+        return total;
+    };
+
+    return sb;
+}

@@ -1,0 +1,37 @@
+// Raven Standard Library: Structured Logger
+
+let LOG_LEVEL_DEBUG = 0;
+let LOG_LEVEL_INFO = 1;
+let LOG_LEVEL_WARN = 2;
+let LOG_LEVEL_ERROR = 3;
+
+fn create_logger(name, min_level) {
+    let current_level = min_level ?? LOG_LEVEL_INFO;
+    let logger = {};
+
+    logger["debug"] = fn(msg) {
+        if (current_level <= LOG_LEVEL_DEBUG) {
+            print("[DEBUG] [" + name + "] " + str(msg));
+        }
+    };
+
+    logger["info"] = fn(msg) {
+        if (current_level <= LOG_LEVEL_INFO) {
+            print("[INFO] [" + name + "] " + str(msg));
+        }
+    };
+
+    logger["warn"] = fn(msg) {
+        if (current_level <= LOG_LEVEL_WARN) {
+            print("[WARN] [" + name + "] " + str(msg));
+        }
+    };
+
+    logger["error"] = fn(msg) {
+        if (current_level <= LOG_LEVEL_ERROR) {
+            print_err("[ERROR] [" + name + "] " + str(msg));
+        }
+    };
+
+    return logger;
+}

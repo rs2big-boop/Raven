@@ -1,0 +1,11 @@
+// Raven Standard Library: IO Reader
+
+fn read_all_text(filepath) {
+    return read_file(filepath);
+}
+
+fn read_all_lines(filepath) {
+    let content = read_file(filepath);
+    if (content == nil) { return []; }
+    return split(content, "\n");
+}

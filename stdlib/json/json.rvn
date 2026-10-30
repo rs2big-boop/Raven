@@ -1,0 +1,9 @@
+// Raven Standard Library: JSON encode/decode
+
+fn json_encode(val) {
+    return to_json(val);
+}
+
+fn json_decode(str_val) {
+    return parse_json(str_val);
+}

@@ -1,0 +1,9 @@
+// Raven Standard Library: IO Writer
+
+fn write_all_text(filepath, content) {
+    return write_file(filepath, str(content));
+}
+
+fn append_all_text(filepath, content) {
+    return append_file(filepath, str(content));
+}

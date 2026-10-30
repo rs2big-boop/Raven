@@ -1,0 +1,23 @@
+// Raven Standard Library: Worker Pool Concurrency Pattern
+
+fn create_worker_pool(num_workers) {
+    let pool = {};
+    let task_queue = [];
+
+    pool["submit"] = fn(task_fn) {
+        push(task_queue, task_fn);
+    };
+
+    pool["run_all"] = fn() {
+        while (len(task_queue) > 0) {
+            let task = pop(task_queue);
+            task();
+        }
+    };
+
+    pool["size"] = fn() {
+        return len(task_queue);
+    };
+
+    return pool;
+}

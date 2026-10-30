@@ -1,0 +1,5 @@
+// stdlib/crypto/md5.rvn
+
+fn md5(data) {
+    return native_md5(data);
+}

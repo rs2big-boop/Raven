@@ -923,6 +923,10 @@ void Interpreter::register_builtins() {
         return Value(platform::sha256_hex(args[0].to_string()));
     });
 
+    def("native_hmac_sha256", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::hmac_sha256_hex(args[0].to_string(), args[1].to_string()));
+    });
+
     def("native_md5", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         return Value(platform::md5_hex(args[0].to_string()));
     });

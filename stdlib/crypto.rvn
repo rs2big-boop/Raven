@@ -1,4 +1,4 @@
-// stdlib/crypto.rvn - Cryptographic and hash functions (pure native C++ implementation)
+// stdlib/crypto.rvn - Cryptographic and hash functions
 
 fn fnv_hash(s) {
     return hash(s);
@@ -10,4 +10,8 @@ fn sha256_sum(s) {
 
 fn md5_sum(s) {
     return native_md5(s);
+}
+
+fn hmac_sha256(key, data) {
+    return native_hmac_sha256(key, data);
 }

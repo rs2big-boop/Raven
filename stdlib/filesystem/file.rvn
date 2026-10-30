@@ -1,0 +1,13 @@
+// Raven Standard Library: Filesystem Operations
+
+fn file_is_exist(p) {
+    return file_exists(p);
+}
+
+fn file_read(p) {
+    return read_file(p);
+}
+
+fn file_write(p, data) {
+    return write_file(p, str(data));
+}

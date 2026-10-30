@@ -1,0 +1,5 @@
+// stdlib/crypto/sha256.rvn
+
+fn sha256(data) {
+    return native_sha256(data);
+}

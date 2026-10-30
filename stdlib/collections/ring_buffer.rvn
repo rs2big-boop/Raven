@@ -1,0 +1,84 @@
+// Raven Collections: Fixed-Capacity Ring Buffer (Circular Queue)
+
+fn create_ring_buffer(cap) {
+    if (cap <= 0) { cap = 1; }
+    let buffer = [];
+    let i = 0;
+    while (i < cap) {
+        push(buffer, nil);
+        i += 1;
+    }
+    let head = 0;
+    let tail = 0;
+    let count = 0;
+    let rb = {};
+
+    rb["push"] = fn(val) {
+        if (count == cap) {
+            // Overwrite oldest element at head
+            buffer[head] = val;
+            head = (head + 1) % cap;
+            tail = (tail + 1) % cap;
+            return false;
+        }
+        buffer[tail] = val;
+        tail = (tail + 1) % cap;
+        count += 1;
+        return true;
+    };
+
+    rb["pop"] = fn() {
+        if (count == 0) { return nil; }
+        let val = buffer[head];
+        buffer[head] = nil;
+        head = (head + 1) % cap;
+        count -= 1;
+        return val;
+    };
+
+    rb["peek"] = fn() {
+        if (count == 0) { return nil; }
+        return buffer[head];
+    };
+
+    rb["size"] = fn() {
+        return count;
+    };
+
+    rb["capacity"] = fn() {
+        return cap;
+    };
+
+    rb["is_full"] = fn() {
+        return count == cap;
+    };
+
+    rb["is_empty"] = fn() {
+        return count == 0;
+    };
+
+    rb["to_array"] = fn() {
+        let res = [];
+        let cur = head;
+        let c = 0;
+        while (c < count) {
+            push(res, buffer[cur]);
+            cur = (cur + 1) % cap;
+            c += 1;
+        }
+        return res;
+    };
+
+    rb["clear"] = fn() {
+        head = 0;
+        tail = 0;
+        count = 0;
+        let j = 0;
+        while (j < cap) {
+            buffer[j] = nil;
+            j += 1;
+        }
+    };
+
+    return rb;
+}

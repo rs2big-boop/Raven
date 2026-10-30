@@ -1,5 +1,7 @@
-// Raven Standard Library: Collections & Data Structures
+// Raven Standard Library: Comprehensive Collections & Data Structures
+// Usage: import "stdlib/collections"
 
+// 1. Stack (LIFO)
 fn create_stack() {
     let items = [];
     return {
@@ -11,10 +13,12 @@ fn create_stack() {
         },
         "size": fn() { return len(items); },
         "is_empty": fn() { return len(items) == 0; },
-        "to_array": fn() { return items; }
+        "to_array": fn() { return items; },
+        "clear": fn() { items = []; }
     };
 }
 
+// 2. Queue (FIFO)
 fn create_queue() {
     let items = [];
     return {
@@ -26,7 +30,7 @@ fn create_queue() {
             let i = 1;
             while (i < len(items)) {
                 push(new_items, items[i]);
-                i = i + 1;
+                i += 1;
             }
             items = new_items;
             return front;
@@ -37,10 +41,12 @@ fn create_queue() {
         },
         "size": fn() { return len(items); },
         "is_empty": fn() { return len(items) == 0; },
-        "to_array": fn() { return items; }
+        "to_array": fn() { return items; },
+        "clear": fn() { items = []; }
     };
 }
 
+// 3. Set (Unique elements)
 fn create_set() {
     let data = {};
     return {
@@ -50,7 +56,7 @@ fn create_set() {
         "size": fn() {
             let count = 0;
             for (let k in keys(data)) {
-                if (data[k]) { count = count + 1; }
+                if (data[k]) { count += 1; }
             }
             return count;
         },
@@ -60,6 +66,439 @@ fn create_set() {
                 if (data[k]) { push(res, k); }
             }
             return res;
+        },
+        "clear": fn() { data = {}; }
+    };
+}
+
+// 4. Deque (Double-Ended Queue)
+fn create_deque() {
+    let items = [];
+    let d = {};
+
+    d["push_back"] = fn(val) { push(items, val); };
+    d["push_front"] = fn(val) {
+        let new_items = [val];
+        let i = 0;
+        while (i < len(items)) {
+            push(new_items, items[i]);
+            i += 1;
+        }
+        items = new_items;
+    };
+    d["pop_back"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return pop(items);
+    };
+    d["pop_front"] = fn() {
+        if (len(items) == 0) { return nil; }
+        let front = items[0];
+        let new_items = [];
+        let i = 1;
+        while (i < len(items)) {
+            push(new_items, items[i]);
+            i += 1;
+        }
+        items = new_items;
+        return front;
+    };
+    d["peek_back"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return items[len(items) - 1];
+    };
+    d["peek_front"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return items[0];
+    };
+    d["size"] = fn() { return len(items); };
+    d["is_empty"] = fn() { return len(items) == 0; };
+    d["clear"] = fn() { items = []; };
+    d["to_array"] = fn() {
+        let copy = [];
+        for (let it in items) { push(copy, it); }
+        return copy;
+    };
+    return d;
+}
+
+// 5. Priority Queue (Min-Heap by priority number)
+fn create_priority_queue() {
+    let heap = [];
+    let pq = {};
+
+    pq["push"] = fn(item, priority) {
+        let entry = { "item": item, "priority": priority };
+        push(heap, entry);
+        let idx = len(heap) - 1;
+        while (idx > 0) {
+            let parent = int((idx - 1) / 2);
+            if (heap[idx]["priority"] < heap[parent]["priority"]) {
+                let tmp = heap[idx];
+                heap[idx] = heap[parent];
+                heap[parent] = tmp;
+                idx = parent;
+            } else {
+                break;
+            }
         }
     };
+
+    pq["pop"] = fn() {
+        if (len(heap) == 0) { return nil; }
+        let root = heap[0]["item"];
+        let last = pop(heap);
+        if (len(heap) == 0) { return root; }
+        heap[0] = last;
+
+        let idx = 0;
+        let n = len(heap);
+        while (true) {
+            let left = 2 * idx + 1;
+            let right = 2 * idx + 2;
+            let smallest = idx;
+
+            if (left < n && heap[left]["priority"] < heap[smallest]["priority"]) {
+                smallest = left;
+            }
+            if (right < n && heap[right]["priority"] < heap[smallest]["priority"]) {
+                smallest = right;
+            }
+
+            if (smallest != idx) {
+                let tmp = heap[idx];
+                heap[idx] = heap[smallest];
+                heap[smallest] = tmp;
+                idx = smallest;
+            } else {
+                break;
+            }
+        }
+        return root;
+    };
+
+    pq["peek"] = fn() {
+        if (len(heap) == 0) { return nil; }
+        return heap[0]["item"];
+    };
+    pq["peek_priority"] = fn() {
+        if (len(heap) == 0) { return nil; }
+        return heap[0]["priority"];
+    };
+    pq["size"] = fn() { return len(heap); };
+    pq["is_empty"] = fn() { return len(heap) == 0; };
+    pq["clear"] = fn() { heap = []; };
+    return pq;
+}
+
+// 6. Doubly Linked List
+fn create_linked_list() {
+    let head = nil;
+    let tail = nil;
+    let count = 0;
+    let list = {};
+
+    list["push_back"] = fn(val) {
+        let node = { "value": val, "prev": tail, "next": nil };
+        if (tail != nil) {
+            tail["next"] = node;
+        } else {
+            head = node;
+        }
+        tail = node;
+        count += 1;
+    };
+
+    list["push_front"] = fn(val) {
+        let node = { "value": val, "prev": nil, "next": head };
+        if (head != nil) {
+            head["prev"] = node;
+        } else {
+            tail = node;
+        }
+        head = node;
+        count += 1;
+    };
+
+    list["pop_back"] = fn() {
+        if (tail == nil) { return nil; }
+        let val = tail["value"];
+        tail = tail["prev"];
+        if (tail != nil) {
+            tail["next"] = nil;
+        } else {
+            head = nil;
+        }
+        count -= 1;
+        return val;
+    };
+
+    list["pop_front"] = fn() {
+        if (head == nil) { return nil; }
+        let val = head["value"];
+        head = head["next"];
+        if (head != nil) {
+            head["prev"] = nil;
+        } else {
+            tail = nil;
+        }
+        count -= 1;
+        return val;
+    };
+
+    list["peek_front"] = fn() {
+        if (head == nil) { return nil; }
+        return head["value"];
+    };
+    list["peek_back"] = fn() {
+        if (tail == nil) { return nil; }
+        return tail["value"];
+    };
+
+    list["get"] = fn(index) {
+        if (index < 0 || index >= count) { return nil; }
+        let cur = head;
+        let i = 0;
+        while (i < index && cur != nil) {
+            cur = cur["next"];
+            i += 1;
+        }
+        if (cur != nil) { return cur["value"]; }
+        return nil;
+    };
+
+    list["size"] = fn() { return count; };
+    list["is_empty"] = fn() { return count == 0; };
+    list["to_array"] = fn() {
+        let res = [];
+        let cur = head;
+        while (cur != nil) {
+            push(res, cur["value"]);
+            cur = cur["next"];
+        }
+        return res;
+    };
+    list["clear"] = fn() {
+        head = nil;
+        tail = nil;
+        count = 0;
+    };
+    return list;
+}
+
+// 7. Binary Search Tree (BST)
+fn _bst_insert_node(node, val) {
+    if (node == nil) {
+        return { "val": val, "left": nil, "right": nil };
+    }
+    if (val < node["val"]) {
+        node["left"] = _bst_insert_node(node["left"], val);
+    } else if (val > node["val"]) {
+        node["right"] = _bst_insert_node(node["right"], val);
+    }
+    return node;
+}
+
+fn _bst_in_order(node, acc) {
+    if (node == nil) { return; }
+    _bst_in_order(node["left"], acc);
+    push(acc, node["val"]);
+    _bst_in_order(node["right"], acc);
+}
+
+fn create_bst() {
+    let root = nil;
+    let count = 0;
+    let tree = {};
+
+    tree["insert"] = fn(val) {
+        if (!tree["contains"](val)) { count += 1; }
+        root = _bst_insert_node(root, val);
+    };
+
+    tree["contains"] = fn(val) {
+        let cur = root;
+        while (cur != nil) {
+            if (val == cur["val"]) { return true; }
+            else if (val < cur["val"]) { cur = cur["left"]; }
+            else { cur = cur["right"]; }
+        }
+        return false;
+    };
+
+    tree["min"] = fn() {
+        if (root == nil) { return nil; }
+        let cur = root;
+        while (cur["left"] != nil) { cur = cur["left"]; }
+        return cur["val"];
+    };
+
+    tree["max"] = fn() {
+        if (root == nil) { return nil; }
+        let cur = root;
+        while (cur["right"] != nil) { cur = cur["right"]; }
+        return cur["val"];
+    };
+
+    tree["in_order"] = fn() {
+        let res = [];
+        _bst_in_order(root, res);
+        return res;
+    };
+
+    tree["size"] = fn() { return count; };
+    tree["is_empty"] = fn() { return count == 0; };
+    tree["clear"] = fn() { root = nil; count = 0; };
+    return tree;
+}
+
+// 8. Trie (Prefix Tree)
+fn _trie_create_node() {
+    return { "children": {}, "is_end": false };
+}
+
+fn _trie_collect_words(node, prefix, acc) {
+    if (node == nil) { return; }
+    if (node["is_end"]) { push(acc, prefix); }
+    let child_keys = keys(node["children"]);
+    for (let ch in child_keys) {
+        _trie_collect_words(node["children"][ch], prefix + ch, acc);
+    }
+}
+
+fn create_trie() {
+    let root = _trie_create_node();
+    let word_count = 0;
+    let trie = {};
+
+    trie["insert"] = fn(word) {
+        let cur = root;
+        let i = 0;
+        let n = len(word);
+        while (i < n) {
+            let ch = word[i];
+            if (!contains(cur["children"], ch)) {
+                cur["children"][ch] = _trie_create_node();
+            }
+            cur = cur["children"][ch];
+            i += 1;
+        }
+        if (!cur["is_end"]) {
+            cur["is_end"] = true;
+            word_count += 1;
+        }
+    };
+
+    trie["contains"] = fn(word) {
+        let cur = root;
+        let i = 0;
+        let n = len(word);
+        while (i < n) {
+            let ch = word[i];
+            if (!contains(cur["children"], ch)) { return false; }
+            cur = cur["children"][ch];
+            i += 1;
+        }
+        return cur["is_end"];
+    };
+
+    trie["starts_with"] = fn(prefix) {
+        let cur = root;
+        let i = 0;
+        let n = len(prefix);
+        while (i < n) {
+            let ch = prefix[i];
+            if (!contains(cur["children"], ch)) { return false; }
+            cur = cur["children"][ch];
+            i += 1;
+        }
+        return true;
+    };
+
+    trie["words_with_prefix"] = fn(prefix) {
+        let cur = root;
+        let i = 0;
+        let n = len(prefix);
+        while (i < n) {
+            let ch = prefix[i];
+            if (!contains(cur["children"], ch)) { return []; }
+            cur = cur["children"][ch];
+            i += 1;
+        }
+        let matches = [];
+        _trie_collect_words(cur, prefix, matches);
+        return matches;
+    };
+
+    trie["size"] = fn() { return word_count; };
+    trie["is_empty"] = fn() { return word_count == 0; };
+    return trie;
+}
+
+// 9. Fixed-Capacity Ring Buffer
+fn create_ring_buffer(cap) {
+    if (cap <= 0) { cap = 1; }
+    let buffer = [];
+    let i = 0;
+    while (i < cap) {
+        push(buffer, nil);
+        i += 1;
+    }
+    let head = 0;
+    let tail = 0;
+    let count = 0;
+    let rb = {};
+
+    rb["push"] = fn(val) {
+        if (count == cap) {
+            buffer[head] = val;
+            head = (head + 1) % cap;
+            tail = (tail + 1) % cap;
+            return false;
+        }
+        buffer[tail] = val;
+        tail = (tail + 1) % cap;
+        count += 1;
+        return true;
+    };
+
+    rb["pop"] = fn() {
+        if (count == 0) { return nil; }
+        let val = buffer[head];
+        buffer[head] = nil;
+        head = (head + 1) % cap;
+        count -= 1;
+        return val;
+    };
+
+    rb["peek"] = fn() {
+        if (count == 0) { return nil; }
+        return buffer[head];
+    };
+
+    rb["size"] = fn() { return count; };
+    rb["capacity"] = fn() { return cap; };
+    rb["is_full"] = fn() { return count == cap; };
+    rb["is_empty"] = fn() { return count == 0; };
+    rb["to_array"] = fn() {
+        let res = [];
+        let cur = head;
+        let c = 0;
+        while (c < count) {
+            push(res, buffer[cur]);
+            cur = (cur + 1) % cap;
+            c += 1;
+        }
+        return res;
+    };
+    rb["clear"] = fn() {
+        head = 0;
+        tail = 0;
+        count = 0;
+        let j = 0;
+        while (j < cap) {
+            buffer[j] = nil;
+            j += 1;
+        }
+    };
+    return rb;
 }

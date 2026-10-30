@@ -1230,6 +1230,76 @@ TEST(InterpreterTest, StdlibConfigEnvParsing) {
     EXPECT_EQ(run_code(code), "8080\ntrue\nRaven Server\n");
 }
 
+TEST(InterpreterTest, AdvancedCollectionsDequeAndPriorityQueue) {
+    std::string code =
+        "import \"stdlib/collections\";\n"
+        "let dq = create_deque();\n"
+        "dq.push_back(10);\n"
+        "dq.push_front(5);\n"
+        "dq.push_back(20);\n"
+        "print(dq.pop_front());\n"
+        "print(dq.pop_back());\n"
+        "print(dq.size());\n"
+        "let pq = create_priority_queue();\n"
+        "pq.push(\"low\", 10);\n"
+        "pq.push(\"critical\", 1);\n"
+        "pq.push(\"medium\", 5);\n"
+        "print(pq.pop());\n"
+        "print(pq.pop());\n";
+    EXPECT_EQ(run_code(code), "5\n20\n1\ncritical\nmedium\n");
+}
+
+TEST(InterpreterTest, AdvancedCollectionsLinkedListAndBST) {
+    std::string code =
+        "import \"stdlib/collections\";\n"
+        "let ll = create_linked_list();\n"
+        "ll.push_back(\"a\");\n"
+        "ll.push_front(\"z\");\n"
+        "ll.push_back(\"b\");\n"
+        "print(ll.get(0));\n"
+        "print(ll.get(1));\n"
+        "print(ll.size());\n"
+        "let bst = create_bst();\n"
+        "bst.insert(50);\n"
+        "bst.insert(20);\n"
+        "bst.insert(80);\n"
+        "bst.insert(10);\n"
+        "print(bst.contains(20));\n"
+        "print(bst.contains(99));\n"
+        "print(bst.min());\n"
+        "print(bst.max());\n";
+    EXPECT_EQ(run_code(code), "z\na\n3\ntrue\nfalse\n10\n80\n");
+}
+
+TEST(InterpreterTest, AdvancedCollectionsTrieAndRingBuffer) {
+    std::string code =
+        "import \"stdlib/collections\";\n"
+        "let trie = create_trie();\n"
+        "trie.insert(\"raven\");\n"
+        "trie.insert(\"ravine\");\n"
+        "trie.insert(\"rapid\");\n"
+        "print(trie.contains(\"raven\"));\n"
+        "print(trie.starts_with(\"rav\"));\n"
+        "let rb = create_ring_buffer(3);\n"
+        "rb.push(1);\n"
+        "rb.push(2);\n"
+        "rb.push(3);\n"
+        "rb.push(4);\n"
+        "print(rb.size());\n"
+        "print(rb.pop());\n"
+        "print(rb.pop());\n";
+    EXPECT_EQ(run_code(code), "true\ntrue\n3\n2\n3\n");
+}
+
+TEST(InterpreterTest, NativeHMACSHA256StandardVector) {
+    std::string code =
+        "import \"stdlib/crypto\";\n"
+        "let sig = hmac_sha256(\"secret_key\", \"The quick brown fox jumps over the lazy dog\");\n"
+        "print(sig);\n";
+    EXPECT_EQ(run_code(code), "31fd15fa0f61fd40dc09d919d4aa5b4141a0b27c1d51e74a6789a890aaaa187c\n");
+}
+
+
 
 
 

@@ -1,0 +1,86 @@
+// Raven Collections: Binary Search Tree (BST)
+
+fn _bst_insert_node(node, val) {
+    if (node == nil) {
+        return { "val": val, "left": nil, "right": nil };
+    }
+    if (val < node["val"]) {
+        node["left"] = _bst_insert_node(node["left"], val);
+    } else if (val > node["val"]) {
+        node["right"] = _bst_insert_node(node["right"], val);
+    }
+    return node;
+}
+
+fn _bst_in_order(node, acc) {
+    if (node == nil) { return; }
+    _bst_in_order(node["left"], acc);
+    push(acc, node["val"]);
+    _bst_in_order(node["right"], acc);
+}
+
+fn create_bst() {
+    let root = nil;
+    let count = 0;
+    let tree = {};
+
+    tree["insert"] = fn(val) {
+        if (!tree["contains"](val)) {
+            count += 1;
+        }
+        root = _bst_insert_node(root, val);
+    };
+
+    tree["contains"] = fn(val) {
+        let cur = root;
+        while (cur != nil) {
+            if (val == cur["val"]) {
+                return true;
+            } else if (val < cur["val"]) {
+                cur = cur["left"];
+            } else {
+                cur = cur["right"];
+            }
+        }
+        return false;
+    };
+
+    tree["min"] = fn() {
+        if (root == nil) { return nil; }
+        let cur = root;
+        while (cur["left"] != nil) {
+            cur = cur["left"];
+        }
+        return cur["val"];
+    };
+
+    tree["max"] = fn() {
+        if (root == nil) { return nil; }
+        let cur = root;
+        while (cur["right"] != nil) {
+            cur = cur["right"];
+        }
+        return cur["val"];
+    };
+
+    tree["in_order"] = fn() {
+        let res = [];
+        _bst_in_order(root, res);
+        return res;
+    };
+
+    tree["size"] = fn() {
+        return count;
+    };
+
+    tree["is_empty"] = fn() {
+        return count == 0;
+    };
+
+    tree["clear"] = fn() {
+        root = nil;
+        count = 0;
+    };
+
+    return tree;
+}

@@ -1,0 +1,11 @@
+// stdlib/http/http.rvn
+
+import "stdlib/net/http";
+
+fn http_get(url) {
+    return http_get_url(url);
+}
+
+fn create_server() {
+    return new_http_server();
+}

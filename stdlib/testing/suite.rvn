@@ -1,0 +1,24 @@
+// Raven Standard Library: Unit Testing Suite
+
+fn create_test_suite(name) {
+    let suite = {};
+    let passed = 0;
+    let failed = 0;
+
+    suite["test"] = fn(desc, test_fn) {
+        try {
+            test_fn();
+            passed += 1;
+        } catch (err) {
+            print_err("FAIL: " + desc + " (" + str(err) + ")");
+            failed += 1;
+        }
+    };
+
+    suite["summary"] = fn() {
+        print("Suite '" + name + "': " + str(passed) + " passed, " + str(failed) + " failed.");
+        return failed == 0;
+    };
+
+    return suite;
+}

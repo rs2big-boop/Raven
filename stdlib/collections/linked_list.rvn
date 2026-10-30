@@ -1,0 +1,104 @@
+// Raven Collections: Doubly Linked List
+
+fn create_linked_list() {
+    let head = nil;
+    let tail = nil;
+    let count = 0;
+    let list = {};
+
+    list["push_back"] = fn(val) {
+        let node = { "value": val, "prev": tail, "next": nil };
+        if (tail != nil) {
+            tail["next"] = node;
+        } else {
+            head = node;
+        }
+        tail = node;
+        count += 1;
+    };
+
+    list["push_front"] = fn(val) {
+        let node = { "value": val, "prev": nil, "next": head };
+        if (head != nil) {
+            head["prev"] = node;
+        } else {
+            tail = node;
+        }
+        head = node;
+        count += 1;
+    };
+
+    list["pop_back"] = fn() {
+        if (tail == nil) { return nil; }
+        let val = tail["value"];
+        tail = tail["prev"];
+        if (tail != nil) {
+            tail["next"] = nil;
+        } else {
+            head = nil;
+        }
+        count -= 1;
+        return val;
+    };
+
+    list["pop_front"] = fn() {
+        if (head == nil) { return nil; }
+        let val = head["value"];
+        head = head["next"];
+        if (head != nil) {
+            head["prev"] = nil;
+        } else {
+            tail = nil;
+        }
+        count -= 1;
+        return val;
+    };
+
+    list["peek_front"] = fn() {
+        if (head == nil) { return nil; }
+        return head["value"];
+    };
+
+    list["peek_back"] = fn() {
+        if (tail == nil) { return nil; }
+        return tail["value"];
+    };
+
+    list["get"] = fn(index) {
+        if (index < 0 || index >= count) { return nil; }
+        let cur = head;
+        let i = 0;
+        while (i < index && cur != nil) {
+            cur = cur["next"];
+            i += 1;
+        }
+        if (cur != nil) { return cur["value"]; }
+        return nil;
+    };
+
+    list["size"] = fn() {
+        return count;
+    };
+
+    list["is_empty"] = fn() {
+        return count == 0;
+    };
+
+    list["to_array"] = fn() {
+        let res = [];
+        let cur = head;
+        while (cur != nil) {
+            push(res, cur["value"]);
+            cur = cur["next"];
+        }
+        return res;
+    };
+
+    list["clear"] = fn() {
+        head = nil;
+        tail = nil;
+        count = 0;
+    };
+
+    return list;
+}

@@ -1,0 +1,16 @@
+// Raven Standard Library: Filesystem Path Utilities
+
+fn path_join(a, b) {
+    if (len(a) == 0) { return b; }
+    if (len(b) == 0) { return a; }
+    if (str_ends_with(a, "/")) {
+        return a + b;
+    }
+    return a + "/" + b;
+}
+
+fn path_extension(p) {
+    let parts = split(p, ".");
+    if (len(parts) <= 1) { return ""; }
+    return parts[len(parts) - 1];
+}

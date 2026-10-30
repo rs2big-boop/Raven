@@ -1,0 +1,70 @@
+// Raven Collections: Double-Ended Queue (Deque)
+
+fn create_deque() {
+    let items = [];
+    let d = {};
+
+    d["push_back"] = fn(val) {
+        push(items, val);
+    };
+
+    d["push_front"] = fn(val) {
+        let new_items = [val];
+        let i = 0;
+        while (i < len(items)) {
+            push(new_items, items[i]);
+            i += 1;
+        }
+        items = new_items;
+    };
+
+    d["pop_back"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return pop(items);
+    };
+
+    d["pop_front"] = fn() {
+        if (len(items) == 0) { return nil; }
+        let front = items[0];
+        let new_items = [];
+        let i = 1;
+        while (i < len(items)) {
+            push(new_items, items[i]);
+            i += 1;
+        }
+        items = new_items;
+        return front;
+    };
+
+    d["peek_back"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return items[len(items) - 1];
+    };
+
+    d["peek_front"] = fn() {
+        if (len(items) == 0) { return nil; }
+        return items[0];
+    };
+
+    d["size"] = fn() {
+        return len(items);
+    };
+
+    d["is_empty"] = fn() {
+        return len(items) == 0;
+    };
+
+    d["clear"] = fn() {
+        items = [];
+    };
+
+    d["to_array"] = fn() {
+        let copy = [];
+        for (let item in items) {
+            push(copy, item);
+        }
+        return copy;
+    };
+
+    return d;
+}

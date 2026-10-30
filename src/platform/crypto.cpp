@@ -76,9 +76,7 @@ inline void II(uint32_t &a, uint32_t b, uint32_t c, uint32_t d, uint32_t x, uint
     a = rotate_left(a + I_md5(b, c, d) + x + ac, s) + b;
 }
 
-} // namespace
-
-std::string sha256_hex(const std::string& input) {
+static std::vector<uint8_t> sha256_raw(const uint8_t* data, size_t len) {
     uint32_t h0 = 0x6a09e667;
     uint32_t h1 = 0xbb67ae85;
     uint32_t h2 = 0x3c6ef372;
@@ -88,10 +86,10 @@ std::string sha256_hex(const std::string& input) {
     uint32_t h6 = 0x1f83d9ab;
     uint32_t h7 = 0x5be0cd19;
 
-    uint64_t msg_len = input.size();
+    uint64_t msg_len = len;
     uint64_t bit_len = msg_len * 8;
 
-    std::vector<uint8_t> padded(input.begin(), input.end());
+    std::vector<uint8_t> padded(data, data + len);
     padded.push_back(0x80);
     while ((padded.size() % 64) != 56) {
         padded.push_back(0x00);
@@ -131,11 +129,59 @@ std::string sha256_hex(const std::string& input) {
         h4 += e; h5 += f; h6 += g; h7 += h;
     }
 
+    std::vector<uint8_t> digest(32);
+    uint32_t vals[8] = {h0, h1, h2, h3, h4, h5, h6, h7};
+    for (int i = 0; i < 8; ++i) {
+        digest[i * 4 + 0] = static_cast<uint8_t>((vals[i] >> 24) & 0xff);
+        digest[i * 4 + 1] = static_cast<uint8_t>((vals[i] >> 16) & 0xff);
+        digest[i * 4 + 2] = static_cast<uint8_t>((vals[i] >> 8) & 0xff);
+        digest[i * 4 + 3] = static_cast<uint8_t>(vals[i] & 0xff);
+    }
+    return digest;
+}
+
+} // namespace
+
+std::string sha256_hex(const std::string& input) {
+    auto raw = sha256_raw(reinterpret_cast<const uint8_t*>(input.data()), input.size());
     std::ostringstream oss;
     oss << std::hex << std::setfill('0');
-    uint32_t vals[8] = {h0, h1, h2, h3, h4, h5, h6, h7};
-    for (uint32_t v : vals) {
-        oss << std::setw(8) << v;
+    for (uint8_t b : raw) {
+        oss << std::setw(2) << static_cast<int>(b);
+    }
+    return oss.str();
+}
+
+std::string hmac_sha256_hex(const std::string& key, const std::string& data) {
+    const size_t block_size = 64;
+    std::vector<uint8_t> k(block_size, 0);
+
+    if (key.size() > block_size) {
+        auto key_hash = sha256_raw(reinterpret_cast<const uint8_t*>(key.data()), key.size());
+        std::copy(key_hash.begin(), key_hash.end(), k.begin());
+    } else {
+        std::copy(key.begin(), key.end(), k.begin());
+    }
+
+    std::vector<uint8_t> ipad(block_size);
+    std::vector<uint8_t> opad(block_size);
+    for (size_t i = 0; i < block_size; ++i) {
+        ipad[i] = k[i] ^ 0x36;
+        opad[i] = k[i] ^ 0x5c;
+    }
+
+    std::vector<uint8_t> inner_msg = ipad;
+    inner_msg.insert(inner_msg.end(), data.begin(), data.end());
+    auto inner_hash = sha256_raw(inner_msg.data(), inner_msg.size());
+
+    std::vector<uint8_t> outer_msg = opad;
+    outer_msg.insert(outer_msg.end(), inner_hash.begin(), inner_hash.end());
+    auto final_hash = sha256_raw(outer_msg.data(), outer_msg.size());
+
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    for (uint8_t b : final_hash) {
+        oss << std::setw(2) << static_cast<int>(b);
     }
     return oss.str();
 }

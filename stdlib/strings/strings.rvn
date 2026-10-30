@@ -1,0 +1,33 @@
+// Raven Standard Library: Strings Module
+
+fn str_pad_left(s, width, pad_char) {
+    let res = str(s);
+    while (len(res) < width) {
+        res = pad_char + res;
+    }
+    return res;
+}
+
+fn str_pad_right(s, width, pad_char) {
+    let res = str(s);
+    while (len(res) < width) {
+        res = res + pad_char;
+    }
+    return res;
+}
+
+fn str_contains(haystack, needle) {
+    return contains(haystack, needle);
+}
+
+fn str_starts_with(s, prefix) {
+    if (len(s) < len(prefix)) { return false; }
+    return slice(s, 0, len(prefix)) == prefix;
+}
+
+fn str_ends_with(s, suffix) {
+    let sl = len(s);
+    let pl = len(suffix);
+    if (sl < pl) { return false; }
+    return slice(s, sl - pl, sl) == suffix;
+}

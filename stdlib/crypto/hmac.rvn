@@ -1,0 +1,5 @@
+// stdlib/crypto/hmac.rvn - HMAC-SHA256 Implementation
+
+fn hmac(key, data) {
+    return native_hmac_sha256(key, data);
+}

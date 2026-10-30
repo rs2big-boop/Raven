@@ -1,0 +1,56 @@
+// Raven Collections: BitSet
+
+fn create_bit_set(initial_size) {
+    if (initial_size <= 0) { initial_size = 64; }
+    let bits = {};
+    let bs = {};
+
+    bs["set"] = fn(idx) {
+        bits[str(idx)] = true;
+    };
+
+    bs["clear_bit"] = fn(idx) {
+        bits[str(idx)] = nil;
+    };
+
+    bs["get"] = fn(idx) {
+        let val = bits[str(idx)];
+        return val == true;
+    };
+
+    bs["toggle"] = fn(idx) {
+        if (bs["get"](idx)) {
+            bs["clear_bit"](idx);
+        } else {
+            bs["set"](idx);
+        }
+    };
+
+    bs["count"] = fn() {
+        let c = 0;
+        let k_list = keys(bits);
+        for (let k in k_list) {
+            if (bits[k] == true) {
+                c += 1;
+            }
+        }
+        return c;
+    };
+
+    bs["to_array"] = fn() {
+        let res = [];
+        let k_list = keys(bits);
+        for (let k in k_list) {
+            if (bits[k] == true) {
+                push(res, num(k));
+            }
+        }
+        return res;
+    };
+
+    bs["clear"] = fn() {
+        bits = {};
+    };
+
+    return bs;
+}

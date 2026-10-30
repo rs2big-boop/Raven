@@ -1,0 +1,16 @@
+// stdlib/networking/networking.rvn
+
+import "stdlib/net/tcp";
+import "stdlib/net/udp";
+
+fn dial_tcp(host, port, timeout_ms) {
+    return tcp_dial(host, port, timeout_ms);
+}
+
+fn listen_tcp(host, port) {
+    return tcp_listen(host, port);
+}
+
+fn listen_udp(host, port) {
+    return udp_listen(host, port);
+}
