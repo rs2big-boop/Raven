@@ -1,7 +1,11 @@
-# Raven Programming Language
+# Raven Programming Language v1.0.0
 
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
+>
+> [![Tests](https://img.shields.io/badge/tests-59%2F59%20passing-brightgreen)](#)
+> [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
+> [![License](https://img.shields.io/badge/license-MIT-green)](#)
 
 ---
 
@@ -27,7 +31,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (57/57 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (59/59 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 
@@ -256,7 +260,7 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (57 automated unit, regression, toolchain & VM integration tests):
+Raven includes a comprehensive test suite (59 automated unit, regression, toolchain & VM integration tests):
 
 ```bash
 # Fast build and test

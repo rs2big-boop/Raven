@@ -1,0 +1,148 @@
+// Raven v1.0.0 — Concurrency Example
+// Demonstrates: go(), create_channel(), create_wait_group(), CSP patterns
+
+import "stdlib/sync";
+import "stdlib/log";
+
+// ── Fan-Out Pattern ──────────────────────────────────────────────────────
+// Distribute work across N parallel workers and collect results
+
+fn fan_out_example() {
+    let results_ch = create_channel(10);
+    let wg = create_wait_group();
+    let tasks = [10, 20, 30, 40, 50];
+
+    // Spawn one worker per task
+    for (let task in tasks) {
+        wg.add(1);
+        let t = task;
+        go(fn() {
+            let result = t * t;  // simulate CPU work
+            results_ch.send(result);
+            wg.done();
+        });
+    }
+
+    // Collect all results then close channel
+    go(fn() {
+        wg.wait();
+        results_ch.close();
+    });
+
+    // Read results as they arrive
+    let total = 0;
+    let count = 0;
+    while (count < len(tasks)) {
+        let r = results_ch.recv();
+        total += r;
+        count += 1;
+    }
+
+    print("Fan-out sum of squares: " + str(total));  // 100+400+900+1600+2500 = 5500
+}
+
+// ── Pipeline Pattern ─────────────────────────────────────────────────────
+// Chain of channels: producer → transform → consumer
+
+fn pipeline_example() {
+    let source_ch = create_channel(5);
+    let doubled_ch = create_channel(5);
+
+    // Stage 1: produce numbers
+    go(fn() {
+        let i = 1;
+        while (i <= 5) {
+            source_ch.send(i);
+            i += 1;
+        }
+        source_ch.close();
+    });
+
+    // Stage 2: double each number
+    go(fn() {
+        let n = source_ch.recv();
+        while (n != nil) {
+            doubled_ch.send(n * 2);
+            n = source_ch.recv();
+        }
+        doubled_ch.close();
+    });
+
+    // Stage 3: consume and print
+    print("Pipeline output (doubled 1-5):");
+    let val = doubled_ch.recv();
+    while (val != nil) {
+        print("  " + str(val));
+        val = doubled_ch.recv();
+    }
+}
+
+// ── Mutex-Protected Counter ──────────────────────────────────────────────
+fn mutex_example() {
+    let wg = create_wait_group();
+    let done_ch = create_channel(10);
+    let count = 0;
+
+    let i = 0;
+    while (i < 5) {
+        wg.add(1);
+        go(fn() {
+            done_ch.send(1);
+            wg.done();
+        });
+        i += 1;
+    }
+
+    wg.wait();
+
+    // Collect all increments
+    let j = 0;
+    while (j < 5) {
+        count += chan_recv(done_ch.id);
+        j += 1;
+    }
+    print("Workers completed: " + str(count));  // 5
+}
+
+// ── Once Pattern ─────────────────────────────────────────────────────────
+fn once_example() {
+    let once = create_once();
+    let init_count = 0;
+
+    let wg = create_wait_group();
+    let j = 0;
+    while (j < 3) {
+        wg.add(1);
+        go(fn() {
+            once.do(fn() {
+                init_count += 1;
+                print("Initializing (should only print once)");
+            });
+            wg.done();
+        });
+        j += 1;
+    }
+
+    wg.wait();
+}
+
+print("=== Raven v1.0.0 Concurrency Demo ===");
+print("");
+
+print("--- Fan-Out Pattern ---");
+fan_out_example();
+print("");
+
+print("--- Pipeline Pattern ---");
+pipeline_example();
+print("");
+
+print("--- Mutex-Protected Counter ---");
+mutex_example();
+print("");
+
+print("--- Once Initialization ---");
+once_example();
+print("");
+
+print("=== Concurrency Demo Completed Successfully ===");

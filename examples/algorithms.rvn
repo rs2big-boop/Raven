@@ -1,0 +1,139 @@
+// Raven v1.0.0 — Advent of Code Style Algorithms
+// Tests: recursion, closures, iterators, pattern matching, data structures
+
+import "stdlib/math";
+import "stdlib/slices";
+import "stdlib/collections";
+import "stdlib/sort";
+import "stdlib/strings";
+
+print("=== Raven v1.0.0 Algorithms Tour ===");
+print("");
+
+// ── 1. Fibonacci (memo) ───────────────────────────────────────────────────
+let fib_cache = {};
+fn fib(n) {
+    if (n <= 1) { return n; }
+    let k = str(n);
+    if (map_has_key(fib_cache, k)) { return fib_cache[k]; }
+    let result = fib(n - 1) + fib(n - 2);
+    fib_cache[k] = result;
+    return result;
+}
+print("Fibonacci(30) = " + str(fib(30)));  // 832040
+
+// ── 2. Binary Search ─────────────────────────────────────────────────────
+fn binary_search(arr, target) {
+    let lo = 0;
+    let hi = len(arr) - 1;
+    while (lo <= hi) {
+        let mid = int((lo + hi) / 2);
+        if (arr[mid] == target) { return mid; }
+        if (arr[mid] < target) { lo = mid + 1; }
+        else { hi = mid - 1; }
+    }
+    return -1;
+}
+let sorted = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
+print("Binary search 11 at index: " + str(binary_search(sorted, 11)));  // 5
+print("Binary search 6 at index: " + str(binary_search(sorted, 6)));    // -1
+
+// ── 3. Sieve of Eratosthenes ─────────────────────────────────────────────
+fn sieve(limit) {
+    let is_prime = [];
+    let i = 0;
+    while (i <= limit) {
+        push(is_prime, true);
+        i += 1;
+    }
+    is_prime[0] = false;
+    is_prime[1] = false;
+    let p = 2;
+    while (p * p <= limit) {
+        if (is_prime[p]) {
+            let j = p * p;
+            while (j <= limit) {
+                is_prime[j] = false;
+                j += p;
+            }
+        }
+        p += 1;
+    }
+    let primes = [];
+    let k = 2;
+    while (k <= limit) {
+        if (is_prime[k]) { push(primes, k); }
+        k += 1;
+    }
+    return primes;
+}
+let primes = sieve(50);
+print("Primes up to 50: " + to_json(primes));
+
+// ── 4. Quicksort ─────────────────────────────────────────────────────────
+fn quicksort(arr) {
+    if (len(arr) <= 1) { return arr; }
+    let pivot = arr[int(len(arr) / 2)];
+    let left = filter(arr, fn(x) { return x < pivot; });
+    let middle = filter(arr, fn(x) { return x == pivot; });
+    let right = filter(arr, fn(x) { return x > pivot; });
+    return flatten([quicksort(left), middle, quicksort(right)]);
+}
+let unsorted = [64, 25, 12, 22, 11, 90, 45, 3, 77];
+let qs_result = quicksort(unsorted);
+print("Quicksort result: " + to_json(qs_result));
+
+// ── 5. Functional pipeline ───────────────────────────────────────────────
+let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let pipeline_result = data
+    |> fn(arr) { return filter(arr, fn(x) { return x % 2 == 0; }); }
+    |> fn(arr) { return map(arr, fn(x) { return x * x; }); }
+    |> sum;
+print("Sum of squares of evens (1-10): " + str(pipeline_result));  // 220
+
+// ── 6. Stack-based expression evaluator ─────────────────────────────────
+import "stdlib/collections";
+fn eval_postfix(tokens) {
+    let stack = create_stack();
+    for (let tok in tokens) {
+        let t = tok;
+        if (t == "+") {
+            let b = stack.pop();
+            let a = stack.pop();
+            stack.push(a + b);
+        } else if (t == "-") {
+            let b = stack.pop();
+            let a = stack.pop();
+            stack.push(a - b);
+        } else if (t == "*") {
+            let b = stack.pop();
+            let a = stack.pop();
+            stack.push(a * b);
+        } else {
+            stack.push(num(t));
+        }
+    }
+    return stack.pop();
+}
+// 3 4 + 2 * = (3+4)*2 = 14
+let postfix = ["3", "4", "+", "2", "*"];
+print("Postfix eval 3 4 + 2 *: " + str(eval_postfix(postfix)));  // 14
+
+// ── 7. Pattern matching with complex dispatch ────────────────────────────
+fn classify_number(n) {
+    if (n < 0) { return "negative"; }
+    return match (n % 3 == 0) {
+        true => "divisible by 3",
+        _    => match (n % 2 == 0) {
+            true => "even",
+            _    => "odd"
+        }
+    };
+}
+let test_nums = [0, 1, 2, 3, 5, 6, -7, 9, 15];
+for (let n in test_nums) {
+    print(str(n) + " -> " + classify_number(n));
+}
+
+print("");
+print("=== Algorithms Tour Complete ===");

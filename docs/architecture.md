@@ -1,108 +1,237 @@
-# Raven Architecture & Advanced Runtime Design
+# Raven Architecture v1.0.0
 
-Raven combines the expressiveness of Python, the functional elegance of Rust/Elixir, and the dual-engine architecture of the JVM: a high-level AST interpreter alongside a Stack-based Bytecode Virtual Machine (VM).
+Raven combines the expressiveness of Python, the functional elegance of Rust/Elixir, and the dual-engine architecture of the JVM: a high-level AST interpreter alongside a stack-based Bytecode Virtual Machine — with a fully Go-inspired developer toolchain on top.
+
+---
+
+## System Architecture Overview
 
 ```
-+-----------------------------------------------------------+
-|                       Source Code                         |
-|                   (e.g., showcase.rvn)                    |
-+-----------------------------+-----------------------------+
-                              |
-                              v
-+-----------------------------------------------------------+
-|                          Lexer                            |
-|             Converts raw text into Token stream           |
-+-----------------------------+-----------------------------+
-                              |
-                              v
-+-----------------------------------------------------------+
-|                         Parser                            |
-|        Validates syntax and builds the Abstract           |
-|                  Syntax Tree (AST)                        |
-+-----------------------------+-----------------------------+
-                              |
-              +---------------+---------------+
-              |                               |
-              v                               v
-+-----------------------------+ +---------------------------+
-|      Tree-Walk Engine       | |     Bytecode Compiler     |
-|   - AST Visitor Execution   | |   - Emits OpCode Chunks   |
-|   - Dynamic Lexical Scopes  | |   - Constant Pool Table   |
-|   - Standard Library Engine | |   - Disassembler Engine   |
-+-----------------------------+ +-------------+-------------+
-                                              |
-                                              v
-                                +---------------------------+
-                                |    Raven Virtual Machine  |
-                                |   - Stack-Based VM        |
-                                |   - High-Speed Execution  |
-                                +---------------------------+
+┌─────────────────────────────────────────────────────────────┐
+│                      Source Code (.rvn)                     │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Lexer  (src/frontend/lexer.cpp)                 │
+│          Converts raw text into a Token stream               │
+└─────────────────────────────┬───────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│             Parser  (src/frontend/parser.cpp)                │
+│    Validates syntax and builds the Abstract Syntax Tree      │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+          ▼                         ▼
+┌──────────────────┐   ┌──────────────────────────────────┐
+│  Tree-Walk       │   │  Bytecode Compiler                │
+│  Interpreter     │   │  (src/compiler/compiler.cpp)      │
+│  (interpreter.  │   │  + Optimizer (optimizer.cpp)      │
+│   cpp)           │   │  + Serializer (bytecode_serial-   │
+│                  │   │    izer.cpp)                      │
+│  • Immediate     │   │                                   │
+│    AST execution │   │  Emits OpCode Chunks → .rvc files │
+│  • Full closures │   └─────────────┬────────────────────┘
+│  • 59 tests      │                 │
+│  • CSP channels  │                 ▼
+│  • Stack traces  │   ┌──────────────────────────────────┐
+└──────────────────┘   │  Raven VM (Corvus Engine)         │
+                       │  (src/runtime/vm.cpp)             │
+                       │                                   │
+                       │  • Stack-based execution          │
+                       │  • OpCode dispatch loop           │
+                       │  • Constant pool management       │
+                       └──────────────────────────────────┘
+```
+
+---
+
+## Source Tree
+
+```
+Raven/
+├── src/
+│   ├── cmd/
+│   │   ├── raven/       # Unified CLI (raven run/fmt/vet/doc/bench/lsp/init/pkg)
+│   │   ├── ravenc/      # Dedicated bytecode compiler
+│   │   └── rvm/         # Standalone Corvus VM runner
+│   ├── frontend/
+│   │   ├── lexer.cpp    # Tokenizer
+│   │   └── parser.cpp   # Recursive descent parser → AST
+│   ├── compiler/
+│   │   ├── compiler.cpp           # AST → bytecode
+│   │   ├── optimizer.cpp          # Constant folding, dead-code elimination
+│   │   └── bytecode_serializer.cpp # Binary .rvc serialization
+│   ├── runtime/
+│   │   ├── interpreter.cpp        # Tree-walk evaluator + all builtins
+│   │   └── vm.cpp                 # Corvus stack-based VM
+│   └── tools/
+│       ├── linter.cpp             # Static analysis (go vet style)
+│       ├── formatter.cpp          # Code formatter (gofmt style)
+│       ├── doc_generator.cpp      # API doc generator (godoc style)
+│       └── lsp.cpp                # Language Server Protocol server
+├── include/raven/
+│   ├── ast.hpp          # AST node definitions
+│   ├── token.hpp        # Token types & lexeme
+│   ├── lexer.hpp
+│   ├── parser.hpp
+│   ├── interpreter.hpp  # Interpreter + call stack + push/pop frame
+│   ├── compiler.hpp
+│   ├── optimizer.hpp
+│   ├── bytecode.hpp     # Chunk, OpCode, BytecodeFunction
+│   ├── bytecode_serializer.hpp
+│   ├── vm.hpp           # Corvus VM
+│   ├── value.hpp        # Runtime Value type (tagged union)
+│   ├── environment.hpp  # Lexical scope + RuntimeError + StackFrame
+│   ├── callable.hpp     # Callable interface
+│   ├── linter.hpp
+│   ├── formatter.hpp
+│   ├── doc_generator.hpp
+│   └── lsp.hpp
+├── stdlib/              # 50+ standard library modules (.rvn)
+├── tests/               # 59 automated tests (GTest)
+├── examples/            # Demo programs
+├── editors/vscode/      # Official VS Code extension
+├── docs/
+│   ├── language-spec.md # Full language specification
+│   └── architecture.md  # This file
+└── dist/                # Release tarballs (generated by dist.bash)
 ```
 
 ---
 
 ## 1. Dual Execution Engines
 
-### Engine A: Tree-Walk Interpreter (`Interpreter`)
-- Direct AST traversal using modern C++20 `Visitor` pattern.
-- Immediate execution without compilation pauses.
-- Dynamic environment frames (`Environment`) with full support for closures, lexical shadowing, and user exceptions (`try` / `catch` / `throw`).
+### Engine A: Tree-Walk Interpreter
 
-### Engine B: Raven Virtual Machine (`VM`)
-- Emits byte-sized opcodes into contiguous linear memory `Chunk`.
-- Stack-based architecture mimicking JVM / CPython:
-  - `OP_CONSTANT`, `OP_ADD`, `OP_SUBTRACT`, `OP_MULTIPLY`, `OP_DIVIDE`, `OP_MODULO`
-  - `OP_EQUAL`, `OP_GREATER_EQUAL`, `OP_LESS_EQUAL`, etc.
-  - `OP_JUMP_IF_FALSE`, `OP_JUMP`, `OP_LOOP`
-  - `OP_BUILD_ARRAY`, `OP_INDEX_GET`, `OP_INDEX_SET`
-  - `OP_DEFINE_GLOBAL`, `OP_GET_GLOBAL`, `OP_SET_GLOBAL`
-- Built-in Disassembler accessible via `raven --disasm <file.rvn>`.
+The primary execution engine. Traverses the AST directly using C++20 `std::visit`-style double dispatch.
+
+Key design features:
+- **`Environment`** chains implement lexical scoping and closure capture.
+- **`Value`** is a tagged union (`double`, `bool`, `std::string`, `nullptr_t`, `shared_ptr<vector<Value>>`, `shared_ptr<unordered_map<...>>`, `shared_ptr<Callable>`).
+- **`BuiltinFunction`** and **`UserFunction`** both implement `Callable::call(Interpreter&, args)`.
+- **Call stack tracing**: Every `UserFunction::call()` uses a `CallStackGuard` RAII object that pushes/pops a `StackFrame{name, line, col}`. On uncaught `RuntimeError`, the full trace is printed.
+- **Native concurrency**: `spawn()` creates `std::thread`s; channels are `NativeChannel` objects protected by `std::mutex` + `std::condition_variable`, stored in a global registry.
+
+### Engine B: Corvus Virtual Machine
+
+Compiles AST nodes into a linear `Chunk` of byte-sized opcodes:
+
+| OpCode | Description |
+|---|---|
+| `OP_CONSTANT` | Push constant from pool |
+| `OP_ADD`, `OP_SUBTRACT`, `OP_MULTIPLY`, `OP_DIVIDE`, `OP_MODULO` | Arithmetic |
+| `OP_EQUAL`, `OP_NOT_EQUAL`, `OP_GREATER`, `OP_GREATER_EQUAL`, `OP_LESS`, `OP_LESS_EQUAL` | Comparison |
+| `OP_AND`, `OP_OR`, `OP_NOT` | Logical |
+| `OP_JUMP_IF_FALSE`, `OP_JUMP`, `OP_LOOP` | Control flow |
+| `OP_DEFINE_GLOBAL`, `OP_GET_GLOBAL`, `OP_SET_GLOBAL` | Global variables |
+| `OP_GET_LOCAL`, `OP_SET_LOCAL` | Local variables (stack slots) |
+| `OP_BUILD_ARRAY`, `OP_INDEX_GET`, `OP_INDEX_SET` | Array operations |
+| `OP_CALL` | Function calls with arg count |
+| `OP_RETURN` | Return from function frame |
+| `OP_POP`, `OP_NIL`, `OP_TRUE`, `OP_FALSE` | Stack manipulation |
 
 ---
 
-## 2. Source Code Architecture (`src/`)
+## 2. Optimizer
 
-Organized following modern industry compiler & toolchain standards (mirroring Go and LLVM):
+The `Optimizer` performs constant folding and dead-code elimination on the AST before compilation:
 
-```text
-src/
-├── cmd/                          # Command-line entrypoints (like Go's cmd/)
-│   ├── raven/main.cpp            # Unified Raven CLI (run, fmt, vet, doc, bench, test)
-│   ├── ravenc/main.cpp           # Standalone bytecode compiler
-│   └── rvm/main.cpp              # Standalone virtual machine runtime
-├── frontend/                     # Syntactic & Lexical analysis
-│   ├── lexer.cpp                 # Tokenizer & f-string scanner
-│   └── parser.cpp                # Pratt Precedence Recursive Descent Parser
-├── compiler/                     # Intermediate & Bytecode Generation
-│   ├── compiler.cpp              # AST to Bytecode instruction emitter
-│   ├── optimizer.cpp             # AST constant folding & dead code elimination
-│   └── bytecode_serializer.cpp   # Binary .rvc file encoding & decoding
-├── runtime/                      # Execution Engines
-│   ├── interpreter.cpp           # Tree-walk AST execution & built-in native functions
-│   └── vm.cpp                    # Corvus stack-based virtual machine
-└── tools/                        # Developer Toolchain
-    ├── linter.cpp                # Static semantic analyzer (raven vet / lint)
-    ├── formatter.cpp             # Code auto-formatter (raven fmt)
-    └── doc_generator.cpp         # API documentation generator (raven doc)
+- `1 + 2 * 3` → `7` (single `OP_CONSTANT`)
+- `if (false) { ... }` → branch eliminated entirely
+- `"hello" + " " + "world"` → `"hello world"` (string folding)
+
+---
+
+## 3. Bytecode Serialization (.rvc format)
+
+Binary format for pre-compiled Raven programs:
+
+```
+Magic:    7F 52 56 43          ('\x7fRVC')
+Version:  uint32 (1)
+Constants: length-prefixed pool of typed values:
+  0x01 = Number (double, 8 bytes)
+  0x02 = String (uint32 len + bytes)
+  0x03 = Bool   (1 byte)
+  0x04 = Nil
+  0x05 = BytecodeFunction (name + arity + entry_ip)
+Bytecode: length-prefixed raw opcode bytes
 ```
 
 ---
 
-## 2. Revolutionary Features
+## 4. Language Server Protocol (LSP)
 
-1. **Native Collections**:
-   - Dynamic Arrays `[1, "two", 3.0]` with negative indexing (`arr[-1]`), slicing, and push/pop mutations.
-   - Hash Maps / Objects `{"name": "Ran"}` with both bracket access `user["name"]` and dot syntax `user.name`.
-2. **Functional Pipelines (`|>`)**:
-   - Left-to-right composition operator:
-     ```rvn
-     data |> filter_fn |> map_fn |> print;
-     ```
-3. **First-Class Lambdas & Closures**:
-   - Anonymous functions `fn(x) { return x * 2; }` capturing outer lexical scope.
-4. **Collection Iteration (`for-in`)**:
-   - `for (let item in collection) { ... }` natively supporting arrays and maps.
-5. **Modern Exception Handling**:
-   - `try { ... } catch (err) { ... }` combined with `throw value;`.
-6. **Standard Library**:
-   - `len()`, `push()`, `pop()`, `keys()`, `values()`, `range()`, `map()`, `filter()`, `reduce()`, `type()`, `time()`, `assert()`, `str()`, `num()`.
+`raven lsp` launches a JSON-RPC 2.0 Language Server over stdio:
+
+| LSP Method | What Raven Does |
+|---|---|
+| `initialize` | Reports capabilities: hover, completion, formatting, diagnostics, document symbols |
+| `textDocument/didOpen` + `didChange` | Parses + lints the document, publishes diagnostics |
+| `textDocument/completion` | Returns keyword + builtin completion items |
+| `textDocument/hover` | Returns markdown tooltip |
+| `textDocument/formatting` | Runs `Formatter::format()` on full document text |
+| `shutdown` + `exit` | Graceful shutdown |
+
+The VS Code extension in `editors/vscode/` connects automatically via `raven lsp` subprocess.
+
+---
+
+## 5. Concurrency Model
+
+Raven uses **CSP (Communicating Sequential Processes)** for safe concurrency:
+
+```
+Thread A                    Thread B
+────────                    ────────
+spawn(fn() {                main thread
+    do_work();          ──▶ blocks on chan_recv
+    chan_send(ch, v);       until B sends
+})
+```
+
+Implementation details:
+- **`spawn(fn)`** → `std::thread([fn]{ ... }).detach()` — fully detached OS thread.
+- **`chan_create(n)`** → `NativeChannel { mutex, condition_variable, deque<Value>, capacity }`, stored in a global `unordered_map<int64_t, shared_ptr<NativeChannel>>`.
+- **`chan_send`** → acquires mutex, blocks on `cv_send.wait()` if buffer is full (for buffered channels), pushes value, notifies `cv_recv`.
+- **`chan_recv`** → acquires mutex, blocks on `cv_recv.wait()` until queue is non-empty or channel is closed, pops and returns front value.
+- **Thread safety**: Each spawned thread gets its own `Interpreter` instance sharing the global `Environment` (globals are read-only after initialization, so no races on standard definitions).
+
+---
+
+## 6. Developer Toolchain
+
+| Command | Implementation |
+|---|---|
+| `raven fmt [-w] <file>` | `Formatter::format(source)` — pretty-prints with canonical indentation |
+| `raven vet <file>` | `Linter::analyze(AST)` — detects unused variables, unreachable code, shadowing |
+| `raven doc <file>` | `DocGenerator::generate(AST)` — extracts `fn` and `struct` signatures to Markdown |
+| `raven bench <file>` | Runs interpreter + measures `std::chrono::high_resolution_clock` elapsed µs |
+| `raven init [name]` | Scaffolds `src/main.rvn` + `raven.json` + `.gitignore` |
+| `raven lsp` | Starts LSP server on stdin/stdout (used by VS Code extension) |
+| `raven pkg install <url>` | `git clone` into `raven_modules/`, writes `raven.lock` |
+| `raven pkg list` | Lists installed packages from `raven_modules/` |
+
+---
+
+## 7. VS Code Extension Architecture
+
+```
+editors/vscode/
+├── package.json           # Extension manifest (v1.0.0)
+├── extension.js           # Activation, commands, LSP client, format-on-save
+├── language-configuration.json  # Bracket/comment rules
+├── snippets/raven.json    # Code snippets (fn, struct, for, match, try...)
+└── syntaxes/
+    └── raven.tmLanguage.json  # Full TextMate grammar
+```
+
+The extension:
+1. On activate: spawns `raven lsp` as child process, creates output channel + status bar item.
+2. Registers 5 commands: `raven.run`, `raven.fmt`, `raven.vet`, `raven.doc`, `raven.bench`.
+3. On save: optionally runs `raven fmt -w <file>` if `raven.formatOnSave` is enabled.
+4. On active editor change: shows/hides "▶ Raven Run" status bar button.
