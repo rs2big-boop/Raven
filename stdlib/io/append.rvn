@@ -1,0 +1,5 @@
+// Raven Standard Library: IO Append
+
+fn append_line(filepath, line) {
+    return append_file(filepath, str(line) + "\n");
+}

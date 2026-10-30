@@ -171,6 +171,64 @@ void Compiler::visit(const LogicalExpr& expr) {
 }
 
 void Compiler::visit(const CallExpr& expr) {
+    if (auto* var = dynamic_cast<const VariableExpr*>(expr.callee.get())) {
+        const std::string& name = var->name.lexeme;
+        int arity = static_cast<int>(expr.arguments.size());
+
+        if (name == "len" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::Length, expr.paren.line);
+            return;
+        }
+        if (name == "push" && arity == 2) {
+            expr.arguments[0]->accept(*this);
+            expr.arguments[1]->accept(*this);
+            emit_op(OpCode::ArrayPush, expr.paren.line);
+            return;
+        }
+        if (name == "pop" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::ArrayPop, expr.paren.line);
+            return;
+        }
+        if (name == "arr_reverse" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::ArrayReverse, expr.paren.line);
+            return;
+        }
+        if (name == "keys" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::MapKeys, expr.paren.line);
+            return;
+        }
+        if (name == "values" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::MapValues, expr.paren.line);
+            return;
+        }
+        if (name == "map_has_key" && arity == 2) {
+            expr.arguments[0]->accept(*this);
+            expr.arguments[1]->accept(*this);
+            emit_op(OpCode::MapHasKey, expr.paren.line);
+            return;
+        }
+        if (name == "type" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::TypeOf, expr.paren.line);
+            return;
+        }
+        if (name == "str" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::ToString, expr.paren.line);
+            return;
+        }
+        if (name == "num" && arity == 1) {
+            expr.arguments[0]->accept(*this);
+            emit_op(OpCode::ToNumber, expr.paren.line);
+            return;
+        }
+    }
+
     expr.callee->accept(*this);
     for (const auto& arg : expr.arguments) {
         arg->accept(*this);
@@ -198,14 +256,12 @@ void Compiler::visit(const MapExpr& expr) {
 
 void Compiler::visit(const IndexExpr& expr) {
     if (expr.is_slice) {
-        // Compiler fallback: evaluate object, slice start/end
         expr.object->accept(*this);
         if (expr.slice_start) expr.slice_start->accept(*this);
         else emit_op(OpCode::Nil);
         if (expr.slice_end) expr.slice_end->accept(*this);
         else emit_op(OpCode::Nil);
-        emit_op(OpCode::Pop);
-        emit_op(OpCode::Pop);
+        emit_op(OpCode::Slice);
         return;
     }
     expr.object->accept(*this);

@@ -151,6 +151,10 @@ add_executable(ir_tests tests/ir/ir_tests.cpp)
 target_link_libraries(ir_tests PRIVATE raven_core GTest::gtest_main)
 gtest_discover_tests(ir_tests)
 
+add_executable(differential_tests tests/differential/differential_tests.cpp)
+target_link_libraries(differential_tests PRIVATE raven_core GTest::gtest_main)
+gtest_discover_tests(differential_tests)
+
 # Installation targets
 include(GNUInstallDirs)
 install(TARGETS raven ravenc rvm

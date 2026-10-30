@@ -1,0 +1,17 @@
+// Raven Standard Library: String Padding
+
+fn pad_start(s, width, ch = " ") {
+    let res = str(s);
+    while (len(res) < width) {
+        res = ch + res;
+    }
+    return res;
+}
+
+fn pad_end(s, width, ch = " ") {
+    let res = str(s);
+    while (len(res) < width) {
+        res = res + ch;
+    }
+    return res;
+}

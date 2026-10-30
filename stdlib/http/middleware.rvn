@@ -1,0 +1,22 @@
+// Raven Standard Library: HTTP Middleware Pipeline
+
+fn create_middleware_pipeline() {
+    let middlewares = [];
+    let pipe = {};
+
+    pipe["use"] = fn(mw) {
+        push(middlewares, mw);
+    };
+
+    pipe["run"] = fn(req, res) {
+        for (let mw in middlewares) {
+            let cont = mw(req, res);
+            if (cont == false) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    return pipe;
+}

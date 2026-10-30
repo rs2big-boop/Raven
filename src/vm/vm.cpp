@@ -296,6 +296,139 @@ InterpretResult VM::run(const Chunk& chunk) {
                 }
                 break;
             }
+            case OpCode::ArrayPush: {
+                Value val = pop();
+                Value arr = pop();
+                if (arr.is_array()) {
+                    arr.as_array()->push_back(val);
+                    push(Value());
+                } else {
+                    push(Value());
+                }
+                break;
+            }
+            case OpCode::ArrayPop: {
+                Value arr = pop();
+                if (arr.is_array() && !arr.as_array()->empty()) {
+                    Value last = arr.as_array()->back();
+                    arr.as_array()->pop_back();
+                    push(last);
+                } else {
+                    push(Value());
+                }
+                break;
+            }
+            case OpCode::ArrayReverse: {
+                Value arr = pop();
+                if (arr.is_array()) {
+                    auto result = std::make_shared<std::vector<Value>>(
+                        arr.as_array()->rbegin(), arr.as_array()->rend());
+                    push(Value(result));
+                } else {
+                    push(arr);
+                }
+                break;
+            }
+            case OpCode::MapKeys: {
+                Value map = pop();
+                auto result = std::make_shared<std::vector<Value>>();
+                if (map.is_map()) {
+                    for (auto& [k, v] : *map.as_map()) {
+                        result->push_back(Value(k));
+                    }
+                }
+                push(Value(result));
+                break;
+            }
+            case OpCode::MapValues: {
+                Value map = pop();
+                auto result = std::make_shared<std::vector<Value>>();
+                if (map.is_map()) {
+                    for (auto& [k, v] : *map.as_map()) {
+                        result->push_back(v);
+                    }
+                }
+                push(Value(result));
+                break;
+            }
+            case OpCode::MapHasKey: {
+                Value key = pop();
+                Value map = pop();
+                if (map.is_map()) {
+                    push(Value(map.as_map()->count(key.to_string()) > 0));
+                } else {
+                    push(Value(false));
+                }
+                break;
+            }
+            case OpCode::TypeOf: {
+                Value val = pop();
+                std::string type_str;
+                if (val.is_nil()) type_str = "nil";
+                else if (val.is_bool()) type_str = "bool";
+                else if (val.is_number()) type_str = "number";
+                else if (val.is_string()) type_str = "string";
+                else if (val.is_array()) type_str = "array";
+                else if (val.is_map()) type_str = "map";
+                else if (val.is_callable()) type_str = "function";
+                else type_str = "unknown";
+                push(Value(type_str));
+                break;
+            }
+            case OpCode::ToString: {
+                Value val = pop();
+                push(Value(val.to_string()));
+                break;
+            }
+            case OpCode::ToNumber: {
+                Value val = pop();
+                if (val.is_number()) {
+                    push(val);
+                } else if (val.is_string()) {
+                    try {
+                        push(Value(std::stod(val.as_string())));
+                    } catch (...) {
+                        push(Value(0.0));
+                    }
+                } else if (val.is_bool()) {
+                    push(Value(val.as_bool() ? 1.0 : 0.0));
+                } else {
+                    push(Value(0.0));
+                }
+                break;
+            }
+            case OpCode::Slice: {
+                Value end_val = pop();
+                Value start_val = pop();
+                Value obj = pop();
+
+                if (obj.is_array()) {
+                    auto& arr = *obj.as_array();
+                    int sz = static_cast<int>(arr.size());
+                    int start = start_val.is_nil() ? 0 : static_cast<int>(start_val.as_number());
+                    int end = end_val.is_nil() ? sz : static_cast<int>(end_val.as_number());
+                    if (start < 0) start = std::max(0, sz + start);
+                    if (end < 0) end = std::max(0, sz + end);
+                    start = std::max(0, std::min(start, sz));
+                    end = std::max(start, std::min(end, sz));
+                    auto result = std::make_shared<std::vector<Value>>(
+                        arr.begin() + start, arr.begin() + end);
+                    push(Value(result));
+                } else if (obj.is_string()) {
+                    const std::string& s = obj.as_string();
+                    int sz = static_cast<int>(s.size());
+                    int start = start_val.is_nil() ? 0 : static_cast<int>(start_val.as_number());
+                    int end = end_val.is_nil() ? sz : static_cast<int>(end_val.as_number());
+                    if (start < 0) start = std::max(0, sz + start);
+                    if (end < 0) end = std::max(0, sz + end);
+                    start = std::max(0, std::min(start, sz));
+                    end = std::max(start, std::min(end, sz));
+                    push(Value(s.substr(start, end - start)));
+                } else {
+                    push(Value());
+                }
+                break;
+            }
             case OpCode::CheckType: {
                 uint8_t const_idx = read_byte();
                 std::string type_name = chunk.constants[const_idx].to_string();

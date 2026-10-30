@@ -1,0 +1,237 @@
+// stdlib/net/http/server.rvn - HTTP Server implementation over TCP
+import "stdlib/net/tcp";
+import "stdlib/net/http/status";
+import "stdlib/net/http/headers";
+import "stdlib/net/http/cookies";
+import "stdlib/strings";
+
+fn parse_http_request(raw_data) {
+    if (len(raw_data) == 0) { return nil; }
+
+    let header_sep = "\r\n\r\n";
+    let sep_len = 4;
+    let body_pos = index_of(raw_data, header_sep);
+    if (body_pos == -1) {
+        header_sep = "\n\n";
+        sep_len = 2;
+        body_pos = index_of(raw_data, header_sep);
+    }
+
+    let header_part = "";
+    let body_part = "";
+    if (body_pos != -1) {
+        header_part = slice(raw_data, 0, body_pos);
+        body_part = slice(raw_data, body_pos + sep_len, len(raw_data));
+    } else {
+        header_part = raw_data;
+    }
+
+    let lines = split(header_part, "\n");
+    if (len(lines) == 0) { return nil; }
+
+    let req_line = trim(lines[0]);
+    let req_parts = split(req_line, " ");
+    if (len(req_parts) < 2) { return nil; }
+
+    let method = to_upper(req_parts[0]);
+    let full_url = req_parts[1];
+    let path = full_url;
+    let query_string = "";
+    let qmark = index_of(full_url, "?");
+    if (qmark != -1) {
+        path = slice(full_url, 0, qmark);
+        query_string = slice(full_url, qmark + 1, len(full_url));
+    }
+
+    let req_headers = new_headers();
+    let i = 1;
+    while (i < len(lines)) {
+        let line = trim(lines[i]);
+        if (len(line) > 0) {
+            let colon = index_of(line, ":");
+            if (colon != -1) {
+                let hname = trim(slice(line, 0, colon));
+                let hval = trim(slice(line, colon + 1, len(line)));
+                header_set(req_headers, hname, hval);
+            }
+        }
+        i = i + 1;
+    }
+
+    let cookies = {};
+    if (header_has(req_headers, "cookie")) {
+        cookies = parse_cookies(header_get(req_headers, "cookie", ""));
+    }
+
+    let parsed_json = nil;
+    let ctype = header_get(req_headers, "content-type", "");
+    if (contains(ctype, "application/json") && len(body_part) > 0) {
+        try {
+            parsed_json = parse_json(body_part);
+        } catch (e) {
+            parsed_json = nil;
+        }
+    }
+
+    return {
+        "method": method,
+        "url": full_url,
+        "path": path,
+        "query": query_string,
+        "headers": req_headers,
+        "body": body_part,
+        "cookies": cookies,
+        "json": parsed_json
+    };
+}
+
+fn create_http_response_builder(conn) {
+    let res = {};
+    res["conn"] = conn;
+    res["status_code"] = STATUS_OK;
+    res["headers"] = new_headers();
+    res["sent"] = false;
+
+    header_set(res["headers"], "Connection", "close");
+
+    res["status"] = fn(code) {
+        res["status_code"] = code;
+        return res;
+    };
+
+    res["set_header"] = fn(name, value) {
+        header_set(res["headers"], name, value);
+        return res;
+    };
+
+    res["send"] = fn(body) {
+        if (res["sent"]) { return -1; }
+        res["sent"] = true;
+
+        let b = str(body);
+        let s_code = res["status_code"];
+        let s_text = status_text(s_code);
+
+        header_set(res["headers"], "Content-Length", str(len(b)));
+        if (!header_has(res["headers"], "content-type")) {
+            header_set(res["headers"], "Content-Type", "text/plain; charset=utf-8");
+        }
+
+        let resp_str = "HTTP/1.1 " + str(s_code) + " " + s_text + "\r\n";
+        let h_keys = keys(res["headers"]);
+        let i = 0;
+        while (i < len(h_keys)) {
+            let k = h_keys[i];
+            resp_str = resp_str + k + ": " + str(res["headers"][k]) + "\r\n";
+            i = i + 1;
+        }
+        resp_str = resp_str + "\r\n" + b;
+
+        return conn.write(resp_str);
+    };
+
+    res["json"] = fn(data) {
+        res.set_header("Content-Type", "application/json; charset=utf-8");
+        return res.send(to_json(data));
+    };
+
+    res["html"] = fn(html_content) {
+        res.set_header("Content-Type", "text/html; charset=utf-8");
+        return res.send(html_content);
+    };
+
+    return res;
+}
+
+fn create_http_server() {
+    let srv = {};
+    srv["routes"] = {}; // method:path -> handler
+    srv["middlewares"] = [];
+    srv["tcp_server"] = nil;
+
+    srv["use"] = fn(middleware_fn) {
+        push(srv["middlewares"], middleware_fn);
+        return srv;
+    };
+
+    srv["route"] = fn(method, path, handler) {
+        let key = to_upper(method) + ":" + path;
+        srv["routes"][key] = handler;
+        return srv;
+    };
+
+    srv["get"] = fn(path, handler) {
+        return srv.route("GET", path, handler);
+    };
+
+    srv["post"] = fn(path, handler) {
+        return srv.route("POST", path, handler);
+    };
+
+    srv["put"] = fn(path, handler) {
+        return srv.route("PUT", path, handler);
+    };
+
+    srv["delete"] = fn(path, handler) {
+        return srv.route("DELETE", path, handler);
+    };
+
+    srv["handle_conn"] = fn(conn) {
+        let raw = conn.read(65536);
+        let req = parse_http_request(raw);
+        let res = create_http_response_builder(conn);
+
+        if (req == nil) {
+            res.status(STATUS_BAD_REQUEST).send("Bad Request");
+            conn.close();
+            return;
+        }
+
+        // Run middlewares
+        let i = 0;
+        let halted = false;
+        while (i < len(srv["middlewares"])) {
+            let mw = srv["middlewares"][i];
+            let should_continue = mw(req, res);
+            if (should_continue == false || res["sent"]) {
+                halted = true;
+                break;
+            }
+            i = i + 1;
+        }
+
+        if (!halted && !res["sent"]) {
+            let key = req["method"] + ":" + req["path"];
+            if (map_has_key(srv["routes"], key)) {
+                let handler = srv["routes"][key];
+                handler(req, res);
+            } else {
+                res.status(STATUS_NOT_FOUND).send("Not Found");
+            }
+        }
+
+        conn.close();
+    };
+
+    srv["listen"] = fn(host, port) {
+        srv["tcp_server"] = tcp_listen(host, port);
+        return srv["tcp_server"] != nil;
+    };
+
+    srv["accept_one"] = fn() {
+        if (srv["tcp_server"] == nil) { return false; }
+        let conn = srv["tcp_server"].accept();
+        if (conn == nil) { return false; }
+        srv.handle_conn(conn);
+        return true;
+    };
+
+    srv["close"] = fn() {
+        if (srv["tcp_server"] != nil) {
+            srv["tcp_server"].close();
+            srv["tcp_server"] = nil;
+        }
+    };
+
+    return srv;
+}

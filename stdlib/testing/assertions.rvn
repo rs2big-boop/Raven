@@ -1,0 +1,19 @@
+// Raven Standard Library: Test Assertions
+
+fn assert_eq(actual, expected) {
+    if (actual != expected) {
+        panic("assert_eq failed: expected " + str(expected) + " but got " + str(actual));
+    }
+}
+
+fn assert_true(cond) {
+    if (!cond) {
+        panic("assert_true failed: condition is false");
+    }
+}
+
+fn assert_false(cond) {
+    if (cond) {
+        panic("assert_false failed: condition is true");
+    }
+}

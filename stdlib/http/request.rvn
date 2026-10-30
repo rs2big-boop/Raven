@@ -1,0 +1,25 @@
+// stdlib/net/http/request.rvn - HTTP Request builder
+
+fn new_request(method, url, body, headers) {
+    let req = {};
+    req["method"] = to_upper(method);
+    req["url"] = url;
+    req["body"] = body;
+    if (headers == nil) {
+        req["headers"] = {};
+    } else {
+        req["headers"] = headers;
+    }
+    req["timeout"] = 10000;
+    return req;
+}
+
+fn request_set_header(req, key, value) {
+    req["headers"][key] = value;
+    return req;
+}
+
+fn request_set_timeout(req, timeout_ms) {
+    req["timeout"] = timeout_ms;
+    return req;
+}

@@ -1,0 +1,11 @@
+// Raven Standard Library: String Utilities
+
+fn capitalize(s) {
+    if (len(s) == 0) { return s; }
+    return to_upper(s[0:1]) + s[1:];
+}
+
+fn truncate(s, max_len, suffix = "...") {
+    if (len(s) <= max_len) { return s; }
+    return s[0:max_len] + suffix;
+}

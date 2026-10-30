@@ -1,0 +1,64 @@
+// stdlib/net/http/cookies.rvn - HTTP Cookie parsing and formatting
+import "stdlib/strings";
+
+fn parse_cookies(cookie_header) {
+    let cookies = {};
+    if (cookie_header == nil || len(cookie_header) == 0) {
+        return cookies;
+    }
+
+    let parts = split(cookie_header, ";");
+    let i = 0;
+    while (i < len(parts)) {
+        let part = trim(parts[i]);
+        if (len(part) > 0) {
+            let eq = index_of(part, "=");
+            if (eq != -1) {
+                let k = trim(slice(part, 0, eq));
+                let v = trim(slice(part, eq + 1, len(part)));
+                cookies[k] = v;
+            } else {
+                cookies[part] = "";
+            }
+        }
+        i = i + 1;
+    }
+    return cookies;
+}
+
+fn cookie_get(cookies, name, default_val) {
+    if (map_has_key(cookies, name)) {
+        return cookies[name];
+    }
+    return default_val;
+}
+
+fn format_cookie(name, value, opts) {
+    let s = str(name) + "=" + str(value);
+    if (opts == nil) {
+        return s;
+    }
+
+    if (map_has_key(opts, "max_age")) {
+        s = s + "; Max-Age=" + str(opts["max_age"]);
+    }
+    if (map_has_key(opts, "path")) {
+        s = s + "; Path=" + str(opts["path"]);
+    } else {
+        s = s + "; Path=/";
+    }
+    if (map_has_key(opts, "domain")) {
+        s = s + "; Domain=" + str(opts["domain"]);
+    }
+    if (map_has_key(opts, "same_site")) {
+        s = s + "; SameSite=" + str(opts["same_site"]);
+    }
+    if (map_has_key(opts, "secure") && opts["secure"] == true) {
+        s = s + "; Secure";
+    }
+    if (map_has_key(opts, "http_only") && opts["http_only"] == true) {
+        s = s + "; HttpOnly";
+    }
+
+    return s;
+}

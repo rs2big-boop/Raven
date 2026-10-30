@@ -75,6 +75,18 @@ enum class OpCode : uint8_t {
     IndexSet,
     Length,
 
+    // Array / Collection / Conversion builtins
+    ArrayPush,
+    ArrayPop,
+    ArrayReverse,
+    MapKeys,
+    MapValues,
+    MapHasKey,
+    TypeOf,
+    ToString,
+    ToNumber,
+    Slice,
+
     CheckType,
     Call,
     Return
@@ -255,6 +267,36 @@ public:
                 return offset + 1;
             case OpCode::Length:
                 os << "OP_LENGTH\n";
+                return offset + 1;
+            case OpCode::ArrayPush:
+                os << "OP_ARRAY_PUSH\n";
+                return offset + 1;
+            case OpCode::ArrayPop:
+                os << "OP_ARRAY_POP\n";
+                return offset + 1;
+            case OpCode::ArrayReverse:
+                os << "OP_ARRAY_REVERSE\n";
+                return offset + 1;
+            case OpCode::MapKeys:
+                os << "OP_MAP_KEYS\n";
+                return offset + 1;
+            case OpCode::MapValues:
+                os << "OP_MAP_VALUES\n";
+                return offset + 1;
+            case OpCode::MapHasKey:
+                os << "OP_MAP_HAS_KEY\n";
+                return offset + 1;
+            case OpCode::TypeOf:
+                os << "OP_TYPE_OF\n";
+                return offset + 1;
+            case OpCode::ToString:
+                os << "OP_TO_STRING\n";
+                return offset + 1;
+            case OpCode::ToNumber:
+                os << "OP_TO_NUMBER\n";
+                return offset + 1;
+            case OpCode::Slice:
+                os << "OP_SLICE\n";
                 return offset + 1;
             case OpCode::CheckType: {
                 uint8_t constant = code[offset + 1];

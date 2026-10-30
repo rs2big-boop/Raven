@@ -1,0 +1,31 @@
+// stdlib/net/http/response.rvn - HTTP Response wrapper and helper methods
+
+fn response_ok(resp) {
+    if (map_has_key(resp, "ok")) {
+        return resp["ok"] == true;
+    }
+    let s = resp["status"];
+    return s >= 200 && s < 400;
+}
+
+fn response_json(resp) {
+    if (!map_has_key(resp, "body") || len(resp["body"]) == 0) {
+        return nil;
+    }
+    return parse_json(resp["body"]);
+}
+
+fn response_header(resp, name) {
+    if (!map_has_key(resp, "headers")) {
+        return nil;
+    }
+    let h = resp["headers"];
+    if (map_has_key(h, name)) {
+        return h[name];
+    }
+    let lower = to_lower(name);
+    if (map_has_key(h, lower)) {
+        return h[lower];
+    }
+    return nil;
+}

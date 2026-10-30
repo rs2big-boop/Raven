@@ -1,0 +1,65 @@
+// stdlib/net/http/client.rvn - HTTP Client instance with configured defaults
+import "stdlib/net/http/response";
+
+fn create_client(opts) {
+    let default_timeout = 10000;
+    let default_headers = {};
+
+    if (opts != nil && type(opts) == "map") {
+        if (map_has_key(opts, "timeout")) {
+            default_timeout = opts["timeout"];
+        }
+        if (map_has_key(opts, "headers") && type(opts["headers"]) == "map") {
+            default_headers = opts["headers"];
+        }
+    }
+
+    let client = {};
+
+    client["do_request"] = fn(req) {
+        if (!map_has_key(req, "timeout")) {
+            req["timeout"] = default_timeout;
+        }
+        if (!map_has_key(req, "headers")) {
+            req["headers"] = {};
+        }
+        for (let hk in keys(default_headers)) {
+            if (!map_has_key(req["headers"], hk)) {
+                req["headers"][hk] = default_headers[hk];
+            }
+        }
+        let raw = http_request(req);
+        raw["json"] = fn() { return response_json(raw); };
+        raw["header"] = fn(name) { return response_header(raw, name); };
+        return raw;
+    };
+
+    client["get"] = fn(url, headers) {
+        let req = {"method": "GET", "url": url};
+        if (headers != nil) { req["headers"] = headers; }
+        return client["do_request"](req);
+    };
+
+    client["post"] = fn(url, body, headers) {
+        let req = {"method": "POST", "url": url, "body": body};
+        if (headers != nil) { req["headers"] = headers; }
+        return client["do_request"](req);
+    };
+
+    client["post_json"] = fn(url, data, headers) {
+        let req_headers = {"Content-Type": "application/json"};
+        if (headers != nil) {
+            for (let k in keys(headers)) { req_headers[k] = headers[k]; }
+        }
+        let req = {"method": "POST", "url": url, "body": to_json(data), "headers": req_headers};
+        return client["do_request"](req);
+    };
+
+    client["delete"] = fn(url, headers) {
+        let req = {"method": "DELETE", "url": url};
+        if (headers != nil) { req["headers"] = headers; }
+        return client["do_request"](req);
+    };
+
+    return client;
+}

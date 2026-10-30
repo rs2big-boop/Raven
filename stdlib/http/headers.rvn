@@ -1,0 +1,26 @@
+// stdlib/net/http/headers.rvn - HTTP Header utilities
+
+fn new_headers() {
+    return {};
+}
+
+fn header_set(headers, name, value) {
+    headers[to_lower(name)] = value;
+    return headers;
+}
+
+fn header_get(headers, name, default_val) {
+    let key = to_lower(name);
+    if (map_has_key(headers, key)) {
+        return headers[key];
+    }
+    if (map_has_key(headers, name)) {
+        return headers[name];
+    }
+    return default_val;
+}
+
+fn header_has(headers, name) {
+    let key = to_lower(name);
+    return map_has_key(headers, key) || map_has_key(headers, name);
+}

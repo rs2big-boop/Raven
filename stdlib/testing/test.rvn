@@ -1,0 +1,12 @@
+// Raven Standard Library: Testing Framework
+
+fn test_case(name, fn_body) {
+    try {
+        fn_body();
+        print("[PASS] " + name);
+        return true;
+    } catch (err) {
+        print_err("[FAIL] " + name + ": " + str(err));
+        return false;
+    }
+}

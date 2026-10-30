@@ -1,0 +1,88 @@
+// stdlib/config.rvn - Modern application configuration and .env file loader
+import "stdlib/strings";
+
+fn parse_env_content(content) {
+    let cfg = {};
+    let lines = split(content, "\n");
+    let i = 0;
+    while (i < len(lines)) {
+        let line = trim(lines[i]);
+        if (len(line) > 0 && line[0] != "#") {
+            let eq = index_of(line, "=");
+            if (eq != -1) {
+                let k = trim(slice(line, 0, eq));
+                let v = trim(slice(line, eq + 1, len(line)));
+                // Strip optional quotes
+                if (len(v) >= 2) {
+                    if ((v[0] == "\"" && v[len(v) - 1] == "\"") ||
+                        (v[0] == "'" && v[len(v) - 1] == "'")) {
+                        v = slice(v, 1, len(v) - 1);
+                    }
+                }
+                cfg[k] = v;
+            }
+        }
+        i = i + 1;
+    }
+    return cfg;
+}
+
+fn load_env_file(filepath) {
+    if (!file_exists(filepath)) {
+        return {};
+    }
+    let content = read_file(filepath);
+    return parse_env_content(content);
+}
+
+fn create_config(opts) {
+    let env_file = ".env";
+    if (opts != nil && map_has_key(opts, "env_file")) {
+        env_file = opts["env_file"];
+    }
+
+    let values = {};
+    if (file_exists(env_file)) {
+        values = load_env_file(env_file);
+    }
+
+    let cfg = {};
+    cfg["values"] = values;
+
+    cfg["get"] = fn(key, default_val) {
+        // Priority 1: OS environment variable
+        let sys_val = env(key);
+        if (sys_val != nil && len(sys_val) > 0) {
+            return sys_val;
+        }
+        // Priority 2: .env file
+        if (map_has_key(cfg["values"], key)) {
+            return cfg["values"][key];
+        }
+        // Priority 3: Fallback default
+        return default_val;
+    };
+
+    cfg["get_int"] = fn(key, default_val) {
+        let raw = cfg.get(key, nil);
+        if (raw == nil) { return default_val; }
+        return int(num(raw));
+    };
+
+    cfg["get_bool"] = fn(key, default_val) {
+        let raw = cfg.get(key, nil);
+        if (raw == nil) { return default_val; }
+        let l = to_lower(str(raw));
+        return l == "true" || l == "1" || l == "yes";
+    };
+
+    cfg["set"] = fn(key, val) {
+        cfg["values"][key] = str(val);
+    };
+
+    cfg["all"] = fn() {
+        return cfg["values"];
+    };
+
+    return cfg;
+}

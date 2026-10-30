@@ -1,0 +1,22 @@
+// Raven Standard Library: Concurrency Task Group
+
+fn create_task_group() {
+    let tasks = [];
+    let tg = {};
+
+    tg["add"] = fn(task_fn) {
+        push(tasks, task_fn);
+    };
+
+    tg["wait"] = fn() {
+        for (let t in tasks) {
+            t();
+        }
+    };
+
+    tg["size"] = fn() {
+        return len(tasks);
+    };
+
+    return tg;
+}

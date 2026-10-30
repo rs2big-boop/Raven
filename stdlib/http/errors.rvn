@@ -1,0 +1,46 @@
+// stdlib/net/http/errors.rvn - HTTP Error representation and helpers
+import "stdlib/net/http/status";
+
+fn new_http_error(status_code, message) {
+    if (message == nil || len(message) == 0) {
+        message = status_text(status_code);
+    }
+    return {
+        "is_http_error": true,
+        "status": status_code,
+        "message": message
+    };
+}
+
+fn is_http_error(val) {
+    if (type(val) != "map") { return false; }
+    return map_has_key(val, "is_http_error") && val["is_http_error"] == true;
+}
+
+fn bad_request_error(msg) {
+    return new_http_error(STATUS_BAD_REQUEST, msg);
+}
+
+fn unauthorized_error(msg) {
+    return new_http_error(STATUS_UNAUTHORIZED, msg);
+}
+
+fn forbidden_error(msg) {
+    return new_http_error(STATUS_FORBIDDEN, msg);
+}
+
+fn not_found_error(msg) {
+    return new_http_error(STATUS_NOT_FOUND, msg);
+}
+
+fn method_not_allowed_error(msg) {
+    return new_http_error(STATUS_METHOD_NOT_ALLOWED, msg);
+}
+
+fn internal_server_error(msg) {
+    return new_http_error(STATUS_INTERNAL_SERVER_ERROR, msg);
+}
+
+fn service_unavailable_error(msg) {
+    return new_http_error(STATUS_SERVICE_UNAVAILABLE, msg);
+}
