@@ -1,0 +1,30 @@
+// examples/worker_pool/main.rvn
+import "stdlib/sync";
+
+print("Raven Worker Pool Concurrency Demo");
+
+let jobs = create_channel(10);
+let results = create_channel(10);
+let wg = create_wait_group();
+
+let worker = fn(id) {
+    let task = jobs.recv();
+    print("Worker " + str(id) + " processed task " + str(task));
+    results.send(task * 10);
+    wg.done();
+};
+
+wg.add(3);
+spawn(fn() { worker(1); });
+spawn(fn() { worker(2); });
+spawn(fn() { worker(3); });
+
+jobs.send(10);
+jobs.send(20);
+jobs.send(30);
+
+wg.wait();
+print("Result 1: " + str(results.recv()));
+print("Result 2: " + str(results.recv()));
+print("Result 3: " + str(results.recv()));
+print("Worker pool completed successfully!");

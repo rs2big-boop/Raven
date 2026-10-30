@@ -1,0 +1,10 @@
+// benchmarks/interpreter/fib.rvn
+fn fib(n) {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+let t0 = time();
+let res = fib(24);
+let elapsed = time() - t0;
+print("fib(24) = " + str(res) + " in " + str(elapsed) + "s");

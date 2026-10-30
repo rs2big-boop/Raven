@@ -1,0 +1,10 @@
+// examples/cli/main.rvn
+import "stdlib/flag";
+
+let args = ["--target=production", "--verbose", "--count=5"];
+let flags = flag_parse(args);
+
+print("CLI Flag Parser Demo");
+print("Target: " + str(flag_string(flags, "target", "development")));
+print("Verbose: " + str(flag_bool(flags, "verbose", false)));
+print("Count: " + str(flag_int(flags, "count", 1)));

@@ -1,0 +1,22 @@
+// examples/database/main.rvn
+import "stdlib/database/sql";
+
+print("Raven In-Memory KV Database Demo");
+
+fn create_kv_db() {
+    let store = {};
+    let db = {};
+    db["set"] = fn(k, v) { store[k] = v; };
+    db["get"] = fn(k) { return store[k]; };
+    db["has"] = fn(k) { return map_has_key(store, k); };
+    db["count"] = fn() { return len(keys(store)); };
+    return db;
+}
+
+let db = create_kv_db();
+db.set("user:1001", "Alice");
+db.set("user:1002", "Bob");
+
+print("Found user 1001: " + str(db.get("user:1001")));
+print("Has user 1002: " + str(db.has("user:1002")));
+print("Total records: " + str(db.count()));

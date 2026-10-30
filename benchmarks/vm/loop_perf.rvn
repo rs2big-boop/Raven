@@ -1,0 +1,10 @@
+// benchmarks/vm/loop_perf.rvn
+let total = 0;
+let i = 0;
+let t0 = time();
+while (i < 500000) {
+    total = total + i;
+    i = i + 1;
+}
+let elapsed = time() - t0;
+print("Sum 500k = " + str(total) + " in " + str(elapsed) + "s");

@@ -1,0 +1,10 @@
+// benchmarks/memory/allocation_heavy.rvn
+let t0 = time();
+let i = 0;
+while (i < 20000) {
+    let arr = [i, i * 2, "temp string " + str(i)];
+    let m = {"key": arr, "index": i};
+    i = i + 1;
+}
+let elapsed = time() - t0;
+print("Allocated 20k objects in " + str(elapsed) + "s");
