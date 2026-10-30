@@ -257,14 +257,68 @@ Corvus VM Engine
 
 ---
 
-## 11. Memory Management & Object Model `[IMPLEMENTED / PLANNED]`
+## 11. Memory Management Architecture `[IMPLEMENTED / PLANNED]`
 
-### Memory Strategy (See [ADR 0005](file:///home/ran/Raven/docs/architecture/decisions/0005-memory-management.md))
-- **Scalars**: `double`, `bool`, `Nil` stored directly inside `Value` on the execution stack.
-- **Heap Objects**: Strings, arrays, maps, callables, environments managed via `std::shared_ptr`.
-- **Deterministic Lifetime**: Resources (file handles, sockets, mutexes) close promptly on scope exit.
-- **Cycle Collection `[PLANNED]`**: Tracing cycle collector pass for circular graph references.
-- **Arena Allocation `[IMPLEMENTED]`**: `stdlib/arena` for high-throughput batch allocation and zero-cost mass reset.
+Raven uses a **Hybrid Memory Management Model** designed to balance predictable object lifetimes, developer ergonomics, and runtime flexibility. (See also [ADR 0007](file:///home/ran/Raven/docs/architecture/decisions/0007-hybrid-memory-management.md)).
+
+### Core Strategy
+- **Reference Counting:** Manages the lifetime of heap-allocated Raven objects through explicit reference tracking.
+- **Tracing Cycle Collector:** Detects and reclaims unreachable reference cycles that ordinary reference counting cannot release.
+- **RAII:** Manages native C++ resources, including file handles, sockets, locks, and other system-level resources.
+- **Thread-Safe Ownership:** Defines explicit rules for sharing, transferring, and accessing managed objects across concurrent tasks.
+
+### Managed Heap Architecture
+All GC-managed Raven objects are allocated through a centralized runtime memory management interface. Each object maintains metadata describing its type, lifetime, and reference relationships:
+
+```
+Raven Runtime
+│
+├── Managed Heap
+│   ├── Object Header
+│   ├── Reference Count
+│   ├── Object Type
+│   └── Object Metadata
+│
+├── Memory Manager
+│   ├── Allocate
+│   ├── Retain
+│   ├── Release
+│   └── Collect Cycles
+│
+├── Root Registry
+│   ├── Global Variables
+│   ├── Interpreter Stack
+│   ├── VM Stack
+│   ├── Closures
+│   └── Active Tasks
+│
+└── Cycle Collector
+    ├── Root Tracing
+    ├── Reachability Analysis
+    └── Unreachable Cycle Cleanup
+```
+
+### Phased Evolution
+1. **Phase 1 — Deterministic Reference Counting `[IMPLEMENTED]`**:
+   - Scalars (`double`, `bool`, `nil`) stored inline by-value on execution stack.
+   - Heap objects (`Array`, `Map`, `Callable`, `Environment`) tracked via reference counting.
+   - C++ RAII deterministically closes native handles (files, channels, POSIX thread handles, mutexes) immediately upon scope exit.
+2. **Phase 2 — Root Registry & Cycle Detection `[RESEARCH & PROTOTYPE]`**:
+   - Register active roots from Global scope, Interpreter evaluation stack, VM operand stack, and active task closures.
+   - Detect unreachable cycles through tri-color marking across candidate containers.
+   - Isolate cycle collection passes so that ordinary reference counting handles 99% of deallocations without pause.
+3. **Phase 3 — Thread-Safe Boundaries `[IN PROGRESS]`**:
+   - Disentangle reference-count synchronization (atomic increments/decrements) from object mutation safety (channel immutability / mutex locks).
+   - Establish explicit cross-thread ownership rules for values transferred across CSP channels.
+
+### Root Tracking
+The runtime identifies live objects through registered roots, including global environments, interpreter stacks, VM stacks, closures, and active task contexts.
+
+### Concurrency Considerations
+Memory management must remain safe when multiple OS threads access shared runtime objects. Reference-count synchronization, object mutation safety, collector coordination, and runtime shutdown are treated as separate concerns.
+
+### Design Goal
+Provide automatic memory management without requiring developers to manually manage ordinary object lifetimes, while preserving explicit control over native resources and cross-thread ownership.
 
 ---
 

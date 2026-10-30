@@ -16,7 +16,9 @@ All notable changes to the Raven programming language are documented in this fil
   - Added native bytecode compilation and VM execution for `??` (Null Coalescing via `OpCode::JumpIfNotNil`).
   - Added native bytecode compilation and VM execution for `is` (Runtime Type Checking via `OpCode::CheckType`).
   - Automated differential parity testing between Tree-Walk Interpreter and Corvus VM across arithmetic, arrays, loops, coalescing, and type inspection.
-  - Test suite expanded to 77/77 tests passing at 100%.
+  - Cycle Collector prototype (`gc_collect`, `gc_stats`, `GCRegistry`) under ADR-0007.
+  - Comprehensive documentation tree (`docs/getting-started/`, `docs/language/`, `docs/architecture/`, `docs/stdlib/`).
+  - Test suite expanded to 78/78 tests passing at 100%.
 
 ## [1.0.0] — 2026-10-30
 

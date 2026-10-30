@@ -22,22 +22,23 @@ Raven delivers the **ergonomics and expressive velocity of modern scripting**, c
 
 ### Problem 1: Concurrency Should Be Explicit and Direct
 Many dynamic languages rely on complex asynchronous event loops (`async`/`await`), which can lead to function coloring and subtle scheduling edge-cases.
-* **The Raven Solution**: **Native CSP Concurrency with Explicit Communication Primitives**. Raven provides native `spawn()`, thread-safe `channels`, `WaitGroups`, and `Mutexes` backed directly by operating system threads and futex primitives. Communication between tasks is explicit, structured, and predictable.
+* **The Raven Solution**: **Native CSP Concurrency with Explicit Communication Primitives**. Raven provides native `spawn()`, thread-safe `channels`, `WaitGroups`, and `Mutexes` backed directly by operating system synchronization primitives. Communication between tasks is explicit, structured, and predictable.
 
 ### Problem 2: Tooling Fragmentation
 In many ecosystems, setting up a project requires separate installations for a formatter, linter, test runner, documentation generator, language server, and package manager.
 * **The Raven Solution**: **A Single Unified Toolchain**. The single `raven` executable provides:
-  - `raven run`: Instant script execution
+  - `raven run`: Direct script execution
   - `raven fmt`: Canonical code formatter
   - `raven vet`: Static analysis & linting
   - `raven doc`: Automated API documentation generation
-  - `raven bench`: Microsecond benchmark runner
+  - `raven bench`: Built-in benchmark runner
+  - `raven debug`: Interactive CLI step-through debugger (`rvndb`)
   - `raven lsp`: Native Language Server Protocol
   - `raven pkg`: Package manager with deterministic lockfiles
 
 ### Problem 3: The Gap Between Prototyping and Compiled Deployment
 * **The Raven Solution**: **Dual-Engine Architecture**.
-  - **Tree-Walk Interpreter (`raven run`)**: Zero compilation overhead, full AST retention, and immediate execution for scripting, REPL, and IDE analysis.
+  - **Tree-Walk Interpreter (`raven run`)**: No separate compilation step, full AST retention, and immediate execution for scripting, REPL, and IDE analysis.
   - **Corvus Virtual Machine (`ravenc` & `rvm`)**: Stack-based bytecode compiler and high-speed execution VM with binary serialization (`.rvc`) for deployment.
 
 ---
@@ -82,7 +83,7 @@ Raven's technical decisions are guided by five core principles:
 
 1. **Developer Experience First**: Syntax, error messages, and developer tooling should make writing and maintaining code a delightful experience.
 2. **Explicit Concurrency**: Task communication should be explicit, transparent, and structured through channels and synchronization barriers, avoiding hidden magic.
-3. **Predictable Runtime**: The Tree-Walk Interpreter and the Corvus VM must exhibit identical semantic behavior, results, and error handling.
+3. **Predictable Runtime**: The Tree-Walk Interpreter and the Corvus VM target strict semantic compatibility in evaluation, variable scoping, and runtime behavior.
 4. **Batteries Included**: Developers shouldn't need a dozen configuration files and third-party tools just to format, test, or lint their code.
 5. **Pragmatic Engineering**: We build small, consistent, and rock-solid components before adding complexity. Stability and usability always precede speculative features.
 
@@ -92,19 +93,24 @@ Raven's technical decisions are guided by five core principles:
 
 ### Phase 1: Foundation (v1.0.0 — CURRENT RELEASE) `[COMPLETED]`
 - [x] Dual-engine architecture (Tree-Walk Interpreter + Corvus VM).
-- [x] Native CSP concurrency (POSIX threads, channels, WaitGroups, Mutexes).
-- [x] Unified developer toolchain (`run`, `fmt`, `vet`, `doc`, `bench`, `lsp`, `pkg`).
-- [x] Comprehensive test suite (74/74 tests, 100% pass rate).
+- [x] Native CSP concurrency (OS native threads, channels, WaitGroups, Mutexes).
+- [x] Unified developer toolchain (`run`, `fmt`, `vet`, `doc`, `bench`, `debug`, `lsp`, `pkg`).
+- [x] Comprehensive test suite (77/77 tests passing).
 - [x] Differential Parity testing between Interpreter and VM.
 - [x] Bytecode integrity verifier (`BytecodeVerifier`).
 - [x] Four production-pattern reference projects (REST API, CLI tool, DB client, Worker pool).
 - [x] Open-source foundation: CI workflow, issue templates, Contributing guide, Code of Conduct, and Security policy.
 
 ### Phase 2: Runtime & Concurrency Hardening (v1.1.0) `[IN PROGRESS]`
-- [ ] Structured Task Cancellation and Timeouts across channels.
-- [ ] Interactive step-through debugger (DAP - Debug Adapter Protocol integration for VS Code).
-- [ ] Tracing cycle-collector pass to complement reference counting.
-- [ ] Expanded differential conformance test suite.
+- [x] Structured Task Cancellation and Timeouts across channels (`chan_recv_timeout`, `ch.recv_timeout(ms)`).
+- [x] Interactive step-through debugger (`rvndb` via `raven debug <file>` + VS Code F5 integration).
+- [x] Corvus VM parity expansion for `??` (Null Coalescing) and `is` (Runtime Type Checking).
+- [ ] Runtime shutdown and lifecycle management (clean task unwinding on termination).
+- [ ] Thread-safe shared value ownership rules and mutation boundary enforcement.
+- [ ] Exception propagation and reporting across spawned background tasks.
+- [ ] Channel closure and cancellation semantics hardening.
+- [ ] Deadlock and race-condition stress-testing test suite.
+- [ ] Research & experimental prototype: Tracing cycle-collector pass to complement reference counting.
 
 ### Phase 3: Compiler Intermediate Representation (v1.2.0) `[PLANNED]`
 - [ ] **Raven IR (RIR)**: Three-address code SSA representation.
@@ -118,7 +124,40 @@ Raven's technical decisions are guided by five core principles:
 
 ---
 
-## 7. Built in the Open
+## 7. Memory Management Strategy
+
+Raven employs a **Hybrid Memory Management Model**:
+- **Reference Counting**: Automatic deterministic lifetime tracking for common heap objects (`Array`, `Map`, `Callable`).
+- **Tracing Cycle Collector (Research & Prototype)**: Designed to detect and reclaim unreachable reference cycles without stopping the world.
+- **RAII Resource Cleanup**: Native C++ destruction guarantees for sockets, file descriptors, and system mutexes.
+- **Explicit Cross-Thread Boundaries**: Separate concerns between reference-count synchronization and object mutation safety.
+
+---
+
+## 8. Runtime Guarantees
+
+Raven establishes clear guarantees for code running on its platform today:
+
+- **Dual-Engine Semantic Parity**: Core arithmetic, control flow, functions, closures, collections, coalescing, and type inspection produce equivalent results across the Tree-Walk Interpreter and Corvus VM.
+- **Explicit Channel Semantics**: Sending on closed channels throws a documented runtime exception; channel receive with timeout cleanly returns `nil` on expiration without blocking indefinitely.
+- **Empathetic Diagnostic Guarantees**: Runtime exceptions provide call stack traces with source line coordinates; misspelled identifiers produce Levenshtein-distance "Did you mean?" suggestions.
+- **Bytecode Integrity**: The `BytecodeVerifier` validates opcode ranges, jump bounds, and constant pool indices before any chunk is executed by the Corvus VM.
+- **Deterministic Resource Cleanup**: File handles, network sockets, and synchronization locks are released deterministically upon scope exit via native RAII.
+
+---
+
+## 9. Non-Goals
+
+To maintain sharp focus and long-term engineering velocity, Raven explicitly defines what it is **not** trying to be:
+
+- **Not a Drop-in Replacement for C or Rust**: Raven optimizes for developer velocity, expressive ergonomics, and clean multi-threaded design, rather than manual pointer manipulation or zero-cost hardware abstraction.
+- **Not a Language that Hides Concurrency**: Concurrency in Raven is explicit. We do not hide threading behind implicit magic or unbounded single-threaded event queues that obscure bottleneck analysis.
+- **Not a Kitchen-Sink Language**: Features are added only when they solve concrete engineering problems. We avoid speculative syntax additions solely for feature-list parity with other languages.
+- **Not an Overnight Re-write of the Ecosystem**: Raven is engineered pragmatically, preferring small, robust, battle-tested components over premature massive rewrites.
+
+---
+
+## 10. Built in the Open
 
 Raven is developed in the open. Its source code, architecture specifications, design decisions, roadmap, and development process are publicly accessible. Contributions from developers around the world are warmly welcome.
 

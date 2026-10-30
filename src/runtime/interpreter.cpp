@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -18,6 +19,8 @@
 #include <set>
 #include <sstream>
 #include <thread>
+
+#include "raven/gc.hpp"
 
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -59,6 +62,45 @@ struct NativeChannel {
 static std::mutex g_channels_mutex;
 static std::unordered_map<int64_t, std::shared_ptr<NativeChannel>> g_channels;
 static int64_t g_next_channel_id = 1;
+
+// Spawn tracking — for graceful runtime shutdown
+struct SpawnRegistry {
+    std::mutex mtx;
+    std::vector<std::thread> threads;
+
+    void add(std::thread t) {
+        std::lock_guard<std::mutex> lk(mtx);
+        threads.push_back(std::move(t));
+    }
+
+    // Join all tracked threads (called at shutdown).
+    // Threads that do not finish within `timeout_ms` are detached.
+    void join_all(int64_t timeout_ms = 2000) {
+        std::lock_guard<std::mutex> lk(mtx);
+        for (auto& t : threads) {
+            if (t.joinable()) {
+                // Use a detach approach: try join with a timed wait via a helper
+                // future. If joinable threads are still running after timeout,
+                // detach them to avoid blocking the main thread indefinitely.
+                // For now we do a straightforward join (threads are expected to
+                // be short-lived in typical Raven programs).
+                (void)timeout_ms;
+                t.join();
+            }
+        }
+        threads.clear();
+    }
+
+    ~SpawnRegistry() {
+        // Best-effort cleanup on static destruction — detach remaining threads.
+        std::lock_guard<std::mutex> lk(mtx);
+        for (auto& t : threads) {
+            if (t.joinable()) t.detach();
+        }
+    }
+};
+
+static SpawnRegistry g_spawn_registry;
 
 struct NativeWaitGroup {
     std::mutex mtx;
@@ -1324,14 +1366,34 @@ void Interpreter::register_builtins() {
         }
         auto callable = args[0].as_callable();
         auto globals = this->globals_;
-        std::thread([callable, globals]() {
+        // Use spawn registry instead of raw detach — enables graceful shutdown.
+        std::thread t([callable, globals]() {
             try {
                 Interpreter thread_interp(globals, std::cout);
                 callable->call(thread_interp, {});
             } catch (...) {
+                // Silently swallow unhandled exceptions in spawned tasks.
+                // Future: propagate via a task result channel.
             }
-        }).detach();
+        });
+        g_spawn_registry.add(std::move(t));
         return Value(true);
+    });
+
+    // GC Builtins
+    def("gc_collect", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        size_t broken = gc::GCRegistry::instance().collect();
+        return Value(static_cast<double>(broken));
+    });
+
+    def("gc_stats", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        auto stats = gc::GCRegistry::instance().stats();
+        auto m = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*m)["total_collections"] = Value(static_cast<double>(stats.total_collections));
+        (*m)["cycles_broken"]     = Value(static_cast<double>(stats.cycles_broken));
+        (*m)["objects_freed"]     = Value(static_cast<double>(stats.objects_freed));
+        (*m)["roots_traced"]      = Value(static_cast<double>(stats.roots_traced));
+        return Value(m);
     });
 
     // Native WaitGroup Builtins

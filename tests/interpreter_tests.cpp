@@ -873,3 +873,14 @@ TEST(InterpreterTest, InteractiveDebuggerBasics) {
     EXPECT_FALSE(dbg.breakpoints().count(2));
     EXPECT_TRUE(dbg.breakpoints().count(3));
 }
+
+TEST(InterpreterTest, GarbageCollectorBasics) {
+    std::string source =
+        "let initial_stats = gc_stats();\n"
+        "let broken = gc_collect();\n"
+        "print(broken);\n"
+        "let after_stats = gc_stats();\n"
+        "print(after_stats[\"total_collections\"] > initial_stats[\"total_collections\"]);\n";
+
+    EXPECT_EQ(run_code(source), "0\ntrue\n");
+}

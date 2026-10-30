@@ -40,7 +40,7 @@ This document outlines the development trajectory of the Raven programming langu
 - [x] **Differential VM Parity Expansion**:
   - Corvus VM bytecode compilation and execution for `??` (Null Coalescing via `OpCode::JumpIfNotNil`) and `is` (Runtime Type Checking via `OpCode::CheckType`).
   - Automated differential parity testing between Tree-Walk Interpreter and Corvus VM across arithmetic, arrays, loops, coalescing, and type inspection.
-  - 77/77 tests passing at 100%.
+  - 78/78 tests passing at 100%.
 - [ ] **Cycle Collection**:
   - Tracing cycle detector pass for cyclic object references complementing the reference counter.
 - [ ] **Extended LSP Code Actions**:
