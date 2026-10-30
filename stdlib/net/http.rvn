@@ -4,6 +4,9 @@ import "stdlib/net/http/headers";
 import "stdlib/net/http/request";
 import "stdlib/net/http/response";
 import "stdlib/net/http/client";
+import "stdlib/net/http/cookies";
+import "stdlib/net/http/errors";
+import "stdlib/net/http/server";
 
 let default_client = create_client(nil);
 
@@ -36,4 +39,9 @@ fn http_post_json(url, json_data) {
 // Custom client constructor with configured timeouts, headers
 fn new_http_client(opts) {
     return create_client(opts);
+}
+
+// HTTP Server constructor
+fn new_http_server() {
+    return create_http_server();
 }

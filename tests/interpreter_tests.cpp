@@ -1056,6 +1056,83 @@ TEST(InterpreterTest, ModularNetHttpPackage) {
     EXPECT_EQ(run_code(code), "OK\nBearer test-token\n");
 }
 
+TEST(InterpreterTest, NativeSocketsUDPDatagrams) {
+    std::string code =
+        "import \"stdlib/net/udp\";\n"
+        "let sock = udp_listen(\"127.0.0.1\", 28123);\n"
+        "print(sock != nil);\n"
+        "let sent = sock.send_to(\"127.0.0.1\", 28123, \"ping-udp\");\n"
+        "print(sent > 0);\n"
+        "let pkt = sock.recv_from(1024);\n"
+        "print(pkt[\"data\"]);\n"
+        "print(pkt[\"sender_ip\"]);\n"
+        "sock.close();\n";
+    EXPECT_EQ(run_code(code), "true\ntrue\nping-udp\n127.0.0.1\n");
+}
+
+TEST(InterpreterTest, NativeSocketsTCPCommunication) {
+    std::string code =
+        "import \"stdlib/net/tcp\";\n"
+        "let srv = tcp_listen(\"127.0.0.1\", 28124);\n"
+        "print(srv != nil);\n"
+        "spawn(fn() {\n"
+        "    let conn = srv.accept();\n"
+        "    if (conn != nil) {\n"
+        "        let msg = conn.read(1024);\n"
+        "        conn.write(\"pong:\" + msg);\n"
+        "        conn.close();\n"
+        "    }\n"
+        "});\n"
+        "sleep(50);\n"
+        "let cli = tcp_dial(\"127.0.0.1\", 28124, 2000);\n"
+        "print(cli != nil);\n"
+        "cli.write(\"hello\");\n"
+        "let resp = cli.read(1024);\n"
+        "print(resp);\n"
+        "cli.close();\n"
+        "srv.close();\n";
+    EXPECT_EQ(run_code(code), "true\ntrue\npong:hello\n");
+}
+
+TEST(InterpreterTest, NetHttpCookiesAndErrors) {
+    std::string code =
+        "import \"stdlib/net/http/cookies\";\n"
+        "import \"stdlib/net/http/errors\";\n"
+        "let c = parse_cookies(\"session=xyz123; user=alice\");\n"
+        "print(cookie_get(c, \"session\", \"\"));\n"
+        "print(cookie_get(c, \"user\", \"\"));\n"
+        "let formatted = format_cookie(\"token\", \"secret\", {\"path\": \"/api\", \"http_only\": true});\n"
+        "print(formatted);\n"
+        "let err = not_found_error(\"User missing\");\n"
+        "print(err[\"status\"]);\n"
+        "print(err[\"message\"]);\n";
+    EXPECT_EQ(run_code(code),
+              "xyz123\n"
+              "alice\n"
+              "token=secret; Path=/api; HttpOnly\n"
+              "404\n"
+              "User missing\n");
+}
+
+TEST(InterpreterTest, NetHttpServerRequestParsing) {
+    std::string code =
+        "import \"stdlib/net/http/server\";\n"
+        "let raw = \"POST /items?sort=desc HTTP/1.1\\r\\n\" +\n"
+        "          \"Host: localhost:8080\\r\\n\" +\n"
+        "          \"Content-Type: application/json\\r\\n\" +\n"
+        "          \"Cookie: sid=123\\r\\n\" +\n"
+        "          \"\\r\\n\" +\n"
+        "          \"{\\\"name\\\": \\\"raven\\\"}\";\n"
+        "let req = parse_http_request(raw);\n"
+        "print(req[\"method\"]);\n"
+        "print(req[\"path\"]);\n"
+        "print(req[\"query\"]);\n"
+        "print(req[\"cookies\"][\"sid\"]);\n"
+        "print(req[\"json\"][\"name\"]);\n";
+    EXPECT_EQ(run_code(code), "POST\n/items\nsort=desc\n123\nraven\n");
+}
+
+
 
 
 

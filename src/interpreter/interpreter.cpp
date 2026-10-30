@@ -913,6 +913,88 @@ void Interpreter::register_builtins() {
         return Value(platform::md5_hex(args[0].to_string()));
     });
 
+    // Native Sockets & Networking Builtins
+    def("net_tcp_connect", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string host = args[0].to_string();
+        int port = static_cast<int>(args[1].as_number());
+        int timeout_ms = static_cast<int>(args[2].as_number());
+        int fd = platform::tcp_connect(host, port, timeout_ms);
+        return Value(static_cast<double>(fd));
+    });
+
+    def("net_tcp_listen", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string host = args[0].to_string();
+        int port = static_cast<int>(args[1].as_number());
+        int fd = platform::tcp_listen(host, port);
+        return Value(static_cast<double>(fd));
+    });
+
+    def("net_tcp_accept", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int server_fd = static_cast<int>(args[0].as_number());
+        int client_fd = platform::tcp_accept(server_fd);
+        return Value(static_cast<double>(client_fd));
+    });
+
+    def("net_tcp_send", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        std::string data = args[1].to_string();
+        int sent = platform::tcp_send(fd, data);
+        return Value(static_cast<double>(sent));
+    });
+
+    def("net_tcp_recv", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        size_t max_bytes = static_cast<size_t>(args[1].as_number());
+        std::string data = platform::tcp_recv(fd, max_bytes);
+        return Value(data);
+    });
+
+    def("net_tcp_poll_read", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        int timeout_ms = static_cast<int>(args[1].as_number());
+        bool ready = platform::tcp_poll_read(fd, timeout_ms);
+        return Value(ready);
+    });
+
+    def("net_tcp_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        platform::tcp_close(fd);
+        return Value(true);
+    });
+
+    def("net_udp_bind", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string host = args[0].to_string();
+        int port = static_cast<int>(args[1].as_number());
+        int fd = platform::udp_bind(host, port);
+        return Value(static_cast<double>(fd));
+    });
+
+    def("net_udp_send_to", 4, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        std::string host = args[1].to_string();
+        int port = static_cast<int>(args[2].as_number());
+        std::string data = args[3].to_string();
+        int sent = platform::udp_send_to(fd, host, port, data);
+        return Value(static_cast<double>(sent));
+    });
+
+    def("net_udp_recv_from", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        size_t max_bytes = static_cast<size_t>(args[1].as_number());
+        auto pkt = platform::udp_recv_from(fd, max_bytes);
+        auto m = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*m)["data"] = Value(pkt.data);
+        (*m)["sender_ip"] = Value(pkt.sender_ip);
+        (*m)["sender_port"] = Value(static_cast<double>(pkt.sender_port));
+        return Value(m);
+    });
+
+    def("net_udp_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int fd = static_cast<int>(args[0].as_number());
+        platform::udp_close(fd);
+        return Value(true);
+    });
+
     // String manipulation additions
     def("str_repeat", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
         std::string s = args[0].to_string();

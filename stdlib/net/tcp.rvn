@@ -1,0 +1,95 @@
+// stdlib/net/tcp.rvn - Native TCP Client and Server (inspired by Go's net package)
+
+fn tcp_dial(host, port, timeout_ms) {
+    if (timeout_ms == nil) { timeout_ms = 5000; }
+    let fd = net_tcp_connect(host, port, timeout_ms);
+    if (fd < 0) {
+        return nil;
+    }
+
+    let conn = {};
+    conn["fd"] = fd;
+    conn["closed"] = false;
+
+    conn["write"] = fn(data) {
+        if (conn["closed"]) { return -1; }
+        return net_tcp_send(conn["fd"], str(data));
+    };
+
+    conn["read"] = fn(max_bytes) {
+        if (conn["closed"]) { return ""; }
+        if (max_bytes == nil) { max_bytes = 4096; }
+        return net_tcp_recv(conn["fd"], max_bytes);
+    };
+
+    conn["poll"] = fn(timeout) {
+        if (conn["closed"]) { return false; }
+        if (timeout == nil) { timeout = 100; }
+        return net_tcp_poll_read(conn["fd"], timeout);
+    };
+
+    conn["close"] = fn() {
+        if (!conn["closed"]) {
+            conn["closed"] = true;
+            net_tcp_close(conn["fd"]);
+        }
+    };
+
+    return conn;
+}
+
+fn tcp_listen(host, port) {
+    let server_fd = net_tcp_listen(host, port);
+    if (server_fd < 0) {
+        return nil;
+    }
+
+    let server = {};
+    server["fd"] = server_fd;
+    server["closed"] = false;
+
+    server["accept"] = fn() {
+        if (server["closed"]) { return nil; }
+        let client_fd = net_tcp_accept(server["fd"]);
+        if (client_fd < 0) { return nil; }
+
+        let conn = {};
+        conn["fd"] = client_fd;
+        conn["closed"] = false;
+
+        conn["write"] = fn(data) {
+            if (conn["closed"]) { return -1; }
+            return net_tcp_send(conn["fd"], str(data));
+        };
+
+        conn["read"] = fn(max_bytes) {
+            if (conn["closed"]) { return ""; }
+            if (max_bytes == nil) { max_bytes = 4096; }
+            return net_tcp_recv(conn["fd"], max_bytes);
+        };
+
+        conn["poll"] = fn(timeout) {
+            if (conn["closed"]) { return false; }
+            if (timeout == nil) { timeout = 100; }
+            return net_tcp_poll_read(conn["fd"], timeout);
+        };
+
+        conn["close"] = fn() {
+            if (!conn["closed"]) {
+                conn["closed"] = true;
+                net_tcp_close(conn["fd"]);
+            }
+        };
+
+        return conn;
+    };
+
+    server["close"] = fn() {
+        if (!server["closed"]) {
+            server["closed"] = true;
+            net_tcp_close(server["fd"]);
+        }
+    };
+
+    return server;
+}
