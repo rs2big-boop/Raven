@@ -1324,6 +1324,38 @@ TEST(InterpreterTest, VariadicPrintWithMultipleArguments) {
     EXPECT_EQ(run_code(code), "Alpha 42 true [1, 2]\n\nEnd\n");
 }
 
+TEST(InterpreterTest, NativeSliceSyntaxArraysAndStrings) {
+    std::string code =
+        "let arr = [10, 20, 30, 40, 50];\n"
+        "let sub = arr[1:4];\n"
+        "print(sub[0]);\n"
+        "print(sub[2]);\n"
+        "let front = arr[:2];\n"
+        "print(len(front));\n"
+        "let back = arr[3:];\n"
+        "print(back[0]);\n"
+        "let s = \"HelloRaven\";\n"
+        "print(s[0:5]);\n"
+        "print(s[5:]);\n";
+    EXPECT_EQ(run_code(code), "20\n40\n2\n40\nHello\nRaven\n");
+}
+
+TEST(InterpreterTest, TypeAnnotationsGradualTyping) {
+    std::string valid_code =
+        "let n: Number = 100;\n"
+        "let s: String = \"TypeSafe\";\n"
+        "let b: Bool = true;\n"
+        "let arr: Array = [1, 2];\n"
+        "fn mult(x: Number, y: Number): Number {\n"
+        "    return x * y;\n"
+        "}\n"
+        "print(n, s, b, len(arr), mult(3, 4));\n";
+    EXPECT_EQ(run_code(valid_code), "100 TypeSafe true 2 12\n");
+
+    std::string invalid_code = "let x: Number = \"bad\";\n";
+    EXPECT_THROW(run_code(invalid_code), RuntimeError);
+}
+
 
 
 

@@ -201,6 +201,8 @@ void Resolver::visit(const MapExpr& expr) {
 void Resolver::visit(const IndexExpr& expr) {
     if (expr.object) resolve(*expr.object);
     if (expr.index) resolve(*expr.index);
+    if (expr.slice_start) resolve(*expr.slice_start);
+    if (expr.slice_end) resolve(*expr.slice_end);
 }
 
 void Resolver::visit(const IndexAssignExpr& expr) {

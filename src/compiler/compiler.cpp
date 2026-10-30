@@ -197,6 +197,17 @@ void Compiler::visit(const MapExpr& expr) {
 }
 
 void Compiler::visit(const IndexExpr& expr) {
+    if (expr.is_slice) {
+        // Compiler fallback: evaluate object, slice start/end
+        expr.object->accept(*this);
+        if (expr.slice_start) expr.slice_start->accept(*this);
+        else emit_op(OpCode::Nil);
+        if (expr.slice_end) expr.slice_end->accept(*this);
+        else emit_op(OpCode::Nil);
+        emit_op(OpCode::Pop);
+        emit_op(OpCode::Pop);
+        return;
+    }
     expr.object->accept(*this);
     expr.index->accept(*this);
     emit_op(OpCode::IndexGet);

@@ -1924,6 +1924,62 @@ Value Interpreter::visit(const IndexExpr& expr) {
     if (expr.is_optional && obj.is_nil()) {
         return Value();
     }
+
+    if (expr.is_slice) {
+        int start = 0;
+        if (expr.slice_start) {
+            Value s_val = evaluate(*expr.slice_start);
+            if (!s_val.is_number()) throw RuntimeError(expr.bracket, "Slice start index must be a number.");
+            start = static_cast<int>(s_val.as_number());
+        }
+
+        if (obj.is_array()) {
+            auto& arr = *obj.as_array();
+            int n = static_cast<int>(arr.size());
+            if (start < 0) start += n;
+            if (start < 0) start = 0;
+            if (start > n) start = n;
+
+            int end = n;
+            if (expr.slice_end) {
+                Value e_val = evaluate(*expr.slice_end);
+                if (!e_val.is_number()) throw RuntimeError(expr.bracket, "Slice end index must be a number.");
+                end = static_cast<int>(e_val.as_number());
+                if (end < 0) end += n;
+                if (end < start) end = start;
+                if (end > n) end = n;
+            }
+
+            auto result = std::make_shared<std::vector<Value>>();
+            for (int i = start; i < end; ++i) {
+                result->push_back(arr[i]);
+            }
+            return Value(result);
+        }
+
+        if (obj.is_string()) {
+            const auto& s = obj.as_string();
+            int n = static_cast<int>(s.size());
+            if (start < 0) start += n;
+            if (start < 0) start = 0;
+            if (start > n) start = n;
+
+            int end = n;
+            if (expr.slice_end) {
+                Value e_val = evaluate(*expr.slice_end);
+                if (!e_val.is_number()) throw RuntimeError(expr.bracket, "Slice end index must be a number.");
+                end = static_cast<int>(e_val.as_number());
+                if (end < 0) end += n;
+                if (end < start) end = start;
+                if (end > n) end = n;
+            }
+
+            return Value(s.substr(start, end - start));
+        }
+
+        throw RuntimeError(expr.bracket, "Only arrays and strings can be sliced.");
+    }
+
     Value idx = evaluate(*expr.index);
 
     if (obj.is_array()) {
@@ -2081,6 +2137,22 @@ void Interpreter::visit(const VarDeclStmt& stmt) {
     Value value;
     if (stmt.initializer != nullptr) {
         value = evaluate(*stmt.initializer);
+    }
+    if (!stmt.type_annotation.empty() && !value.is_nil()) {
+        const std::string& expected = stmt.type_annotation;
+        bool type_match = true;
+        if (expected == "Number" && !value.is_number()) type_match = false;
+        else if (expected == "String" && !value.is_string()) type_match = false;
+        else if (expected == "Bool" && !value.is_bool()) type_match = false;
+        else if (expected == "Array" && !value.is_array()) type_match = false;
+        else if (expected == "Map" && !value.is_map()) type_match = false;
+        else if (expected == "Function" && !value.is_callable()) type_match = false;
+
+        if (!type_match) {
+            throw RuntimeError(stmt.name, "Type error: variable '" + stmt.name.lexeme +
+                                          "' of declared type " + expected +
+                                          " cannot be assigned value of type " + value.type_name());
+        }
     }
     environment_->define(stmt.name.lexeme, value);
 }

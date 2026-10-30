@@ -60,6 +60,9 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
                 break;
             }
             parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
+            if (match({TokenType::Colon})) {
+                consume(TokenType::Identifier, "Expected type name after ':'.");
+            }
             if (match({TokenType::Equal})) {
                 param_defaults.push_back(expression());
             } else {
@@ -68,6 +71,10 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
         } while (match({TokenType::Comma}));
     }
     consume(TokenType::RightParen, "Expected ')' after parameters.");
+
+    if (match({TokenType::Colon}) || match({TokenType::Arrow})) {
+        consume(TokenType::Identifier, "Expected return type.");
+    }
 
     consume(TokenType::LeftBrace, "Expected '{' before function body.");
     std::vector<std::shared_ptr<Stmt>> body;
@@ -109,6 +116,11 @@ std::shared_ptr<Stmt> Parser::var_declaration() {
     }
 
     Token name = consume(TokenType::Identifier, "Expected variable name.");
+    std::string type_annotation;
+    if (match({TokenType::Colon})) {
+        Token type_token = consume(TokenType::Identifier, "Expected type name after ':'.");
+        type_annotation = type_token.lexeme;
+    }
 
     std::unique_ptr<Expr> initializer = nullptr;
     if (match({TokenType::Equal})) {
@@ -116,7 +128,7 @@ std::shared_ptr<Stmt> Parser::var_declaration() {
     }
 
     consume_semicolon("Expected ';' after variable declaration.");
-    return std::make_shared<VarDeclStmt>(std::move(name), std::move(initializer));
+    return std::make_shared<VarDeclStmt>(std::move(name), std::move(initializer), std::move(type_annotation));
 }
 
 std::shared_ptr<Stmt> Parser::statement() {
@@ -488,18 +500,60 @@ std::unique_ptr<Expr> Parser::call_or_index() {
             expr = finish_call(std::move(expr));
         } else if (match({TokenType::LeftBracket})) {
             Token bracket = previous();
-            auto index = expression();
+            std::unique_ptr<Expr> start = nullptr;
+            std::unique_ptr<Expr> end = nullptr;
+            bool is_slice = false;
+
+            if (match({TokenType::Colon})) {
+                is_slice = true;
+                if (!check(TokenType::RightBracket)) {
+                    end = expression();
+                }
+            } else {
+                start = expression();
+                if (match({TokenType::Colon})) {
+                    is_slice = true;
+                    if (!check(TokenType::RightBracket)) {
+                        end = expression();
+                    }
+                }
+            }
             consume(TokenType::RightBracket, "Expected ']' after index.");
-            expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(index));
+            if (is_slice) {
+                expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(start), std::move(end), false);
+            } else {
+                expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(start));
+            }
         } else if (match({TokenType::Dot})) {
             Token name = consume(TokenType::Identifier, "Expected property name after '.'.");
             expr = std::make_unique<PropertyExpr>(std::move(expr), std::move(name));
         } else if (match({TokenType::QuestionDot})) {
             if (match({TokenType::LeftBracket})) {
                 Token bracket = previous();
-                auto index = expression();
+                std::unique_ptr<Expr> start = nullptr;
+                std::unique_ptr<Expr> end = nullptr;
+                bool is_slice = false;
+
+                if (match({TokenType::Colon})) {
+                    is_slice = true;
+                    if (!check(TokenType::RightBracket)) {
+                        end = expression();
+                    }
+                } else {
+                    start = expression();
+                    if (match({TokenType::Colon})) {
+                        is_slice = true;
+                        if (!check(TokenType::RightBracket)) {
+                            end = expression();
+                        }
+                    }
+                }
                 consume(TokenType::RightBracket, "Expected ']' after index.");
-                expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(index), true);
+                if (is_slice) {
+                    expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(start), std::move(end), true);
+                } else {
+                    expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(start), true);
+                }
             } else {
                 Token name = consume(TokenType::Identifier, "Expected property name after '?.'.");
                 expr = std::make_unique<PropertyExpr>(std::move(expr), std::move(name), true);

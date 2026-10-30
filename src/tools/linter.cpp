@@ -254,6 +254,8 @@ void Linter::visit(const MapExpr& expr) {
 void Linter::visit(const IndexExpr& expr) {
     if (expr.object) expr.object->accept(*this);
     if (expr.index) expr.index->accept(*this);
+    if (expr.slice_start) expr.slice_start->accept(*this);
+    if (expr.slice_end) expr.slice_end->accept(*this);
 }
 
 void Linter::visit(const IndexAssignExpr& expr) {

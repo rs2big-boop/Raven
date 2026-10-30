@@ -191,6 +191,10 @@ public:
     IndexExpr(std::unique_ptr<Expr> object, Token bracket, std::unique_ptr<Expr> index, bool is_optional = false)
         : object(std::move(object)), bracket(std::move(bracket)), index(std::move(index)), is_optional(is_optional) {}
 
+    IndexExpr(std::unique_ptr<Expr> object, Token bracket, std::unique_ptr<Expr> start, std::unique_ptr<Expr> end, bool is_optional = false)
+        : object(std::move(object)), bracket(std::move(bracket)), index(nullptr), is_optional(is_optional),
+          is_slice(true), slice_start(std::move(start)), slice_end(std::move(end)) {}
+
     Value accept(ExprVisitor<Value>& visitor) const override { return visitor.visit(*this); }
     std::string accept(ExprVisitor<std::string>& visitor) const override { return visitor.visit(*this); }
     void accept(ExprVisitor<void>& visitor) const override { visitor.visit(*this); }
@@ -199,6 +203,9 @@ public:
     Token bracket;
     std::unique_ptr<Expr> index;
     bool is_optional = false;
+    bool is_slice = false;
+    std::unique_ptr<Expr> slice_start = nullptr;
+    std::unique_ptr<Expr> slice_end = nullptr;
 };
 
 class IndexAssignExpr : public Expr {
@@ -370,13 +377,14 @@ public:
 
 class VarDeclStmt : public Stmt {
 public:
-    VarDeclStmt(Token name, std::unique_ptr<Expr> initializer)
-        : name(std::move(name)), initializer(std::move(initializer)) {}
+    VarDeclStmt(Token name, std::unique_ptr<Expr> initializer, std::string type_annotation = "")
+        : name(std::move(name)), initializer(std::move(initializer)), type_annotation(std::move(type_annotation)) {}
 
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
     Token name;
     std::unique_ptr<Expr> initializer;
+    std::string type_annotation;
 };
 
 class BlockStmt : public Stmt {
