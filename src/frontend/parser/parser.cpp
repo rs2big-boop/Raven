@@ -90,7 +90,7 @@ std::shared_ptr<Stmt> Parser::var_declaration() {
         consume(TokenType::RightBracket, "Expected ']' after destructuring pattern.");
         consume(TokenType::Equal, "Expected '=' after destructuring pattern.");
         auto initializer = expression();
-        consume(TokenType::Semicolon, "Expected ';' after variable declaration.");
+        consume_semicolon("Expected ';' after variable declaration.");
         return std::make_shared<DestructureStmt>(DestructureKind::Array, std::move(names), std::move(initializer));
     }
 
@@ -104,7 +104,7 @@ std::shared_ptr<Stmt> Parser::var_declaration() {
         consume(TokenType::RightBrace, "Expected '}' after destructuring pattern.");
         consume(TokenType::Equal, "Expected '=' after destructuring pattern.");
         auto initializer = expression();
-        consume(TokenType::Semicolon, "Expected ';' after variable declaration.");
+        consume_semicolon("Expected ';' after variable declaration.");
         return std::make_shared<DestructureStmt>(DestructureKind::Map, std::move(names), std::move(initializer));
     }
 
@@ -115,7 +115,7 @@ std::shared_ptr<Stmt> Parser::var_declaration() {
         initializer = expression();
     }
 
-    consume(TokenType::Semicolon, "Expected ';' after variable declaration.");
+    consume_semicolon("Expected ';' after variable declaration.");
     return std::make_shared<VarDeclStmt>(std::move(name), std::move(initializer));
 }
 
@@ -163,21 +163,31 @@ std::shared_ptr<Stmt> Parser::statement() {
 }
 
 std::shared_ptr<Stmt> Parser::print_statement() {
-    std::unique_ptr<Expr> value;
+    std::vector<std::unique_ptr<Expr>> values;
     if (match({TokenType::LeftParen})) {
-        value = expression();
+        if (!check(TokenType::RightParen)) {
+            do {
+                values.push_back(expression());
+            } while (match({TokenType::Comma}));
+        }
         consume(TokenType::RightParen, "Expected ')' after print argument.");
     } else {
-        value = expression();
+        do {
+            values.push_back(expression());
+        } while (match({TokenType::Comma}));
     }
-    consume(TokenType::Semicolon, "Expected ';' after print statement.");
-    return std::make_shared<PrintStmt>(std::move(value));
+    consume_semicolon("Expected ';' after print statement.");
+    return std::make_shared<PrintStmt>(std::move(values));
 }
 
 std::shared_ptr<Stmt> Parser::if_statement() {
-    consume(TokenType::LeftParen, "Expected '(' after 'if'.");
-    auto condition = expression();
-    consume(TokenType::RightParen, "Expected ')' after if condition.");
+    std::unique_ptr<Expr> condition;
+    if (match({TokenType::LeftParen})) {
+        condition = expression();
+        consume(TokenType::RightParen, "Expected ')' after if condition.");
+    } else {
+        condition = expression();
+    }
 
     auto then_branch = statement();
     std::shared_ptr<Stmt> else_branch = nullptr;
@@ -189,9 +199,13 @@ std::shared_ptr<Stmt> Parser::if_statement() {
 }
 
 std::shared_ptr<Stmt> Parser::while_statement() {
-    consume(TokenType::LeftParen, "Expected '(' after 'while'.");
-    auto condition = expression();
-    consume(TokenType::RightParen, "Expected ')' after while condition.");
+    std::unique_ptr<Expr> condition;
+    if (match({TokenType::LeftParen})) {
+        condition = expression();
+        consume(TokenType::RightParen, "Expected ')' after while condition.");
+    } else {
+        condition = expression();
+    }
 
     auto body = statement();
     return std::make_shared<WhileStmt>(std::move(condition), std::move(body));
@@ -212,12 +226,14 @@ std::shared_ptr<Stmt> Parser::loop_statement() {
 }
 
 std::shared_ptr<Stmt> Parser::for_in_statement() {
-    consume(TokenType::LeftParen, "Expected '(' after 'for'.");
+    bool has_paren = match({TokenType::LeftParen});
     match({TokenType::Let}); // Optional 'let' in 'for (let x in coll)'
     Token variable = consume(TokenType::Identifier, "Expected loop variable name.");
     consume(TokenType::In, "Expected 'in' after loop variable.");
     auto iterable = expression();
-    consume(TokenType::RightParen, "Expected ')' after for clauses.");
+    if (has_paren) {
+        consume(TokenType::RightParen, "Expected ')' after for clauses.");
+    }
 
     auto body = statement();
     return std::make_shared<ForInStmt>(std::move(variable), std::move(iterable), std::move(body));
@@ -237,7 +253,7 @@ std::shared_ptr<Stmt> Parser::try_catch_statement() {
 std::shared_ptr<Stmt> Parser::throw_statement() {
     Token keyword = previous();
     auto value = expression();
-    consume(TokenType::Semicolon, "Expected ';' after throw expression.");
+    consume_semicolon("Expected ';' after throw expression.");
     return std::make_shared<ThrowStmt>(std::move(keyword), std::move(value));
 }
 
@@ -251,7 +267,7 @@ std::shared_ptr<Stmt> Parser::import_statement() {
     } else {
         throw error(peek(), "Expected module path (string or identifier) after 'import'.");
     }
-    consume(TokenType::Semicolon, "Expected ';' after import statement.");
+    consume_semicolon("Expected ';' after import statement.");
     return std::make_shared<ImportStmt>(std::move(keyword), std::move(path));
 }
 
@@ -271,23 +287,24 @@ std::shared_ptr<Stmt> Parser::struct_declaration() {
 
 std::shared_ptr<Stmt> Parser::break_statement() {
     Token keyword = previous();
-    consume(TokenType::Semicolon, "Expected ';' after 'break'.");
+    consume_semicolon("Expected ';' after 'break'.");
     return std::make_shared<BreakStmt>(keyword);
 }
 
 std::shared_ptr<Stmt> Parser::continue_statement() {
     Token keyword = previous();
-    consume(TokenType::Semicolon, "Expected ';' after 'continue'.");
+    consume_semicolon("Expected ';' after 'continue'.");
     return std::make_shared<ContinueStmt>(keyword);
 }
 
 std::shared_ptr<Stmt> Parser::return_statement() {
     Token keyword = previous();
     std::unique_ptr<Expr> value = nullptr;
-    if (!check(TokenType::Semicolon)) {
+    if (!check(TokenType::Semicolon) && !check(TokenType::RightBrace) && !is_at_end() &&
+        (current_ == 0 || previous().line == peek().line)) {
         value = expression();
     }
-    consume(TokenType::Semicolon, "Expected ';' after return value.");
+    consume_semicolon("Expected ';' after return value.");
     return std::make_shared<ReturnStmt>(std::move(keyword), std::move(value));
 }
 
@@ -302,7 +319,7 @@ std::shared_ptr<Stmt> Parser::block_statement() {
 
 std::shared_ptr<Stmt> Parser::expression_statement() {
     auto expr = expression();
-    consume(TokenType::Semicolon, "Expected ';' after expression.");
+    consume_semicolon("Expected ';' after expression.");
     return std::make_shared<ExpressionStmt>(std::move(expr));
 }
 
@@ -678,6 +695,18 @@ Token Parser::previous() const {
 Token Parser::consume(TokenType type, const std::string& message) {
     if (check(type)) return advance();
     throw error(peek(), message);
+}
+
+void Parser::consume_semicolon(const std::string& message) {
+    if (match({TokenType::Semicolon})) {
+        return;
+    }
+    // Implicit semicolon permitted at end of block, end of file, or upon newline
+    if (check(TokenType::RightBrace) || is_at_end() || check(TokenType::EndOfFile) ||
+        (current_ > 0 && previous().line < peek().line)) {
+        return;
+    }
+    consume(TokenType::Semicolon, message);
 }
 
 ParseError Parser::error(const Token& token, const std::string& message) {

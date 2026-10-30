@@ -1299,6 +1299,31 @@ TEST(InterpreterTest, NativeHMACSHA256StandardVector) {
     EXPECT_EQ(run_code(code), "31fd15fa0f61fd40dc09d919d4aa5b4141a0b27c1d51e74a6789a890aaaa187c\n");
 }
 
+TEST(InterpreterTest, ModernCleanSyntaxOptionalSemicolonsAndParens) {
+    std::string code =
+        "let a = 10\n"
+        "let b = 20\n"
+        "let sum = a + b\n"
+        "if sum > 25 {\n"
+        "    print(\"Sum is\", sum)\n"
+        "}\n"
+        "let items = [1, 2, 3]\n"
+        "for x in items {\n"
+        "    if x == 2 {\n"
+        "        print(\"found\", x)\n"
+        "    }\n"
+        "}\n";
+    EXPECT_EQ(run_code(code), "Sum is 30\nfound 2\n");
+}
+
+TEST(InterpreterTest, VariadicPrintWithMultipleArguments) {
+    std::string code =
+        "print(\"Alpha\", 42, true, [1, 2]);\n"
+        "print();\n"
+        "print(\"End\");\n";
+    EXPECT_EQ(run_code(code), "Alpha 42 true [1, 2]\n\nEnd\n");
+}
+
 
 
 

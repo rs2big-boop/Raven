@@ -76,6 +76,7 @@ private:
     Token peek_next() const;
     Token previous() const;
     Token consume(TokenType type, const std::string& message);
+    void consume_semicolon(const std::string& message);
     ParseError error(const Token& token, const std::string& message);
     void synchronize();
 

@@ -1,0 +1,33 @@
+// 🐦 Tour of Raven — Expressive & Clean Syntax Showcase
+
+print("=== Welcome to the Raven Tour ===")
+
+// 1. Semicolons and Condition Parentheses are completely optional!
+let greeting = "Hello"
+let audience = "Developers"
+print(greeting, audience, "from Raven!")
+
+// 2. Control flow without parenthesitis
+let rating = 95
+if rating >= 90 {
+    print("Grade: Exceptional")
+} else {
+    print("Grade: Good")
+}
+
+// 3. For-in loop
+let tools = ["Compiler", "VM", "Debugger", "LSP", "Package Manager"]
+print("Raven toolchain includes:")
+for tool in tools {
+    print(" -", tool)
+}
+
+// 4. Modern operators & Destructuring
+let [major, minor] = [1, 0]
+print("Raven Version:", major, ".", minor)
+
+let config = {"host": "localhost", "port": 8080}
+let host = config?.host ?? "127.0.0.1"
+print("Connecting to:", host)
+
+print("=== Tour Finished Successfully ===")

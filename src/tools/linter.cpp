@@ -84,6 +84,9 @@ void Linter::visit(const ExpressionStmt& stmt) {
 
 void Linter::visit(const PrintStmt& stmt) {
     if (stmt.expression) stmt.expression->accept(*this);
+    for (const auto& expr : stmt.expressions) {
+        if (expr) expr->accept(*this);
+    }
 }
 
 void Linter::visit(const VarDeclStmt& stmt) {

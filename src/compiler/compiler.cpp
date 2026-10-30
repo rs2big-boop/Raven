@@ -308,8 +308,17 @@ void Compiler::visit(const ExpressionStmt& stmt) {
 }
 
 void Compiler::visit(const PrintStmt& stmt) {
-    stmt.expression->accept(*this);
-    emit_op(OpCode::Print);
+    if (stmt.expressions.empty()) {
+        if (stmt.expression) {
+            stmt.expression->accept(*this);
+            emit_op(OpCode::Print);
+        }
+        return;
+    }
+    for (const auto& expr : stmt.expressions) {
+        expr->accept(*this);
+        emit_op(OpCode::Print);
+    }
 }
 
 void Compiler::visit(const VarDeclStmt& stmt) {

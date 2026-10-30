@@ -30,6 +30,9 @@ void Resolver::visit(const ExpressionStmt& stmt) {
 
 void Resolver::visit(const PrintStmt& stmt) {
     if (stmt.expression) resolve(*stmt.expression);
+    for (const auto& expr : stmt.expressions) {
+        if (expr) resolve(*expr);
+    }
 }
 
 void Resolver::visit(const VarDeclStmt& stmt) {

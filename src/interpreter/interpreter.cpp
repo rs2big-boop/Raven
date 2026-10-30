@@ -2062,8 +2062,19 @@ void Interpreter::visit(const ExpressionStmt& stmt) {
 }
 
 void Interpreter::visit(const PrintStmt& stmt) {
-    Value value = evaluate(*stmt.expression);
-    out_ << value.to_string() << "\n";
+    if (stmt.expressions.empty()) {
+        if (stmt.expression) {
+            out_ << evaluate(*stmt.expression).to_string() << "\n";
+        } else {
+            out_ << "\n";
+        }
+        return;
+    }
+    for (size_t i = 0; i < stmt.expressions.size(); ++i) {
+        if (i > 0) out_ << " ";
+        out_ << evaluate(*stmt.expressions[i]).to_string();
+    }
+    out_ << "\n";
 }
 
 void Interpreter::visit(const VarDeclStmt& stmt) {

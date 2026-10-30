@@ -353,11 +353,19 @@ public:
 class PrintStmt : public Stmt {
 public:
     explicit PrintStmt(std::unique_ptr<Expr> expression)
-        : expression(std::move(expression)) {}
+        : expression(nullptr) {
+        if (expression) {
+            expressions.push_back(std::move(expression));
+        }
+    }
+
+    explicit PrintStmt(std::vector<std::unique_ptr<Expr>> exprs)
+        : expression(nullptr), expressions(std::move(exprs)) {}
 
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
     std::unique_ptr<Expr> expression;
+    std::vector<std::unique_ptr<Expr>> expressions;
 };
 
 class VarDeclStmt : public Stmt {
