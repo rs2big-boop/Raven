@@ -74,6 +74,18 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "raven.run",
+          "when": "resourceLangId == raven",
+          "group": "navigation@1"
+        },
+        {
+          "command": "raven.debug",
+          "when": "resourceLangId == raven",
+          "group": "navigation@2"
+        }
+      ],
       "editor/title/run": [
         {
           "command": "raven.run",
