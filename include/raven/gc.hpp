@@ -19,6 +19,7 @@
 //   reference counting — it supplements it by breaking reference cycles
 //   that would otherwise cause memory leaks.
 
+#include <algorithm>
 #include <atomic>
 #include <functional>
 #include <memory>

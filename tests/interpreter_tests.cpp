@@ -10,6 +10,7 @@
 #include "raven/parser.hpp"
 #include "raven/vm.hpp"
 #include "raven/debugger.hpp"
+#include "raven/runtime/memory/memory_manager.hpp"
 
 using namespace raven;
 
@@ -963,6 +964,16 @@ TEST(InterpreterTest, DualEngineDifferentialParityLambdas) {
     EXPECT_EQ(interp_out, vm_out);
     EXPECT_EQ(interp_out, "25\n36\n");
 }
+
+TEST(InterpreterTest, MemoryManagerModularSubsystem) {
+    auto& mm = memory::MemoryManager::instance();
+    size_t broken = mm.collect_cycles();
+    EXPECT_EQ(broken, 0);
+
+    auto stats = mm.statistics();
+    EXPECT_GE(stats.total_collections, 1);
+}
+
 
 
 

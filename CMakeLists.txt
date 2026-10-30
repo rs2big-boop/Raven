@@ -22,9 +22,14 @@ add_library(raven_core
     src/compiler/optimizer.cpp
     src/compiler/bytecode_serializer.cpp
 
-    # Execution Runtime (Tree-Walk Interpreter, Corvus VM)
-    src/runtime/interpreter.cpp
-    src/runtime/vm.cpp
+    # Tree-Walk Execution Engine
+    src/interpreter/interpreter.cpp
+
+    # Corvus Virtual Machine Engine
+    src/vm/vm.cpp
+
+    # Runtime & Memory Management
+    src/runtime/memory/memory_manager.cpp
 
     # Developer Tooling (Linter/Vet, Formatter, Documentation Generator, Language Server)
     src/tools/linter.cpp
