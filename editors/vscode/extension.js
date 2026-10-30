@@ -32,6 +32,49 @@ function getRavenPath() {
     return 'raven';
 }
 
+function getBreakpointsForFile(filePath) {
+    const bps = [];
+    if (vscode.debug && vscode.debug.breakpoints) {
+        for (const bp of vscode.debug.breakpoints) {
+            if (bp instanceof vscode.SourceBreakpoint && bp.location && bp.location.uri) {
+                if (bp.location.uri.fsPath === filePath) {
+                    bps.push(bp.location.range.start.line + 1);
+                }
+            }
+        }
+    }
+    return bps;
+}
+
+function launchDebuggerTerminal(config = {}) {
+    const editor = vscode.window.activeTextEditor;
+    let filePath = config.program;
+    if (!filePath || filePath === '${file}') {
+        if (!editor) {
+            vscode.window.showErrorMessage("No active Raven file to debug.");
+            return;
+        }
+        filePath = editor.document.uri.fsPath;
+    }
+
+    const ravenBin = getRavenPath();
+    const breakpoints = getBreakpointsForFile(filePath);
+    let bpArgs = "";
+    for (const line of breakpoints) {
+        bpArgs += ` -b ${line}`;
+    }
+
+    const stopOnEntry = config.stopOnEntry !== false;
+    const stopArg = stopOnEntry ? "" : " --no-stop-on-entry";
+
+    let terminal = vscode.window.terminals.find(t => t.name === 'Raven Debugger');
+    if (!terminal) {
+        terminal = vscode.window.createTerminal('Raven Debugger');
+    }
+    terminal.show();
+    terminal.sendText(`"${ravenBin}" debug "${filePath}"${bpArgs}${stopArg}`);
+}
+
 function activate(context) {
     outputChannel = vscode.window.createOutputChannel("Raven Language");
     outputChannel.appendLine("Raven Language Extension Activated (v1.0.0)");
@@ -77,23 +120,46 @@ function activate(context) {
 
     // 2b. Command: Raven Debug File
     const debugCmd = vscode.commands.registerCommand('raven.debug', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage("No active Raven file to debug.");
-            return;
-        }
-
-        const filePath = editor.document.uri.fsPath;
-        const ravenBin = getRavenPath();
-
-        let terminal = vscode.window.activeTerminal;
-        if (!terminal || terminal.name !== 'Raven Debugger') {
-            terminal = vscode.window.createTerminal('Raven Debugger');
-        }
-        terminal.show();
-        terminal.sendText(`"${ravenBin}" debug "${filePath}"`);
+        launchDebuggerTerminal({ stopOnEntry: true });
     });
     context.subscriptions.push(debugCmd);
+
+    // 2c. Register Debug Configuration Provider (F5 / Run & Debug View / launch.json)
+    if (vscode.debug && vscode.debug.registerDebugConfigurationProvider) {
+        context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('raven', {
+            provideDebugConfigurations(folder, token) {
+                return [
+                    {
+                        type: 'raven',
+                        request: 'launch',
+                        name: 'Raven: Debug Current File',
+                        program: '${file}',
+                        stopOnEntry: true
+                    }
+                ];
+            },
+            resolveDebugConfiguration(folder, config, token) {
+                if (!config.type && !config.request && !config.name) {
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor && editor.document.languageId === 'raven') {
+                        config.type = 'raven';
+                        config.name = 'Raven: Debug File';
+                        config.request = 'launch';
+                        config.program = '${file}';
+                        config.stopOnEntry = true;
+                    }
+                }
+
+                if (!config.program) {
+                    vscode.window.showInformationMessage("Cannot find a Raven program to debug");
+                    return undefined;
+                }
+
+                launchDebuggerTerminal(config);
+                return undefined;
+            }
+        }));
+    }
 
     // 3. Command: Raven Format File
     const fmtCmd = vscode.commands.registerCommand('raven.fmt', async () => {

@@ -118,6 +118,9 @@ target_link_libraries(ravenc PRIVATE raven_core)
 add_executable(rvm src/cmd/rvm/main.cpp)
 target_link_libraries(rvm PRIVATE raven_core)
 
+add_executable(rvndb src/cmd/rvndb/main.cpp)
+target_link_libraries(rvndb PRIVATE raven_core)
+
 # Tests
 find_package(GTest REQUIRED)
 include(GoogleTest)

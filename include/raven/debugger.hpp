@@ -72,11 +72,20 @@ public:
         breakpoints_.erase(line);
     }
 
+    void set_stop_on_entry(bool stop) {
+        stop_on_entry_ = stop;
+    }
+
     const std::set<size_t>& breakpoints() const { return breakpoints_; }
 
     int start_interactive() {
         std::cout << "🐦 Raven Interactive Debugger (rvndb) v1.1.0\n";
         std::cout << "Target: " << filename_ << " (" << source_lines_.size() << " lines)\n";
+        if (!breakpoints_.empty()) {
+            std::cout << "Active breakpoints: ";
+            for (size_t bp : breakpoints_) std::cout << bp << " ";
+            std::cout << "\n";
+        }
         std::cout << "Type 'help' or 'h' for list of commands, 'run' to start.\n\n";
 
         Lexer lexer(source_);
@@ -92,17 +101,19 @@ public:
         }
 
         Interpreter interpreter;
-        stepping_ = true; // Start paused at first statement
+        stepping_ = stop_on_entry_;
         step_over_ = false;
 
         interpreter.set_step_callback([this](Interpreter& interp, const Stmt& stmt) {
             this->on_step(interp, stmt);
         });
 
-        // Initial prompt before running
-        print_code_context(1, 5);
-        if (!repl_loop(interpreter, 1)) {
-            return 0;
+        // Initial prompt before running if stop on entry is requested
+        if (stop_on_entry_) {
+            print_code_context(1, 5);
+            if (!repl_loop(interpreter, 1)) {
+                return 0;
+            }
         }
 
         try {
@@ -292,6 +303,7 @@ private:
     bool stepping_ = false;
     bool step_over_ = false;
     size_t step_over_depth_ = 0;
+    bool stop_on_entry_ = true;
 };
 
 } // namespace raven
