@@ -72,18 +72,38 @@ struct CallStackGuard {
 
 class UserFunction : public Callable {
 public:
-    UserFunction(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body, std::shared_ptr<Environment> closure)
-        : name_(std::move(name)), params_(std::move(params)), body_(std::move(body)), closure_(std::move(closure)) {}
+    UserFunction(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body,
+                 std::shared_ptr<Environment> closure,
+                 std::vector<std::shared_ptr<Expr>> param_defaults = {})
+        : name_(std::move(name)), params_(std::move(params)), body_(std::move(body)),
+          closure_(std::move(closure)), param_defaults_(std::move(param_defaults)) {}
 
     int arity() const override {
         return static_cast<int>(params_.size());
+    }
+
+    int min_arity() const override {
+        int required = 0;
+        for (size_t i = 0; i < params_.size(); ++i) {
+            if (i >= param_defaults_.size() || param_defaults_[i] == nullptr) {
+                required++;
+            }
+        }
+        return required;
     }
 
     Value call(Interpreter& interpreter, const std::vector<Value>& arguments) override {
         CallStackGuard guard(interpreter, name_.lexeme, name_.line, name_.column);
         auto env = std::make_shared<Environment>(closure_);
         for (std::size_t i = 0; i < params_.size(); ++i) {
-            env->define(params_[i].lexeme, arguments[i]);
+            if (i < arguments.size()) {
+                env->define(params_[i].lexeme, arguments[i]);
+            } else if (i < param_defaults_.size() && param_defaults_[i] != nullptr) {
+                Value def_val = interpreter.evaluate(*param_defaults_[i]);
+                env->define(params_[i].lexeme, def_val);
+            } else {
+                env->define(params_[i].lexeme, Value());
+            }
         }
 
         try {
@@ -109,6 +129,7 @@ private:
     std::vector<Token> params_;
     std::vector<std::shared_ptr<Stmt>> body_;
     std::shared_ptr<Environment> closure_;
+    std::vector<std::shared_ptr<Expr>> param_defaults_;
 };
 
 static std::string value_to_json(const Value& val) {
@@ -1307,6 +1328,43 @@ void Interpreter::execute_block(const std::vector<std::shared_ptr<Stmt>>& statem
 }
 
 Value Interpreter::visit(const BinaryExpr& expr) {
+    if (expr.op.type == TokenType::QuestionQuestion) {
+        Value left = evaluate(*expr.left);
+        if (!left.is_nil()) {
+            return left;
+        }
+        return evaluate(*expr.right);
+    }
+
+    if (expr.op.type == TokenType::Is) {
+        Value left = evaluate(*expr.left);
+        std::string type_name;
+        if (auto* var_expr = dynamic_cast<VariableExpr*>(expr.right.get())) {
+            type_name = var_expr->name.lexeme;
+        } else {
+            type_name = evaluate(*expr.right).to_string();
+        }
+        std::string lower_t = type_name;
+        for (char& c : lower_t) c = std::tolower(static_cast<unsigned char>(c));
+
+        if (lower_t == "number" || lower_t == "num") return Value(left.is_number());
+        if (lower_t == "string" || lower_t == "str") return Value(left.is_string());
+        if (lower_t == "bool" || lower_t == "boolean") return Value(left.is_bool());
+        if (lower_t == "array" || lower_t == "list") return Value(left.is_array());
+        if (lower_t == "map" || lower_t == "dict") return Value(left.is_map());
+        if (lower_t == "nil" || lower_t == "null") return Value(left.is_nil());
+        if (lower_t == "function" || lower_t == "fn" || lower_t == "callable") return Value(left.is_callable());
+
+        if (left.is_map()) {
+            auto m = left.as_map();
+            auto it = m->find("__type__");
+            if (it != m->end() && it->second.to_string() == type_name) {
+                return Value(true);
+            }
+        }
+        return Value(false);
+    }
+
     Value left = evaluate(*expr.left);
     Value right = evaluate(*expr.right);
 
@@ -1439,10 +1497,18 @@ Value Interpreter::visit(const CallExpr& expr) {
     }
 
     auto function = callee.as_callable();
-    if (function->arity() >= 0 && arguments.size() != static_cast<std::size_t>(function->arity())) {
-        throw RuntimeError(expr.paren, "Expected " +
-            std::to_string(function->arity()) + " arguments but got " +
-            std::to_string(arguments.size()) + ".");
+    int min_a = function->min_arity();
+    int max_a = function->arity();
+    if (max_a >= 0 && (static_cast<int>(arguments.size()) < min_a || static_cast<int>(arguments.size()) > max_a)) {
+        if (min_a == max_a) {
+            throw RuntimeError(expr.paren, "Expected " +
+                std::to_string(max_a) + " arguments but got " +
+                std::to_string(arguments.size()) + ".");
+        } else {
+            throw RuntimeError(expr.paren, "Expected between " +
+                std::to_string(min_a) + " and " + std::to_string(max_a) + " arguments but got " +
+                std::to_string(arguments.size()) + ".");
+        }
     }
 
     return function->call(*this, arguments);
@@ -1451,6 +1517,23 @@ Value Interpreter::visit(const CallExpr& expr) {
 Value Interpreter::visit(const ArrayExpr& expr) {
     auto list = std::make_shared<std::vector<Value>>();
     for (const auto& elem : expr.elements) {
+        if (auto* unary = dynamic_cast<UnaryExpr*>(elem.get())) {
+            if (unary->op.type == TokenType::DotDotDot) {
+                Value val = evaluate(*unary->right);
+                if (val.is_array()) {
+                    for (const auto& item : *val.as_array()) {
+                        list->push_back(item);
+                    }
+                } else if (val.is_string()) {
+                    for (char ch : val.as_string()) {
+                        list->push_back(Value(std::string(1, ch)));
+                    }
+                } else {
+                    list->push_back(val);
+                }
+                continue;
+            }
+        }
         list->push_back(evaluate(*elem));
     }
     return Value(list);
@@ -1459,8 +1542,19 @@ Value Interpreter::visit(const ArrayExpr& expr) {
 Value Interpreter::visit(const MapExpr& expr) {
     auto map = std::make_shared<std::unordered_map<std::string, Value>>();
     for (const auto& [k, v] : expr.entries) {
+        if (auto* unary = dynamic_cast<UnaryExpr*>(k.get())) {
+            if (unary->op.type == TokenType::DotDotDot) {
+                Value val = evaluate(*unary->right);
+                if (val.is_map()) {
+                    for (const auto& [sub_k, sub_v] : *val.as_map()) {
+                        (*map)[sub_k] = sub_v;
+                    }
+                }
+                continue;
+            }
+        }
         Value key_val = evaluate(*k);
-        Value val_val = evaluate(*v);
+        Value val_val = v ? evaluate(*v) : Value();
         (*map)[key_val.to_string()] = val_val;
     }
     return Value(map);
@@ -1468,6 +1562,9 @@ Value Interpreter::visit(const MapExpr& expr) {
 
 Value Interpreter::visit(const IndexExpr& expr) {
     Value obj = evaluate(*expr.object);
+    if (expr.is_optional && obj.is_nil()) {
+        return Value();
+    }
     Value idx = evaluate(*expr.index);
 
     if (obj.is_array()) {
@@ -1504,6 +1601,9 @@ Value Interpreter::visit(const IndexExpr& expr) {
         return Value(std::string(1, s[i]));
     }
 
+    if (expr.is_optional) {
+        return Value();
+    }
     throw RuntimeError(expr.bracket, "Only arrays, maps, and strings can be indexed.");
 }
 
@@ -1537,11 +1637,17 @@ Value Interpreter::visit(const IndexAssignExpr& expr) {
 
 Value Interpreter::visit(const PropertyExpr& expr) {
     Value obj = evaluate(*expr.object);
+    if (expr.is_optional && obj.is_nil()) {
+        return Value();
+    }
     if (obj.is_map()) {
         auto& m = *obj.as_map();
         auto it = m.find(expr.name.lexeme);
         if (it == m.end()) return Value();
         return it->second;
+    }
+    if (expr.is_optional) {
+        return Value();
     }
     throw RuntimeError(expr.name, "Property access requires a map/object.");
 }
@@ -1561,7 +1667,8 @@ Value Interpreter::visit(const LambdaExpr& expr) {
         Token{TokenType::Identifier, "<lambda>", 0, 0},
         expr.params,
         expr.body,
-        environment_
+        environment_,
+        expr.param_defaults
     ));
 }
 
@@ -1823,7 +1930,8 @@ void Interpreter::visit(const FunctionStmt& stmt) {
         stmt.name,
         stmt.params,
         stmt.body,
-        environment_
+        environment_,
+        stmt.param_defaults
     );
     environment_->define(stmt.name.lexeme, Value(function));
 }

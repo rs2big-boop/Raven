@@ -1,0 +1,61 @@
+// stdlib/promise.rvn — Async Promise and Future patterns
+
+fn create_promise(executor_fn) {
+    let state = "pending";
+    let value = nil;
+    let callbacks = [];
+    let err_callbacks = [];
+
+    let resolve = fn(val) {
+        if (state != "pending") { return nil; }
+        state = "fulfilled";
+        value = val;
+        for (let cb in callbacks) { cb(val); }
+    };
+
+    let reject = fn(reason) {
+        if (state != "pending") { return nil; }
+        state = "rejected";
+        value = reason;
+        for (let cb in err_callbacks) { cb(reason); }
+    };
+
+    let p = {};
+
+    p["then"] = fn(on_fulfill) {
+        if (state == "fulfilled") {
+            on_fulfill(value);
+        } else if (state == "pending") {
+            push(callbacks, on_fulfill);
+        }
+        return p;
+    };
+
+    p["catch"] = fn(on_reject) {
+        if (state == "rejected") {
+            on_reject(value);
+        } else if (state == "pending") {
+            push(err_callbacks, on_reject);
+        }
+        return p;
+    };
+
+    p["state"] = fn() { return state; };
+    p["value"] = fn() { return value; };
+
+    try {
+        executor_fn(resolve, reject);
+    } catch (err) {
+        reject(str(err));
+    }
+
+    return p;
+}
+
+fn promise_resolve(val) {
+    return create_promise(fn(resolve, reject) { resolve(val); });
+}
+
+fn promise_reject(reason) {
+    return create_promise(fn(resolve, reject) { reject(reason); });
+}

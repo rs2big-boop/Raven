@@ -1,0 +1,48 @@
+// stdlib/cli.rvn — CLI Builder for Raven Applications
+import "stdlib/flag";
+
+fn create_cli(name, version, description) {
+    let commands = {};
+    let global_flags = {};
+    let app = {};
+
+    app["command"] = fn(cmd_name, cmd_desc, handler) {
+        commands[cmd_name] = {"desc": cmd_desc, "handler": handler};
+        return app;
+    };
+
+    app["flag"] = fn(flag_name, flag_desc, default_val) {
+        global_flags[flag_name] = {"desc": flag_desc, "default": default_val};
+        return app;
+    };
+
+    app["run"] = fn(args) {
+        if (len(args) == 0 || args[0] == "--help" || args[0] == "-h") {
+            print(name + " v" + version + " — " + description);
+            print("");
+            print("Usage:");
+            print("  " + name + " <command> [flags]");
+            print("");
+            print("Commands:");
+            let cmd_names = keys(commands);
+            for (let cn in cmd_names) {
+                print("  " + cn + "\t\t" + commands[cn]["desc"]);
+            }
+            return nil;
+        }
+
+        let cmd_name = args[0];
+        if (!map_has_key(commands, cmd_name)) {
+            print("Unknown command: " + cmd_name);
+            return nil;
+        }
+
+        let flags = flag_parse(args);
+        commands[cmd_name]["handler"](flags);
+    };
+
+    app["version"] = fn() { return version; };
+    app["name"] = fn() { return name; };
+
+    return app;
+}

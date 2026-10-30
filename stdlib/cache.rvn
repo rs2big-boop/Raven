@@ -1,0 +1,102 @@
+// stdlib/cache.rvn — LRU Cache and TTL Cache
+
+fn create_lru_cache(max_size) {
+    let cache = {};
+    let order = [];
+    let c = {};
+
+    c["get"] = fn(key) {
+        if (!map_has_key(cache, key)) { return nil; }
+        let new_order = [];
+        for (let k in order) {
+            if (k != key) {
+                push(new_order, k);
+            }
+        }
+        push(new_order, key);
+        order = new_order;
+        return cache[key];
+    };
+
+    c["set"] = fn(key, val) {
+        if (map_has_key(cache, key)) {
+            let new_order = [];
+            for (let k in order) {
+                if (k != key) {
+                    push(new_order, k);
+                }
+            }
+            order = new_order;
+        } else if (len(order) >= max_size) {
+            let evict = order[0];
+            let new_order = [];
+            let i = 1;
+            while (i < len(order)) {
+                push(new_order, order[i]);
+                i += 1;
+            }
+            order = new_order;
+            map_delete(cache, evict);
+        }
+        cache[key] = val;
+        push(order, key);
+    };
+
+    c["has"] = fn(key) {
+        return map_has_key(cache, key);
+    };
+
+    c["delete"] = fn(key) {
+        if (map_has_key(cache, key)) {
+            map_delete(cache, key);
+            let new_order = [];
+            for (let k in order) {
+                if (k != key) {
+                    push(new_order, k);
+                }
+            }
+            order = new_order;
+        }
+    };
+
+    c["size"] = fn() { return len(order); };
+    c["clear"] = fn() { cache = {}; order = []; };
+    c["keys"] = fn() { return order; };
+
+    return c;
+}
+
+fn create_ttl_cache(ttl_seconds) {
+    let cache = {};
+    let expiry = {};
+    let c = {};
+
+    c["set"] = fn(key, val) {
+        cache[key] = val;
+        expiry[key] = time() + ttl_seconds;
+    };
+
+    c["get"] = fn(key) {
+        if (!map_has_key(cache, key)) { return nil; }
+        if (time() > expiry[key]) {
+            map_delete(cache, key);
+            map_delete(expiry, key);
+            return nil;
+        }
+        return cache[key];
+    };
+
+    c["has"] = fn(key) {
+        if (!map_has_key(cache, key)) { return false; }
+        if (time() > expiry[key]) {
+            map_delete(cache, key);
+            map_delete(expiry, key);
+            return false;
+        }
+        return true;
+    };
+
+    c["clear"] = fn() { cache = {}; expiry = {}; };
+
+    return c;
+}

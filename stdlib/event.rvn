@@ -1,0 +1,34 @@
+// stdlib/event.rvn — Event Emitter / Pub-Sub pattern for Raven
+
+fn create_emitter() {
+    let listeners = {};
+    let em = {};
+
+    em["on"] = fn(event, callback) {
+        if (!map_has_key(listeners, event)) {
+            listeners[event] = [];
+        }
+        push(listeners[event], callback);
+    };
+
+    em["emit"] = fn(event, data) {
+        if (!map_has_key(listeners, event)) { return nil; }
+        let cbs = listeners[event];
+        for (let cb in cbs) {
+            cb(data);
+        }
+    };
+
+    em["off"] = fn(event) {
+        if (map_has_key(listeners, event)) {
+            map_delete(listeners, event);
+        }
+    };
+
+    em["listener_count"] = fn(event) {
+        if (!map_has_key(listeners, event)) { return 0; }
+        return len(listeners[event]);
+    };
+
+    return em;
+}

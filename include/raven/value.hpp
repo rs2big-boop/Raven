@@ -167,6 +167,7 @@ class Callable {
 public:
     virtual ~Callable() = default;
     virtual int arity() const = 0;
+    virtual int min_arity() const { return arity(); }
     virtual Value call(Interpreter& interpreter, const std::vector<Value>& arguments) = 0;
     virtual std::string to_string() const = 0;
 };

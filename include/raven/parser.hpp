@@ -40,6 +40,7 @@ private:
     std::shared_ptr<Stmt> print_statement();
     std::shared_ptr<Stmt> if_statement();
     std::shared_ptr<Stmt> while_statement();
+    std::shared_ptr<Stmt> loop_statement();
     std::shared_ptr<Stmt> for_in_statement();
     std::shared_ptr<Stmt> try_catch_statement();
     std::shared_ptr<Stmt> throw_statement();
@@ -54,6 +55,7 @@ private:
     std::unique_ptr<Expr> expression();
     std::unique_ptr<Expr> assignment();
     std::unique_ptr<Expr> pipeline();
+    std::unique_ptr<Expr> coalesce();
     std::unique_ptr<Expr> logic_or();
     std::unique_ptr<Expr> logic_and();
     std::unique_ptr<Expr> equality();

@@ -49,9 +49,15 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
     consume(TokenType::LeftParen, "Expected '(' after function name.");
 
     std::vector<Token> parameters;
+    std::vector<std::shared_ptr<Expr>> param_defaults;
     if (!check(TokenType::RightParen)) {
         do {
             parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
+            if (match({TokenType::Equal})) {
+                param_defaults.push_back(expression());
+            } else {
+                param_defaults.push_back(nullptr);
+            }
         } while (match({TokenType::Comma}));
     }
     consume(TokenType::RightParen, "Expected ')' after parameters.");
@@ -63,7 +69,7 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
     }
     consume(TokenType::RightBrace, "Expected '}' after function body.");
 
-    return std::make_shared<FunctionStmt>(std::move(name), std::move(parameters), std::move(body));
+    return std::make_shared<FunctionStmt>(std::move(name), std::move(parameters), std::move(body), std::move(param_defaults));
 }
 
 std::shared_ptr<Stmt> Parser::var_declaration() {
@@ -87,6 +93,9 @@ std::shared_ptr<Stmt> Parser::statement() {
     }
     if (match({TokenType::While})) {
         return while_statement();
+    }
+    if (match({TokenType::Loop})) {
+        return loop_statement();
     }
     if (match({TokenType::For})) {
         return for_in_statement();
@@ -151,6 +160,20 @@ std::shared_ptr<Stmt> Parser::while_statement() {
 
     auto body = statement();
     return std::make_shared<WhileStmt>(std::move(condition), std::move(body));
+}
+
+std::shared_ptr<Stmt> Parser::loop_statement() {
+    consume(TokenType::LeftBrace, "Expected '{' after 'loop'.");
+    std::vector<std::shared_ptr<Stmt>> body_stmts;
+    while (!check(TokenType::RightBrace) && !is_at_end()) {
+        body_stmts.push_back(declaration());
+    }
+    consume(TokenType::RightBrace, "Expected '}' after loop body.");
+    auto body = std::make_shared<BlockStmt>(std::move(body_stmts));
+    return std::make_shared<WhileStmt>(
+        std::make_unique<LiteralExpr>(Value(true)),
+        std::move(body)
+    );
 }
 
 std::shared_ptr<Stmt> Parser::for_in_statement() {
@@ -301,11 +324,23 @@ std::unique_ptr<Expr> Parser::assignment() {
 }
 
 std::unique_ptr<Expr> Parser::pipeline() {
-    auto expr = logic_or();
+    auto expr = coalesce();
 
     while (match({TokenType::PipeGreater})) {
-        auto right = logic_or();
+        auto right = coalesce();
         expr = std::make_unique<PipelineExpr>(std::move(expr), std::move(right));
+    }
+
+    return expr;
+}
+
+std::unique_ptr<Expr> Parser::coalesce() {
+    auto expr = logic_or();
+
+    while (match({TokenType::QuestionQuestion})) {
+        Token op = previous();
+        auto right = logic_or();
+        expr = std::make_unique<BinaryExpr>(std::move(expr), std::move(op), std::move(right));
     }
 
     return expr;
@@ -350,7 +385,7 @@ std::unique_ptr<Expr> Parser::equality() {
 std::unique_ptr<Expr> Parser::comparison() {
     auto expr = term();
 
-    while (match({TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual})) {
+    while (match({TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual, TokenType::Is})) {
         Token op = previous();
         auto right = term();
         expr = std::make_unique<BinaryExpr>(std::move(expr), std::move(op), std::move(right));
@@ -407,6 +442,16 @@ std::unique_ptr<Expr> Parser::call_or_index() {
         } else if (match({TokenType::Dot})) {
             Token name = consume(TokenType::Identifier, "Expected property name after '.'.");
             expr = std::make_unique<PropertyExpr>(std::move(expr), std::move(name));
+        } else if (match({TokenType::QuestionDot})) {
+            if (match({TokenType::LeftBracket})) {
+                Token bracket = previous();
+                auto index = expression();
+                consume(TokenType::RightBracket, "Expected ']' after index.");
+                expr = std::make_unique<IndexExpr>(std::move(expr), bracket, std::move(index), true);
+            } else {
+                Token name = consume(TokenType::Identifier, "Expected property name after '?.'.");
+                expr = std::make_unique<PropertyExpr>(std::move(expr), std::move(name), true);
+            }
         } else {
             break;
         }
@@ -453,7 +498,13 @@ std::unique_ptr<Expr> Parser::primary() {
         std::vector<std::unique_ptr<Expr>> elements;
         if (!check(TokenType::RightBracket)) {
             do {
-                elements.push_back(expression());
+                if (match({TokenType::DotDotDot})) {
+                    Token dot_tok = previous();
+                    auto spread_operand = expression();
+                    elements.push_back(std::make_unique<UnaryExpr>(dot_tok, std::move(spread_operand)));
+                } else {
+                    elements.push_back(expression());
+                }
             } while (match({TokenType::Comma}));
         }
         consume(TokenType::RightBracket, "Expected ']' after array elements.");
@@ -465,23 +516,35 @@ std::unique_ptr<Expr> Parser::primary() {
         std::vector<std::pair<std::unique_ptr<Expr>, std::unique_ptr<Expr>>> entries;
         if (!check(TokenType::RightBrace)) {
             do {
-                auto key = expression();
-                consume(TokenType::Colon, "Expected ':' after map key.");
-                auto val = expression();
-                entries.emplace_back(std::move(key), std::move(val));
+                if (match({TokenType::DotDotDot})) {
+                    Token dot_tok = previous();
+                    auto spread_map = expression();
+                    entries.emplace_back(std::make_unique<UnaryExpr>(dot_tok, std::move(spread_map)), nullptr);
+                } else {
+                    auto key = expression();
+                    consume(TokenType::Colon, "Expected ':' after map key.");
+                    auto val = expression();
+                    entries.emplace_back(std::move(key), std::move(val));
+                }
             } while (match({TokenType::Comma}));
         }
         consume(TokenType::RightBrace, "Expected '}' after map entries.");
         return std::make_unique<MapExpr>(std::move(entries));
     }
 
-    // Anonymous lambda: fn(a, b) { ... }
+    // Anonymous lambda: fn(a, b = 2) { ... }
     if (match({TokenType::Fn})) {
         consume(TokenType::LeftParen, "Expected '(' after 'fn'.");
         std::vector<Token> parameters;
+        std::vector<std::shared_ptr<Expr>> param_defaults;
         if (!check(TokenType::RightParen)) {
             do {
                 parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
+                if (match({TokenType::Equal})) {
+                    param_defaults.push_back(expression());
+                } else {
+                    param_defaults.push_back(nullptr);
+                }
             } while (match({TokenType::Comma}));
         }
         consume(TokenType::RightParen, "Expected ')' after parameters.");
@@ -491,7 +554,7 @@ std::unique_ptr<Expr> Parser::primary() {
             body.push_back(declaration());
         }
         consume(TokenType::RightBrace, "Expected '}' after function body.");
-        return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body));
+        return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body), std::move(param_defaults));
     }
 
     // Match expression: match (expr) { pattern => body, _ => default }

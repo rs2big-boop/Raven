@@ -188,8 +188,8 @@ public:
 
 class IndexExpr : public Expr {
 public:
-    IndexExpr(std::unique_ptr<Expr> object, Token bracket, std::unique_ptr<Expr> index)
-        : object(std::move(object)), bracket(std::move(bracket)), index(std::move(index)) {}
+    IndexExpr(std::unique_ptr<Expr> object, Token bracket, std::unique_ptr<Expr> index, bool is_optional = false)
+        : object(std::move(object)), bracket(std::move(bracket)), index(std::move(index)), is_optional(is_optional) {}
 
     Value accept(ExprVisitor<Value>& visitor) const override { return visitor.visit(*this); }
     std::string accept(ExprVisitor<std::string>& visitor) const override { return visitor.visit(*this); }
@@ -198,6 +198,7 @@ public:
     std::unique_ptr<Expr> object;
     Token bracket;
     std::unique_ptr<Expr> index;
+    bool is_optional = false;
 };
 
 class IndexAssignExpr : public Expr {
@@ -217,8 +218,8 @@ public:
 
 class PropertyExpr : public Expr {
 public:
-    PropertyExpr(std::unique_ptr<Expr> object, Token name)
-        : object(std::move(object)), name(std::move(name)) {}
+    PropertyExpr(std::unique_ptr<Expr> object, Token name, bool is_optional = false)
+        : object(std::move(object)), name(std::move(name)), is_optional(is_optional) {}
 
     Value accept(ExprVisitor<Value>& visitor) const override { return visitor.visit(*this); }
     std::string accept(ExprVisitor<std::string>& visitor) const override { return visitor.visit(*this); }
@@ -226,6 +227,7 @@ public:
 
     std::unique_ptr<Expr> object;
     Token name;
+    bool is_optional = false;
 };
 
 class PropertyAssignExpr : public Expr {
@@ -244,8 +246,9 @@ public:
 
 class LambdaExpr : public Expr {
 public:
-    LambdaExpr(std::vector<Token> params, std::vector<std::shared_ptr<class Stmt>> body)
-        : params(std::move(params)), body(std::move(body)) {}
+    LambdaExpr(std::vector<Token> params, std::vector<std::shared_ptr<class Stmt>> body,
+               std::vector<std::shared_ptr<Expr>> param_defaults = {})
+        : params(std::move(params)), body(std::move(body)), param_defaults(std::move(param_defaults)) {}
 
     Value accept(ExprVisitor<Value>& visitor) const override { return visitor.visit(*this); }
     std::string accept(ExprVisitor<std::string>& visitor) const override { return visitor.visit(*this); }
@@ -253,6 +256,7 @@ public:
 
     std::vector<Token> params;
     std::vector<std::shared_ptr<class Stmt>> body;
+    std::vector<std::shared_ptr<Expr>> param_defaults;
 };
 
 class PipelineExpr : public Expr {
@@ -472,14 +476,17 @@ public:
 
 class FunctionStmt : public Stmt {
 public:
-    FunctionStmt(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body)
-        : name(std::move(name)), params(std::move(params)), body(std::move(body)) {}
+    FunctionStmt(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body,
+                 std::vector<std::shared_ptr<Expr>> param_defaults = {})
+        : name(std::move(name)), params(std::move(params)), body(std::move(body)),
+          param_defaults(std::move(param_defaults)) {}
 
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
     Token name;
     std::vector<Token> params;
     std::vector<std::shared_ptr<Stmt>> body;
+    std::vector<std::shared_ptr<Expr>> param_defaults;
 };
 
 class ReturnStmt : public Stmt {

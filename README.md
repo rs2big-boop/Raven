@@ -1,11 +1,34 @@
 # Raven Programming Language v1.0.0
 
+<p align="center">
+  <img src="logo.png" alt="Raven Programming Language" width="450" />
+</p>
+
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-59%2F59%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-68%2F68%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
 > [![License](https://img.shields.io/badge/license-MIT-green)](#)
+
+---
+
+## What Makes Raven Unique (v1.0.0 Features)
+
+Raven was designed to provide a modern, ergonomic, and rock-solid scripting and systems language experience:
+
+- **Native CSP Concurrency**: Real multi-threaded `spawn()` and native thread-safe channels (`chan_create()`, `chan_send()`, `chan_recv()`).
+- **Default Function Parameters**: `fn greet(name = "World") { ... }` supported in functions and closures.
+- **Null Coalescing Operator (`??`)**: Short-circuiting fallback operator (`let host = env("HOST") ?? "localhost"`).
+- **Optional Chaining (`?.`)**: Safe navigation through nil properties and indices (`user?.address?.city`, `records?.[0]`).
+- **`is` Type Operator**: Clean and readable runtime type verification (`42 is Number`, `"text" is String`, `items is Array`).
+- **Spread Operator (`...`)**: Concise array and map merging (`[...items, 99]`, `{...config, "port": 8080}`).
+- **`loop {}` Infinite Loop**: Ergonomic infinite loop construct with `break` and `continue`.
+- **Multi-Line Strings**: Clean `""" ... """` triple-quoted syntax for templates and multiline text.
+- **"Did You Mean?" Suggestions**: Automatic Levenshtein distance typo detection for undefined variables and functions.
+- **Full Call Stack Traces**: Deterministic multi-frame call stacks with function names, line numbers, and columns on runtime errors.
+- **Interactive REPL**: Rich shell with `.help`, `.load`, `.clear`, `.version`, multi-line input, and `=>` expression previews.
+- **Built-in Package Manager**: `raven pkg init`, `raven pkg install <repo>[@tag]`, `raven pkg list`, and `raven.lock`.
 
 ---
 
@@ -31,9 +54,10 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (59/59 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (68/68 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
+- `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
 
 ---
 

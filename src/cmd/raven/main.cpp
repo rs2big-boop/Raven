@@ -113,32 +113,127 @@ static int run_file(const std::string& path, bool use_vm = false, bool disasm = 
 }
 
 static void run_prompt() {
-    std::cout << "Raven 1.0.0 Interactive Shell (Tree-Walk & Bytecode VM)\n";
-    std::cout << "Type 'exit' or press Ctrl+D to quit.\n";
+    std::cout << "🐦 Raven 1.0.0 Interactive Shell\n";
+    std::cout << "   Type .help for commands, .quit to exit\n\n";
 
     Interpreter interpreter;
     std::string line;
+    std::string accumulated;
+    int brace_depth = 0;
 
     while (true) {
-        std::cout << "raven> ";
+        std::string prompt = (accumulated.empty()) ? "raven> " : "   ... ";
+        std::cout << prompt;
+        std::cout.flush();
+
         if (!std::getline(std::cin, line)) {
             std::cout << "\n";
             break;
         }
 
-        if (line == "exit" || line == "quit") {
-            break;
+        if (accumulated.empty()) {
+            std::string trimmed = line;
+            while (!trimmed.empty() && (trimmed.front() == ' ' || trimmed.front() == '\t')) trimmed.erase(0, 1);
+            while (!trimmed.empty() && (trimmed.back() == ' ' || trimmed.back() == '\t')) trimmed.pop_back();
+
+            if (trimmed == ".quit" || trimmed == ".exit" || trimmed == "exit" || trimmed == "quit") {
+                std::cout << "Goodbye! 🐦\n";
+                break;
+            }
+            if (trimmed == ".help") {
+                std::cout << "Raven REPL Commands:\n"
+                          << "  .help              Show this help\n"
+                          << "  .quit / .exit      Exit the REPL\n"
+                          << "  .load <file>       Load and execute a .rvn file\n"
+                          << "  .clear             Clear the screen\n"
+                          << "  .version           Show Raven version\n\n"
+                          << "Keyboard shortcuts:\n"
+                          << "  Ctrl+C             Interrupt current input\n"
+                          << "  Ctrl+D             Exit REPL\n\n"
+                          << "Examples:\n"
+                          << "  let x = 42;\n"
+                          << "  fn add(a, b = 10) { return a + b; }\n"
+                          << "  add(3);\n";
+                continue;
+            }
+            if (trimmed == ".clear") {
+                std::cout << "\033[2J\033[H";
+                continue;
+            }
+            if (trimmed == ".version") {
+                std::cout << "Raven 1.0.0 (Corvus Engine & VM)\n";
+                continue;
+            }
+            if (trimmed.rfind(".load ", 0) == 0) {
+                std::string path = trimmed.substr(6);
+                while (!path.empty() && path.front() == ' ') path.erase(0, 1);
+                std::ifstream f(path);
+                if (!f.is_open()) {
+                    std::cerr << "Error: Could not open '" << path << "'\n";
+                } else {
+                    std::ostringstream ss;
+                    ss << f.rdbuf();
+                    run(ss.str(), interpreter);
+                }
+                continue;
+            }
         }
 
-        if (line.empty()) {
+        accumulated += line + "\n";
+
+        for (char ch : line) {
+            if (ch == '{' || ch == '(' || ch == '[') { brace_depth++; }
+            else if (ch == '}' || ch == ')' || ch == ']') { brace_depth = std::max(0, brace_depth - 1); }
+        }
+
+        if (brace_depth > 0) continue;
+
+        std::string code = accumulated;
+        accumulated.clear();
+        brace_depth = 0;
+
+        if (code.find_first_not_of(" \t\n\r") == std::string::npos) continue;
+
+        std::string test_code = code;
+        while (!test_code.empty() && (test_code.back() == '\n' || test_code.back() == '\r' || test_code.back() == ' ' || test_code.back() == '\t')) {
+            test_code.pop_back();
+        }
+        if (!test_code.empty() && test_code.back() != ';' && test_code.back() != '}') {
+            code = test_code + ";\n";
+        }
+
+        Lexer lexer(code);
+        auto tokens = lexer.tokenize();
+        Parser parser(tokens);
+        auto stmts = parser.parse();
+
+        if (parser.has_error()) {
+            for (const auto& err : parser.errors()) {
+                std::cerr << err << "\n";
+            }
             continue;
         }
 
-        if (line.back() != ';' && line.back() != '}') {
-            line += ";";
+        try {
+            if (stmts.size() == 1) {
+                auto* expr_stmt = dynamic_cast<ExpressionStmt*>(stmts[0].get());
+                if (expr_stmt) {
+                    Value result = interpreter.evaluate(*expr_stmt->expression);
+                    if (!result.is_nil()) {
+                        std::cout << "=> " << result.to_string() << "\n";
+                    }
+                    continue;
+                }
+            }
+            interpreter.interpret(stmts);
+        } catch (const RuntimeError& error) {
+            std::cerr << "[line " << error.token().line << "] Error: " << error.what() << "\n";
+            for (auto it = error.stack_trace().rbegin(); it != error.stack_trace().rend(); ++it) {
+                std::cerr << "    at " << it->function_name << " (line " << it->line << ")\n";
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
         }
-
-        run(line, interpreter);
     }
 }
 

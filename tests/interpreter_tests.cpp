@@ -640,3 +640,105 @@ TEST(InterpreterTest, CallStackTraceVerification) {
         EXPECT_EQ(err.stack_trace().back().function_name, "func_c");
     }
 }
+
+TEST(InterpreterTest, DefaultParameters) {
+    EXPECT_EQ(run_code("fn greet(name = \"World\") { return \"Hello, \" + name + \"!\"; }\n"
+                       "print(greet());\n"
+                       "print(greet(\"Raven\"));\n"), "Hello, World!\nHello, Raven!\n");
+}
+
+TEST(InterpreterTest, NullCoalescing) {
+    EXPECT_EQ(run_code("let x = nil;\n"
+                       "let y = x ?? \"default\";\n"
+                       "print(y);\n"
+                       "let z = 42 ?? \"default\";\n"
+                       "print(z);\n"), "default\n42\n");
+}
+
+TEST(InterpreterTest, IsTypeOperator) {
+    EXPECT_EQ(run_code("print(42 is Number);\n"
+                       "print(\"hi\" is String);\n"
+                       "print(true is Bool);\n"
+                       "print([1,2] is Array);\n"
+                       "print(nil is Nil);\n"), "true\ntrue\ntrue\ntrue\ntrue\n");
+}
+
+TEST(InterpreterTest, OptionalChaining) {
+    EXPECT_EQ(run_code("let obj = nil;\n"
+                       "print(obj?.name);\n"
+                       "print(obj?.[0]);\n"
+                       "let person = {\"name\": \"Alice\"};\n"
+                       "print(person?.name);\n"), "nil\nnil\nAlice\n");
+}
+
+TEST(InterpreterTest, SpreadOperator) {
+    EXPECT_EQ(run_code("let a = [1, 2, 3];\n"
+                       "let b = [...a, 4, 5];\n"
+                       "print(len(b));\n"
+                       "print(b[3]);\n"
+                       "let m1 = {\"x\": 10};\n"
+                       "let m2 = {...m1, \"y\": 20};\n"
+                       "print(m2[\"x\"] + m2[\"y\"]);\n"), "5\n4\n30\n");
+}
+
+TEST(InterpreterTest, LoopKeyword) {
+    EXPECT_EQ(run_code("let i = 0;\n"
+                       "loop {\n"
+                       "    i += 1;\n"
+                       "    if (i >= 3) { break; }\n"
+                       "}\n"
+                       "print(i);\n"), "3\n");
+}
+
+TEST(InterpreterTest, MultiLineStrings) {
+    std::string source =
+        "let msg = \"\"\"line 1\n"
+        "line 2\"\"\";\n"
+        "print(msg);\n";
+    EXPECT_EQ(run_code(source), "line 1\nline 2\n");
+}
+
+TEST(InterpreterTest, DidYouMeanSuggestion) {
+    std::string source =
+        "let message = \"hello\";\n"
+        "mesage;\n";
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto stmts = parser.parse();
+    Interpreter interp;
+    try {
+        interp.interpret(stmts);
+        FAIL() << "Expected RuntimeError";
+    } catch (const RuntimeError& err) {
+        std::string msg = err.what();
+        EXPECT_NE(msg.find("Did you mean 'message'?"), std::string::npos);
+    }
+}
+
+TEST(InterpreterTest, NewStdlibModules) {
+    std::string source =
+        "import \"stdlib/event\";\n"
+        "import \"stdlib/cache\";\n"
+        "import \"stdlib/validate\";\n"
+        "\n"
+        "let em = create_emitter();\n"
+        "let received = nil;\n"
+        "em.on(\"data\", fn(d) { received = d; });\n"
+        "em.emit(\"data\", 42);\n"
+        "print(received);\n"
+        "\n"
+        "let cache = create_lru_cache(2);\n"
+        "cache.set(\"a\", 1);\n"
+        "cache.set(\"b\", 2);\n"
+        "print(cache.get(\"a\"));\n"
+        "print(cache.size());\n"
+        "\n"
+        "let errs = validate_schema({\"name\": \"Ran\", \"age\": 25}, {\n"
+        "    \"name\": {\"required\": true, \"type\": \"string\"},\n"
+        "    \"age\": {\"required\": true, \"type\": \"number\"}\n"
+        "});\n"
+        "print(len(errs));\n";
+
+    EXPECT_EQ(run_code(source), "42\n1\n2\n0\n");
+}

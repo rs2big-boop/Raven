@@ -123,6 +123,8 @@ Token Lexer::scan_identifier_or_keyword() {
         {"false", TokenType::False},
         {"nil", TokenType::Nil},
         {"null", TokenType::Nil},
+        {"loop", TokenType::Loop},
+        {"is", TokenType::Is},
     };
 
     int start_line = line_;
@@ -151,9 +153,53 @@ Token Lexer::scan_identifier_or_keyword() {
 Token Lexer::scan_string() {
     int start_line = line_;
     int start_col = column_;
-    advance();
+    advance(); // consume opening "
+
+    bool is_triple = false;
+    if (!is_at_end() && peek() == '"' && peek_next() == '"') {
+        is_triple = true;
+        advance(); // second "
+        advance(); // third "
+    }
 
     std::string value;
+    if (is_triple) {
+        while (!is_at_end()) {
+            if (peek() == '"' && peek_next() == '"' &&
+                position_ + 2 < source_.size() && source_[position_ + 2] == '"') {
+                advance(); // 1
+                advance(); // 2
+                advance(); // 3
+                return Token{TokenType::String, std::move(value), start_line, start_col};
+            }
+            char c = peek();
+            if (c == '\n') {
+                line_++;
+                column_ = 0;
+                value += advance();
+            } else if (c == '\\') {
+                advance();
+                if (is_at_end()) {
+                    return Token{TokenType::Invalid, "Unterminated escape sequence", start_line, start_col};
+                }
+                char escaped = advance();
+                switch (escaped) {
+                    case 'n': value += '\n'; break;
+                    case 't': value += '\t'; break;
+                    case 'r': value += '\r'; break;
+                    case '"': value += '"'; break;
+                    case '\\': value += '\\'; break;
+                    default:
+                        value += escaped;
+                        break;
+                }
+            } else {
+                value += advance();
+            }
+        }
+        return Token{TokenType::Invalid, "Unterminated multi-line string", start_line, start_col};
+    }
+
     while (!is_at_end() && peek() != '"') {
         char c = peek();
         if (c == '\n') {
@@ -334,7 +380,22 @@ std::vector<Token> Lexer::tokenize() {
                     tokens.push_back(Token{TokenType::Colon, ":", start_line, start_col});
                     break;
                 case '.':
-                    tokens.push_back(Token{TokenType::Dot, ".", start_line, start_col});
+                    if (peek() == '.' && peek_next() == '.') {
+                        advance();
+                        advance();
+                        tokens.push_back(Token{TokenType::DotDotDot, "...", start_line, start_col});
+                    } else {
+                        tokens.push_back(Token{TokenType::Dot, ".", start_line, start_col});
+                    }
+                    break;
+                case '?':
+                    if (match('?')) {
+                        tokens.push_back(Token{TokenType::QuestionQuestion, "??", start_line, start_col});
+                    } else if (match('.')) {
+                        tokens.push_back(Token{TokenType::QuestionDot, "?.", start_line, start_col});
+                    } else {
+                        tokens.push_back(Token{TokenType::Invalid, "?", start_line, start_col});
+                    }
                     break;
                 case ',':
                     tokens.push_back(Token{TokenType::Comma, ",", start_line, start_col});

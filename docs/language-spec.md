@@ -533,13 +533,26 @@ print("${5} squared is ${5 * 5}");           // 5 squared is 25
 | `stdlib/arena` | `create_arena` with `.allocate/.reset/.count` |
 | `stdlib/unique` | `unique_make` (interned values) |
 | `stdlib/strconv` | `atoi`, `itoa`, `parse_int`, `parse_float`, `format_int` |
+| `stdlib/event` | `create_emitter` with `.on`, `.emit`, `.off`, `.listener_count` |
+| `stdlib/cache` | `create_lru_cache`, `create_ttl_cache` |
+| `stdlib/validate` | `validate_schema`, `validate_string`, `validate_number` |
+| `stdlib/promise` | `create_promise`, `promise_resolve`, `promise_reject` |
+| `stdlib/cli` | `create_cli` with `.command`, `.flag`, `.run` |
 
 ---
 
 ## Raven v1.0.0 — What's New
 
 - **Native CSP Concurrency**: `spawn()` creates real OS threads; `chan_*` builtins provide typed, thread-safe channels; `stdlib/sync` wraps them into `go()`, `create_channel()`, `create_wait_group()`.
-- **Full Call Stack Traces**: Runtime errors now include the full chain of function calls, including function name, line and column — making debugging easy.
+- **Default Function Parameters**: `fn greet(name = "World") { ... }` with default argument binding for functions and lambdas.
+- **Null Coalescing Operator (`??`)**: `x ?? fallback` short-circuiting operator.
+- **Optional Chaining (`?.`)**: Safe navigation `obj?.prop` and `arr?.[index]` without throwing when targeting `nil`.
+- **`is` Type Checking Operator**: Type verification: `val is Number`, `val is String`, `val is Array`, etc.
+- **Spread Operator (`...`)**: Modern inline expansion: `[...prefix, 4, 5]` and `{...m1, "k": v}`.
+- **`loop {}` Infinite Loop**: Ergonomic infinite loop construct with `break` and `continue`.
+- **Multi-line Triple-Quoted Strings**: `""" ... """` strings with preserved newlines.
+- **"Did You Mean?" Suggestions**: Levenshtein distance error hints for undefined variables.
+- **Full Call Stack Traces**: Runtime errors now include the full chain of function calls with name, line and column.
 - **Package Manager**: `raven pkg install <git-url>[@tag]` clones packages into `raven_modules/` and produces a `raven.lock` file for reproducible builds. `raven pkg list` inspects installed packages.
 - **Release Distributions**: `dist.bash` builds, tests, assembles, and SHA-256-checksums a `raven-v1.0.0-linux-x86_64.tar.gz` archive ready for upload.
-- **59/59 Tests Passing**: Full test coverage across lexer, parser, interpreter, bytecode VM, stdlib, concurrency, and toolchain integration.
+- **68/68 Tests Passing**: Full test coverage across lexer, parser, interpreter, bytecode VM, stdlib, concurrency, and toolchain integration.

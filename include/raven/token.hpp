@@ -28,6 +28,8 @@ enum class TokenType {
     True,
     False,
     Nil,
+    Loop,
+    Is,
 
     // Literals & Identifiers
     Identifier,
@@ -69,6 +71,9 @@ enum class TokenType {
     PipePipe,
     PipeGreater, // |>
     Arrow,       // =>
+    QuestionQuestion, // ??
+    QuestionDot,      // ?.
+    DotDotDot,        // ...
 
     // Control
     EndOfFile,
@@ -111,6 +116,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::True: return "True";
         case TokenType::False: return "False";
         case TokenType::Nil: return "Nil";
+        case TokenType::Loop: return "Loop";
+        case TokenType::Is: return "Is";
 
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";
@@ -149,6 +156,9 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::PipePipe: return "PipePipe";
         case TokenType::PipeGreater: return "PipeGreater";
         case TokenType::Arrow: return "Arrow";
+        case TokenType::QuestionQuestion: return "QuestionQuestion";
+        case TokenType::QuestionDot: return "QuestionDot";
+        case TokenType::DotDotDot: return "DotDotDot";
 
         case TokenType::EndOfFile: return "EndOfFile";
         case TokenType::Invalid: return "Invalid";
