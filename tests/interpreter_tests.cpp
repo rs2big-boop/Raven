@@ -9,6 +9,7 @@
 #include "raven/optimizer.hpp"
 #include "raven/parser.hpp"
 #include "raven/vm.hpp"
+#include "raven/debugger.hpp"
 
 using namespace raven;
 
@@ -820,4 +821,55 @@ TEST(InterpreterTest, DualEngineDifferentialParityArraysAndLoops) {
     std::string vm_out = run_vm_code(source);
     EXPECT_EQ(interp_out, vm_out);
     EXPECT_EQ(interp_out, "60\n");
+}
+
+TEST(InterpreterTest, DualEngineDifferentialParityNullCoalescingAndTypeCheck) {
+    std::string source =
+        "let a = nil;\n"
+        "let b = a ?? 100;\n"
+        "let c = 42 ?? 200;\n"
+        "print(b);\n"
+        "print(c);\n"
+        "print(b is Number);\n"
+        "print(\"hello\" is String);\n"
+        "print(nil is Nil);\n";
+
+    std::string interp_out = run_code(source);
+    std::string vm_out = run_vm_code(source);
+    EXPECT_EQ(interp_out, vm_out);
+    EXPECT_EQ(interp_out, "100\n42\ntrue\ntrue\ntrue\n");
+}
+
+TEST(InterpreterTest, ChannelRecvTimeout) {
+    std::string source =
+        "import \"stdlib/sync\";\n"
+        "let ch = create_channel(1);\n"
+        "// 1. Channel is empty, expect timeout -> nil\n"
+        "let res1 = ch.recv_timeout(20);\n"
+        "print(res1 == nil);\n"
+        "// 2. Send value, expect immediate recv with timeout\n"
+        "ch.send(\"hello\");\n"
+        "let res2 = ch.recv_timeout(100);\n"
+        "print(res2);\n";
+
+    EXPECT_EQ(run_code(source), "true\nhello\n");
+}
+
+TEST(InterpreterTest, InteractiveDebuggerBasics) {
+    std::string source =
+        "let x = 10;\n"
+        "let y = 20;\n"
+        "let z = x + y;\n";
+
+    Debugger dbg("test.rvn", source);
+    dbg.add_breakpoint(2);
+    dbg.add_breakpoint(3);
+    EXPECT_EQ(dbg.breakpoints().size(), 2);
+    EXPECT_TRUE(dbg.breakpoints().count(2));
+    EXPECT_TRUE(dbg.breakpoints().count(3));
+
+    dbg.remove_breakpoint(2);
+    EXPECT_EQ(dbg.breakpoints().size(), 1);
+    EXPECT_FALSE(dbg.breakpoints().count(2));
+    EXPECT_TRUE(dbg.breakpoints().count(3));
 }

@@ -189,6 +189,13 @@ InterpretResult VM::run(const Chunk& chunk) {
                 }
                 break;
             }
+            case OpCode::JumpIfNotNil: {
+                uint16_t offset = read_short();
+                if (!peek(0).is_nil()) {
+                    ip += offset;
+                }
+                break;
+            }
             case OpCode::Jump: {
                 uint16_t offset = read_short();
                 ip += offset;
@@ -231,6 +238,28 @@ InterpretResult VM::run(const Chunk& chunk) {
                     arr[i] = val;
                     push(val);
                 }
+                break;
+            }
+            case OpCode::CheckType: {
+                uint8_t const_idx = read_byte();
+                std::string type_name = chunk.constants[const_idx].to_string();
+                for (char& c : type_name) c = std::tolower(static_cast<unsigned char>(c));
+
+                Value val = pop();
+                bool match = false;
+                if (type_name == "number" || type_name == "num") match = val.is_number();
+                else if (type_name == "string" || type_name == "str") match = val.is_string();
+                else if (type_name == "bool" || type_name == "boolean") match = val.is_bool();
+                else if (type_name == "array" || type_name == "list") match = val.is_array();
+                else if (type_name == "map" || type_name == "dict") match = val.is_map();
+                else if (type_name == "nil" || type_name == "null") match = val.is_nil();
+                else if (type_name == "function" || type_name == "fn" || type_name == "callable") match = val.is_callable();
+                else if (val.is_map()) {
+                    auto m = val.as_map();
+                    auto it = m->find("__type__");
+                    if (it != m->end() && it->second.to_string() == type_name) match = true;
+                }
+                push(Value(match));
                 break;
             }
             case OpCode::Call: {

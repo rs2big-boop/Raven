@@ -48,6 +48,29 @@ uint8_t Compiler::make_constant(Value value) {
 }
 
 void Compiler::visit(const BinaryExpr& expr) {
+    if (expr.op.type == TokenType::QuestionQuestion) {
+        expr.left->accept(*this);
+        int end_jump = emit_jump(OpCode::JumpIfNotNil);
+        emit_op(OpCode::Pop);
+        expr.right->accept(*this);
+        patch_jump(end_jump);
+        return;
+    }
+
+    if (expr.op.type == TokenType::Is) {
+        expr.left->accept(*this);
+        std::string type_name;
+        if (auto* var = dynamic_cast<const VariableExpr*>(expr.right.get())) {
+            type_name = var->name.lexeme;
+        } else {
+            type_name = "unknown";
+        }
+        uint8_t const_idx = make_constant(Value(type_name));
+        emit_op(OpCode::CheckType);
+        emit_byte(const_idx);
+        return;
+    }
+
     expr.left->accept(*this);
     expr.right->accept(*this);
 

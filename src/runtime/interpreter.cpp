@@ -1266,6 +1266,33 @@ void Interpreter::register_builtins() {
         return val;
     });
 
+    def("chan_recv_timeout", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int64_t id = static_cast<int64_t>(args[0].as_number());
+        int64_t timeout_ms = static_cast<int64_t>(args[1].as_number());
+        std::shared_ptr<NativeChannel> ch;
+        {
+            std::lock_guard<std::mutex> lock(g_channels_mutex);
+            auto it = g_channels.find(id);
+            if (it == g_channels.end()) {
+                throw RuntimeError(Token{TokenType::Identifier, "chan_recv_timeout", 0, 0}, "Invalid channel ID.");
+            }
+            ch = it->second;
+        }
+        std::unique_lock<std::mutex> lk(ch->mtx);
+        bool ok = ch->cv_recv.wait_for(lk, std::chrono::milliseconds(timeout_ms), [&]() {
+            return !ch->queue.empty() || ch->closed;
+        });
+        if (!ok || (ch->queue.empty() && ch->closed)) {
+            return Value();
+        }
+        Value val = ch->queue.front();
+        ch->queue.pop_front();
+        if (ch->capacity > 0) {
+            ch->cv_send.notify_one();
+        }
+        return val;
+    });
+
     def("chan_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int64_t id = static_cast<int64_t>(args[0].as_number());
         std::shared_ptr<NativeChannel> ch;
@@ -1417,6 +1444,9 @@ void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements
 }
 
 void Interpreter::execute(const Stmt& stmt) {
+    if (step_callback_) {
+        step_callback_(*this, stmt);
+    }
     stmt.accept(*this);
 }
 

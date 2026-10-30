@@ -10,6 +10,7 @@ fn create_channel(capacity) {
     let ch = {};
     ch["send"] = fn(val) { return chan_send(id, val); };
     ch["recv"] = fn() { return chan_recv(id); };
+    ch["recv_timeout"] = fn(timeout_ms) { return chan_recv_timeout(id, timeout_ms); };
     ch["close"] = fn() { return chan_close(id); };
     ch["len"] = fn() { return chan_len(id); };
     ch["id"] = id;

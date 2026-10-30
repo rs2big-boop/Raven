@@ -65,6 +65,7 @@ enum class OpCode : uint8_t {
     SetLocal,
 
     JumpIfFalse,
+    JumpIfNotNil,
     Jump,
     Loop,
 
@@ -72,6 +73,7 @@ enum class OpCode : uint8_t {
     IndexGet,
     IndexSet,
 
+    CheckType,
     Call,
     Return
 };
@@ -213,6 +215,12 @@ public:
                    << (offset + 3 + jump) << "\n";
                 return offset + 3;
             }
+            case OpCode::JumpIfNotNil: {
+                uint16_t jump = (static_cast<uint16_t>(code[offset + 1]) << 8) | code[offset + 2];
+                os << std::left << std::setw(18) << "OP_JUMP_IF_NOT_NIL" << " -> "
+                   << (offset + 3 + jump) << "\n";
+                return offset + 3;
+            }
             case OpCode::Jump: {
                 uint16_t jump = (static_cast<uint16_t>(code[offset + 1]) << 8) | code[offset + 2];
                 os << std::left << std::setw(18) << "OP_JUMP" << " -> "
@@ -237,6 +245,13 @@ public:
             case OpCode::IndexSet:
                 os << "OP_INDEX_SET\n";
                 return offset + 1;
+            case OpCode::CheckType: {
+                uint8_t constant = code[offset + 1];
+                os << std::left << std::setw(18) << "OP_CHECK_TYPE" << " "
+                   << static_cast<int>(constant) << " ('"
+                   << constants[constant].to_string() << "')\n";
+                return offset + 2;
+            }
             case OpCode::Call: {
                 uint8_t arg_count = code[offset + 1];
                 os << std::left << std::setw(18) << "OP_CALL" << " "

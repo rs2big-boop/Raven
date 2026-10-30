@@ -46,6 +46,11 @@
         "category": "Raven"
       },
       {
+        "command": "raven.debug",
+        "title": "Raven: Debug Current File (Interactive rvndb)",
+        "category": "Raven"
+      },
+      {
         "command": "raven.fmt",
         "title": "Raven: Format Current File (gofmt style)",
         "category": "Raven"
@@ -74,6 +79,11 @@
           "group": "navigation@1"
         },
         {
+          "command": "raven.debug",
+          "when": "resourceLangId == raven",
+          "group": "navigation@2"
+        },
+        {
           "command": "raven.fmt",
           "when": "resourceLangId == raven",
           "group": "1_modification@1"
@@ -89,6 +99,11 @@
       {
         "command": "raven.run",
         "key": "shift+f5",
+        "when": "editorLangId == raven"
+      },
+      {
+        "command": "raven.debug",
+        "key": "f5",
         "when": "editorLangId == raven"
       }
     ],

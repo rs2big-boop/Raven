@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <unordered_set>
@@ -34,7 +35,11 @@ public:
                        std::shared_ptr<Environment> environment);
 
     std::shared_ptr<Environment> globals() const { return globals_; }
+    std::shared_ptr<Environment> environment() const { return environment_; }
     std::ostream& out() { return out_; }
+
+    using StepCallback = std::function<void(Interpreter&, const Stmt&)>;
+    void set_step_callback(StepCallback cb) { step_callback_ = std::move(cb); }
 
     const std::vector<StackFrame>& call_stack() const { return call_stack_; }
     std::vector<StackFrame>& call_stack() { return call_stack_; }
@@ -95,6 +100,7 @@ private:
     std::shared_ptr<Environment> environment_;
     std::unordered_set<std::string> imported_modules_;
     std::vector<StackFrame> call_stack_;
+    StepCallback step_callback_;
 };
 
 } // namespace raven

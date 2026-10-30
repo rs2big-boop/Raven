@@ -2,6 +2,22 @@
 
 All notable changes to the Raven programming language are documented in this file.
 
+## [1.1.0-dev] — 2026-10-30
+
+### Added
+- **Interactive Step-Through Debugger (`raven debug <file>`)**:
+  - Full CLI debugger `rvndb` featuring breakpoints (`break <line>`, `delete <line>`, `info break`), stepping (`step` into, `next` over), continue (`continue`), call stack trace (`bt`), local variable inspection (`locals`), and live expression evaluation (`print <expr>`).
+  - Visual source context rendering around current execution line with `->` arrow and breakpoint markers `●`.
+  - VS Code extension integration: Added `raven.debug` ("Raven: Debug Current File") bound to `F5`.
+- **Channel Receive Timeouts**:
+  - Native `chan_recv_timeout(ch_id, timeout_ms)` in C++ runtime using `std::condition_variable::wait_for`.
+  - High-level `ch.recv_timeout(timeout_ms)` in `stdlib/sync.rvn` returning `nil` safely on timeout without deadlocking.
+- **Corvus VM Dual-Engine Parity Expansion**:
+  - Added native bytecode compilation and VM execution for `??` (Null Coalescing via `OpCode::JumpIfNotNil`).
+  - Added native bytecode compilation and VM execution for `is` (Runtime Type Checking via `OpCode::CheckType`).
+  - Automated differential parity testing between Tree-Walk Interpreter and Corvus VM across arithmetic, arrays, loops, coalescing, and type inspection.
+  - Test suite expanded to 77/77 tests passing at 100%.
+
 ## [1.0.0] — 2026-10-30
 
 ### Added

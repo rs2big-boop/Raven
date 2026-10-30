@@ -75,6 +75,26 @@ function activate(context) {
     });
     context.subscriptions.push(runCmd);
 
+    // 2b. Command: Raven Debug File
+    const debugCmd = vscode.commands.registerCommand('raven.debug', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage("No active Raven file to debug.");
+            return;
+        }
+
+        const filePath = editor.document.uri.fsPath;
+        const ravenBin = getRavenPath();
+
+        let terminal = vscode.window.activeTerminal;
+        if (!terminal || terminal.name !== 'Raven Debugger') {
+            terminal = vscode.window.createTerminal('Raven Debugger');
+        }
+        terminal.show();
+        terminal.sendText(`"${ravenBin}" debug "${filePath}"`);
+    });
+    context.subscriptions.push(debugCmd);
+
     // 3. Command: Raven Format File
     const fmtCmd = vscode.commands.registerCommand('raven.fmt', async () => {
         const editor = vscode.window.activeTextEditor;

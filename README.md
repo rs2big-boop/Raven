@@ -7,7 +7,7 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-74%2F74%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-77%2F77%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
 > [![License](https://img.shields.io/badge/license-MIT-green)](#)
 
@@ -50,6 +50,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 | **`raven vet <file>`** | `go vet` | Static analyzer / linter detecting unused variables, shadowing, and unreachable code. |
 | **`raven doc <file>`** | `godoc` | Automatic API documentation generator producing GitHub-flavored Markdown. |
 | **`raven bench <file>`** | `go test -bench` | Microsecond-accurate benchmark runner for scripts and modules. |
+| **`raven debug <file>`** | `dlv` / `gdb` / `pdb` | Interactive step-through debugger (`rvndb`) with breakpoints, stack inspection, variable inspection, and step over/into. |
 | **`raven lsp`** | `gopls` | Official Language Server Protocol (LSP) server providing diagnostics, completions, formatting, and hover. |
 | **`ravenc`** | `javac` | Dedicated compiler: Compiles `.rvn` source code into optimized `.rvc` binary bytecode. |
 | **`rvm`** | `java` (JVM) | High-speed Corvus Virtual Machine executing pre-compiled `.rvc` bytecode. |
@@ -60,7 +61,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (74/74 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (77/77 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -290,7 +291,7 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (74 automated unit, regression, toolchain, differential & VM integration tests):
+Raven includes a comprehensive test suite (77 automated unit, regression, toolchain, differential & VM integration tests):
 
 ```bash
 # Fast build and test

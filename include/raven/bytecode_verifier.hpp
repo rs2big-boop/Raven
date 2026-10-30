@@ -29,7 +29,8 @@ public:
                 case OpCode::Constant:
                 case OpCode::DefineGlobal:
                 case OpCode::GetGlobal:
-                case OpCode::SetGlobal: {
+                case OpCode::SetGlobal:
+                case OpCode::CheckType: {
                     if (offset + 1 >= code.size()) {
                         return {false, "Truncated constant operand at offset " + std::to_string(offset)};
                     }
@@ -51,7 +52,8 @@ public:
                     break;
                 }
                 case OpCode::Jump:
-                case OpCode::JumpIfFalse: {
+                case OpCode::JumpIfFalse:
+                case OpCode::JumpIfNotNil: {
                     if (offset + 2 >= code.size()) {
                         return {false, "Truncated jump offset at offset " + std::to_string(offset)};
                     }

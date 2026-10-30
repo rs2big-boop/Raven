@@ -9,7 +9,7 @@
 
 ## Component Status Legend
 Throughout this document, every architectural component is categorized according to its maturity:
-- `[IMPLEMENTED]`: Fully implemented, verified by test suite (74/74 passing), and production ready.
+- `[IMPLEMENTED]`: Fully implemented, verified by test suite (77/77 passing), and production ready.
 - `[PARTIAL]`: Core functional implementation exists; advanced edge-case or performance optimizations ongoing.
 - `[PLANNED]`: Architectural design specified; scheduled on the development roadmap.
 - `[EXPERIMENTAL]`: Available for testing and evaluation; API subject to refinement before stabilization.
@@ -389,7 +389,7 @@ Structured in two layers:
 ## 23. Testing & Quality Assurance `[IMPLEMENTED]`
 
 ### Test Suite
-- **74 Automated Tests** covering all language features (100% pass rate).
+- **77 Automated Tests** covering all language features (100% pass rate).
 - **Differential Testing**: Comparing results of Tree-Walk Interpreter against Corvus VM.
 - Continuous verification script: `./all.bash`.
 
@@ -421,10 +421,10 @@ Structured in two layers:
 
 ---
 
-## 28. Debugging & Profiling `[IMPLEMENTED / PARTIAL]`
+## 28. Debugging & Profiling `[IMPLEMENTED]`
 - Multi-frame stack traces on exceptions `[IMPLEMENTED]`.
 - VM disassembly dump via `raven --disasm <file>` `[IMPLEMENTED]`.
-- Interactive breakpoint debugger `[PLANNED]`.
+- Interactive breakpoint debugger via `raven debug <file>` (`rvndb`) with stepping, stack inspection, breakpoints, and VS Code F5 integration `[IMPLEMENTED]`.
 
 ---
 
@@ -442,6 +442,6 @@ Structured in two layers:
 ```
 v1.0.0 (Current)        v1.1.0                  v1.2.0                  v1.3.0
 Dual-Engine Core    ──> Async/Await Syntax  ──> Raven IR (RIR)      ──> Native C FFI
-Native CSP & 74 Tests   Cycle-Detecting GC      Register-Based VM       AOT LLVM Backend
+Native CSP & 77 Tests   Cycle-Detecting GC      Register-Based VM       AOT LLVM Backend
 Full Toolchain Suite    Extended LSP Actions    WASM Compilation        Package Registry
 ```

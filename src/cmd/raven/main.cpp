@@ -14,6 +14,7 @@
 #include "raven/formatter.hpp"
 #include "raven/doc_generator.hpp"
 #include "raven/lsp.hpp"
+#include "raven/debugger.hpp"
 
 namespace raven {
 
@@ -523,6 +524,19 @@ int main(int argc, char* argv[]) {
                       << "  raven pkg install <repo>[@tag]    Install git package and lock version\n"
                       << "  raven pkg list                    List all installed packages\n";
             return 0;
+        }
+
+        if (first_arg == "debug" && argc > 2) {
+            std::string path = argv[2];
+            std::ifstream file(path);
+            if (!file.is_open()) {
+                std::cerr << "Error: Could not open file '" << path << "' for debugging.\n";
+                return 1;
+            }
+            std::ostringstream ss;
+            ss << file.rdbuf();
+            raven::Debugger dbg(path, ss.str());
+            return dbg.start_interactive();
         }
 
         if (first_arg == "test") {

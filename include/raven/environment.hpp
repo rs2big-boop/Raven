@@ -101,6 +101,7 @@ public:
     }
 
     std::shared_ptr<Environment> enclosing() const { return enclosing_; }
+    const std::unordered_map<std::string, Value>& values() const { return values_; }
 
     void collect_names(std::vector<std::string>& out) const {
         for (const auto& [k, _] : values_) {

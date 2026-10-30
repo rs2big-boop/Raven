@@ -482,6 +482,7 @@ print("${5} squared is ${5 * 5}");           // 5 squared is 25
 | `spawn(fn)` | Run fn in new OS thread (detached) |
 | `chan_create(cap)` | Create buffered channel |
 | `chan_send(id, v)`, `chan_recv(id)` | Channel I/O |
+| `chan_recv_timeout(id, ms)` | Channel receive with millisecond timeout (returns nil on timeout) |
 | `chan_close(id)`, `chan_len(id)` | Channel management |
 
 ### Assertions
