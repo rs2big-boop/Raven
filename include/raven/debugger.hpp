@@ -18,6 +18,9 @@ namespace raven {
 
 inline size_t extract_stmt_line(const Stmt& stmt) {
     if (auto* s = dynamic_cast<const VarDeclStmt*>(&stmt)) return s->name.line;
+    if (auto* s = dynamic_cast<const DestructureStmt*>(&stmt)) {
+        if (!s->names.empty()) return s->names[0].line;
+    }
     if (auto* s = dynamic_cast<const FunctionStmt*>(&stmt)) return s->name.line;
     if (auto* s = dynamic_cast<const StructStmt*>(&stmt)) return s->name.line;
     if (auto* s = dynamic_cast<const ForInStmt*>(&stmt)) return s->variable.line;

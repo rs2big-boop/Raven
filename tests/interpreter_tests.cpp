@@ -1188,6 +1188,50 @@ TEST(InterpreterTest, StdlibModularCollections) {
               "2\n");
 }
 
+TEST(InterpreterTest, ArrayAndMapDestructuring) {
+    std::string code =
+        "let [x, y, z] = [10, 20, 30];\n"
+        "print(x);\n"
+        "print(y);\n"
+        "print(z);\n"
+        "let {name, role} = {\"name\": \"Raven\", \"role\": \"Compiler\"};\n"
+        "print(name);\n"
+        "print(role);\n";
+    EXPECT_EQ(run_code(code), "10\n20\n30\nRaven\nCompiler\n");
+}
+
+TEST(InterpreterTest, VariadicFunctionsAndLambdas) {
+    std::string code =
+        "fn collect_all(...items) {\n"
+        "    return items;\n"
+        "}\n"
+        "let res1 = collect_all(1, 2, 3);\n"
+        "print(len(res1));\n"
+        "print(res1[0] + res1[1] + res1[2]);\n"
+        "fn prefix_log(prefix, ...words) {\n"
+        "    return prefix + \": \" + join(words, \" \");\n"
+        "}\n"
+        "print(prefix_log(\"INFO\", \"System\", \"online\", \"and\", \"ready\"));\n"
+        "let lam = fn(first, ...rest) {\n"
+        "    return first + len(rest);\n"
+        "};\n"
+        "print(lam(10, 1, 2, 3));\n";
+    EXPECT_EQ(run_code(code), "3\n6\nINFO: System online and ready\n13\n");
+}
+
+TEST(InterpreterTest, StdlibConfigEnvParsing) {
+    std::string code =
+        "import \"stdlib/config\";\n"
+        "let env_str = \"# database config\\nPORT=8080\\nDEBUG=true\\nNAME=\\\"Raven Server\\\"\\n\";\n"
+        "let parsed = parse_env_content(env_str);\n"
+        "print(parsed[\"PORT\"]);\n"
+        "print(parsed[\"DEBUG\"]);\n"
+        "print(parsed[\"NAME\"]);\n";
+    EXPECT_EQ(run_code(code), "8080\ntrue\nRaven Server\n");
+}
+
+
+
 
 
 

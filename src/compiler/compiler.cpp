@@ -327,6 +327,25 @@ void Compiler::visit(const VarDeclStmt& stmt) {
     }
 }
 
+void Compiler::visit(const DestructureStmt& stmt) {
+    if (stmt.initializer) {
+        stmt.initializer->accept(*this);
+    } else {
+        emit_op(OpCode::Nil);
+    }
+    emit_op(OpCode::Pop);
+    for (const auto& name : stmt.names) {
+        emit_op(OpCode::Nil, name.line);
+        if (scope_depth_ > 0) {
+            locals_.push_back(Local{name, scope_depth_});
+        } else {
+            uint8_t name_const = make_constant(Value(name.lexeme));
+            emit_op(OpCode::DefineGlobal, name.line);
+            emit_byte(name_const, name.line);
+        }
+    }
+}
+
 void Compiler::visit(const BlockStmt& stmt) {
     scope_depth_++;
     for (const auto& s : stmt.statements) {

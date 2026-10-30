@@ -247,8 +247,10 @@ public:
 class LambdaExpr : public Expr {
 public:
     LambdaExpr(std::vector<Token> params, std::vector<std::shared_ptr<class Stmt>> body,
-               std::vector<std::shared_ptr<Expr>> param_defaults = {})
-        : params(std::move(params)), body(std::move(body)), param_defaults(std::move(param_defaults)) {}
+               std::vector<std::shared_ptr<Expr>> param_defaults = {},
+               bool is_variadic = false)
+        : params(std::move(params)), body(std::move(body)),
+          param_defaults(std::move(param_defaults)), is_variadic(is_variadic) {}
 
     Value accept(ExprVisitor<Value>& visitor) const override { return visitor.visit(*this); }
     std::string accept(ExprVisitor<std::string>& visitor) const override { return visitor.visit(*this); }
@@ -257,6 +259,7 @@ public:
     std::vector<Token> params;
     std::vector<std::shared_ptr<class Stmt>> body;
     std::vector<std::shared_ptr<Expr>> param_defaults;
+    bool is_variadic = false;
 };
 
 class PipelineExpr : public Expr {
@@ -307,6 +310,7 @@ class BreakStmt;
 class ContinueStmt;
 class FunctionStmt;
 class ReturnStmt;
+class DestructureStmt;
 
 template <typename R>
 class StmtVisitor {
@@ -327,6 +331,7 @@ public:
     virtual R visit(const ContinueStmt& stmt) = 0;
     virtual R visit(const FunctionStmt& stmt) = 0;
     virtual R visit(const ReturnStmt& stmt) = 0;
+    virtual R visit(const DestructureStmt& stmt) = 0;
 };
 
 class Stmt {
@@ -477,9 +482,10 @@ public:
 class FunctionStmt : public Stmt {
 public:
     FunctionStmt(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body,
-                 std::vector<std::shared_ptr<Expr>> param_defaults = {})
+                 std::vector<std::shared_ptr<Expr>> param_defaults = {},
+                 bool is_variadic = false)
         : name(std::move(name)), params(std::move(params)), body(std::move(body)),
-          param_defaults(std::move(param_defaults)) {}
+          param_defaults(std::move(param_defaults)), is_variadic(is_variadic) {}
 
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
@@ -487,6 +493,7 @@ public:
     std::vector<Token> params;
     std::vector<std::shared_ptr<Stmt>> body;
     std::vector<std::shared_ptr<Expr>> param_defaults;
+    bool is_variadic = false;
 };
 
 class ReturnStmt : public Stmt {
@@ -498,6 +505,23 @@ public:
 
     Token keyword;
     std::unique_ptr<Expr> value;
+};
+
+enum class DestructureKind {
+    Array,
+    Map
+};
+
+class DestructureStmt : public Stmt {
+public:
+    DestructureStmt(DestructureKind kind, std::vector<Token> names, std::unique_ptr<Expr> initializer)
+        : kind(kind), names(std::move(names)), initializer(std::move(initializer)) {}
+
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+
+    DestructureKind kind;
+    std::vector<Token> names;
+    std::unique_ptr<Expr> initializer;
 };
 
 } // namespace raven

@@ -40,6 +40,16 @@ void Resolver::visit(const VarDeclStmt& stmt) {
     scopes_.define(sym);
 }
 
+void Resolver::visit(const DestructureStmt& stmt) {
+    if (stmt.initializer) {
+        resolve(*stmt.initializer);
+    }
+    for (const auto& name : stmt.names) {
+        Symbol sym(name.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
+        scopes_.define(sym);
+    }
+}
+
 void Resolver::visit(const BlockStmt& stmt) {
     scopes_.push_scope(false);
     for (const auto& s : stmt.statements) {

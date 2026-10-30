@@ -50,8 +50,15 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
 
     std::vector<Token> parameters;
     std::vector<std::shared_ptr<Expr>> param_defaults;
+    bool is_variadic = false;
     if (!check(TokenType::RightParen)) {
         do {
+            if (match({TokenType::DotDotDot})) {
+                is_variadic = true;
+                parameters.push_back(consume(TokenType::Identifier, "Expected parameter name after '...'."));
+                param_defaults.push_back(nullptr);
+                break;
+            }
             parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
             if (match({TokenType::Equal})) {
                 param_defaults.push_back(expression());
@@ -69,10 +76,38 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
     }
     consume(TokenType::RightBrace, "Expected '}' after function body.");
 
-    return std::make_shared<FunctionStmt>(std::move(name), std::move(parameters), std::move(body), std::move(param_defaults));
+    return std::make_shared<FunctionStmt>(std::move(name), std::move(parameters), std::move(body), std::move(param_defaults), is_variadic);
 }
 
 std::shared_ptr<Stmt> Parser::var_declaration() {
+    if (match({TokenType::LeftBracket})) {
+        std::vector<Token> names;
+        if (!check(TokenType::RightBracket)) {
+            do {
+                names.push_back(consume(TokenType::Identifier, "Expected variable name in array destructuring."));
+            } while (match({TokenType::Comma}));
+        }
+        consume(TokenType::RightBracket, "Expected ']' after destructuring pattern.");
+        consume(TokenType::Equal, "Expected '=' after destructuring pattern.");
+        auto initializer = expression();
+        consume(TokenType::Semicolon, "Expected ';' after variable declaration.");
+        return std::make_shared<DestructureStmt>(DestructureKind::Array, std::move(names), std::move(initializer));
+    }
+
+    if (match({TokenType::LeftBrace})) {
+        std::vector<Token> names;
+        if (!check(TokenType::RightBrace)) {
+            do {
+                names.push_back(consume(TokenType::Identifier, "Expected variable name in map destructuring."));
+            } while (match({TokenType::Comma}));
+        }
+        consume(TokenType::RightBrace, "Expected '}' after destructuring pattern.");
+        consume(TokenType::Equal, "Expected '=' after destructuring pattern.");
+        auto initializer = expression();
+        consume(TokenType::Semicolon, "Expected ';' after variable declaration.");
+        return std::make_shared<DestructureStmt>(DestructureKind::Map, std::move(names), std::move(initializer));
+    }
+
     Token name = consume(TokenType::Identifier, "Expected variable name.");
 
     std::unique_ptr<Expr> initializer = nullptr;
@@ -532,13 +567,20 @@ std::unique_ptr<Expr> Parser::primary() {
         return std::make_unique<MapExpr>(std::move(entries));
     }
 
-    // Anonymous lambda: fn(a, b = 2) { ... }
+    // Anonymous lambda: fn(a, b = 2, ...rest) { ... }
     if (match({TokenType::Fn})) {
         consume(TokenType::LeftParen, "Expected '(' after 'fn'.");
         std::vector<Token> parameters;
         std::vector<std::shared_ptr<Expr>> param_defaults;
+        bool is_variadic = false;
         if (!check(TokenType::RightParen)) {
             do {
+                if (match({TokenType::DotDotDot})) {
+                    is_variadic = true;
+                    parameters.push_back(consume(TokenType::Identifier, "Expected parameter name after '...'."));
+                    param_defaults.push_back(nullptr);
+                    break;
+                }
                 parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
                 if (match({TokenType::Equal})) {
                     param_defaults.push_back(expression());
@@ -554,7 +596,7 @@ std::unique_ptr<Expr> Parser::primary() {
             body.push_back(declaration());
         }
         consume(TokenType::RightBrace, "Expected '}' after function body.");
-        return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body), std::move(param_defaults));
+        return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body), std::move(param_defaults), is_variadic);
     }
 
     // Match expression: match (expr) { pattern => body, _ => default }

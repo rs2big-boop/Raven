@@ -95,6 +95,16 @@ void Linter::visit(const VarDeclStmt& stmt) {
     }
 }
 
+void Linter::visit(const DestructureStmt& stmt) {
+    if (stmt.initializer) stmt.initializer->accept(*this);
+    if (!declared_vars_.empty()) {
+        for (const auto& name : stmt.names) {
+            declared_vars_.back().insert(name.lexeme);
+            var_tokens_.back().push_back({name.lexeme, name});
+        }
+    }
+}
+
 void Linter::visit(const BlockStmt& stmt) {
     push_scope();
     bool has_term = false;

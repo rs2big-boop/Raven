@@ -43,6 +43,7 @@ public:
     void visit(const ContinueStmt& stmt) override;
     void visit(const FunctionStmt& stmt) override;
     void visit(const ReturnStmt& stmt) override;
+    void visit(const DestructureStmt& stmt) override;
 
     // ExprVisitor
     void visit(const BinaryExpr& expr) override;

@@ -87,17 +87,21 @@ class UserFunction : public Callable {
 public:
     UserFunction(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body,
                  std::shared_ptr<Environment> closure,
-                 std::vector<std::shared_ptr<Expr>> param_defaults = {})
+                 std::vector<std::shared_ptr<Expr>> param_defaults = {},
+                 bool is_variadic = false)
         : name_(std::move(name)), params_(std::move(params)), body_(std::move(body)),
-          closure_(std::move(closure)), param_defaults_(std::move(param_defaults)) {}
+          closure_(std::move(closure)), param_defaults_(std::move(param_defaults)),
+          is_variadic_(is_variadic) {}
 
     int arity() const override {
+        if (is_variadic_) return -1;
         return static_cast<int>(params_.size());
     }
 
     int min_arity() const override {
         int required = 0;
-        for (size_t i = 0; i < params_.size(); ++i) {
+        size_t regular_params = is_variadic_ ? (params_.size() > 0 ? params_.size() - 1 : 0) : params_.size();
+        for (size_t i = 0; i < regular_params; ++i) {
             if (i >= param_defaults_.size() || param_defaults_[i] == nullptr) {
                 required++;
             }
@@ -108,7 +112,8 @@ public:
     Value call(Interpreter& interpreter, const std::vector<Value>& arguments) override {
         CallStackGuard guard(interpreter, name_.lexeme, name_.line, name_.column);
         auto env = std::make_shared<Environment>(closure_);
-        for (std::size_t i = 0; i < params_.size(); ++i) {
+        size_t regular_params = is_variadic_ ? (params_.size() > 0 ? params_.size() - 1 : 0) : params_.size();
+        for (std::size_t i = 0; i < regular_params; ++i) {
             if (i < arguments.size()) {
                 env->define(params_[i].lexeme, arguments[i]);
             } else if (i < param_defaults_.size() && param_defaults_[i] != nullptr) {
@@ -117,6 +122,14 @@ public:
             } else {
                 env->define(params_[i].lexeme, Value());
             }
+        }
+
+        if (is_variadic_ && !params_.empty()) {
+            auto rest = std::make_shared<std::vector<Value>>();
+            for (size_t i = regular_params; i < arguments.size(); ++i) {
+                rest->push_back(arguments[i]);
+            }
+            env->define(params_.back().lexeme, Value(rest));
         }
 
         try {
@@ -143,6 +156,7 @@ private:
     std::vector<std::shared_ptr<Stmt>> body_;
     std::shared_ptr<Environment> closure_;
     std::vector<std::shared_ptr<Expr>> param_defaults_;
+    bool is_variadic_ = false;
 };
 
 static std::string value_to_json(const Value& val) {
@@ -1846,6 +1860,10 @@ Value Interpreter::visit(const CallExpr& expr) {
                 std::to_string(min_a) + " and " + std::to_string(max_a) + " arguments but got " +
                 std::to_string(arguments.size()) + ".");
         }
+    } else if (max_a < 0 && static_cast<int>(arguments.size()) < min_a) {
+        throw RuntimeError(expr.paren, "Expected at least " +
+            std::to_string(min_a) + " arguments but got " +
+            std::to_string(arguments.size()) + ".");
     }
 
     return function->call(*this, arguments);
@@ -2005,7 +2023,8 @@ Value Interpreter::visit(const LambdaExpr& expr) {
         expr.params,
         expr.body,
         environment_,
-        expr.param_defaults
+        expr.param_defaults,
+        expr.is_variadic
     ));
 }
 
@@ -2271,9 +2290,50 @@ void Interpreter::visit(const FunctionStmt& stmt) {
         stmt.params,
         stmt.body,
         environment_,
-        stmt.param_defaults
+        stmt.param_defaults,
+        stmt.is_variadic
     );
     environment_->define(stmt.name.lexeme, Value(function));
+}
+
+void Interpreter::visit(const DestructureStmt& stmt) {
+    Value init_val;
+    if (stmt.initializer) {
+        init_val = evaluate(*stmt.initializer);
+    }
+
+    if (stmt.kind == DestructureKind::Array) {
+        if (init_val.is_array()) {
+            auto arr = init_val.as_array();
+            for (size_t i = 0; i < stmt.names.size(); ++i) {
+                Value elem = (i < arr->size()) ? (*arr)[i] : Value();
+                environment_->define(stmt.names[i].lexeme, elem);
+            }
+        } else if (init_val.is_string()) {
+            const auto& s = init_val.as_string();
+            for (size_t i = 0; i < stmt.names.size(); ++i) {
+                Value elem = (i < s.size()) ? Value(std::string(1, s[i])) : Value();
+                environment_->define(stmt.names[i].lexeme, elem);
+            }
+        } else {
+            for (const auto& name : stmt.names) {
+                environment_->define(name.lexeme, Value());
+            }
+        }
+    } else if (stmt.kind == DestructureKind::Map) {
+        if (init_val.is_map()) {
+            auto m = init_val.as_map();
+            for (const auto& name : stmt.names) {
+                auto it = m->find(name.lexeme);
+                Value elem = (it != m->end()) ? it->second : Value();
+                environment_->define(name.lexeme, elem);
+            }
+        } else {
+            for (const auto& name : stmt.names) {
+                environment_->define(name.lexeme, Value());
+            }
+        }
+    }
 }
 
 void Interpreter::visit(const ReturnStmt& stmt) {
