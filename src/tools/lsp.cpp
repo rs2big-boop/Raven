@@ -4,6 +4,7 @@
 #include "raven/linter.hpp"
 #include "raven/formatter.hpp"
 #include "raven/doc_generator.hpp"
+#include "raven/environment.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -78,7 +79,8 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
                 "\"hoverProvider\":true,"
                 "\"completionProvider\":{\"triggerCharacters\":[\".\",\":\"]},"
                 "\"documentFormattingProvider\":true,"
-                "\"documentSymbolProvider\":true"
+                "\"documentSymbolProvider\":true,"
+                "\"codeActionProvider\":true"
                 "}}}";
             send_rpc(out, resp);
         } else if (method == "textDocument/didOpen" || method == "textDocument/didChange") {
@@ -186,6 +188,55 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
                 "{\"jsonrpc\":\"2.0\",\"id\":" + (id.empty() ? "1" : id) + ","
                 "\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"**Raven Language Server**\\n\\nType-inferred expression\"}}}";
             send_rpc(out, resp);
+        } else if (method == "textDocument/codeAction") {
+            std::string uri = extract_json_field(req, "uri");
+            static const std::vector<std::string> known_symbols = {
+                "print", "len", "abs", "sort_arr", "format", "to_json", "parse_json",
+                "unique", "slice", "regex_match", "http_get", "spawn", "chan_create",
+                "chan_send", "chan_recv", "chan_close", "let", "fn", "struct", "match",
+                "return", "if", "else", "while", "for", "import", "loop", "true", "false"
+            };
+
+            std::string word = "";
+            size_t undef_pos = req.find("Undefined variable '");
+            if (undef_pos != std::string::npos) {
+                undef_pos += 20;
+                size_t end_quote = req.find("'", undef_pos);
+                if (end_quote != std::string::npos) {
+                    word = req.substr(undef_pos, end_quote - undef_pos);
+                }
+            }
+
+            std::ostringstream actions_json;
+            actions_json << "{\"jsonrpc\":\"2.0\",\"id\":" << (id.empty() ? "1" : id) << ",\"result\":[";
+
+            if (!word.empty()) {
+                std::string best_match;
+                int best_dist = 4;
+                for (const auto& sym : known_symbols) {
+                    int dist = levenshtein_distance(word, sym);
+                    if (dist < best_dist) {
+                        best_dist = dist;
+                        best_match = sym;
+                    }
+                }
+
+                if (!best_match.empty()) {
+                    actions_json << "{"
+                                 << "\"title\":\"Change '" << word << "' to '" << best_match << "'\","
+                                 << "\"kind\":\"quickfix\","
+                                 << "\"isPreferred\":true,"
+                                 << "\"edit\":{"
+                                 << "\"changes\":{\"" << uri << "\":[{"
+                                 << "\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":" << word.size() << "}},"
+                                 << "\"newText\":\"" << best_match << "\""
+                                 << "}]}}"
+                                 << "}";
+                }
+            }
+
+            actions_json << "]}";
+            send_rpc(out, actions_json.str());
         } else if (method == "shutdown") {
             send_rpc(out, "{\"jsonrpc\":\"2.0\",\"id\":" + (id.empty() ? "1" : id) + ",\"result\":null}");
         } else if (method == "exit") {

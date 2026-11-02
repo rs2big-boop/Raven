@@ -1639,6 +1639,20 @@ void Interpreter::register_builtins() {
         int64_t id = static_cast<int64_t>(args[0].as_number());
         return Value(MutexManager::instance().unlock(id));
     });
+
+    def("gc_collect", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        return Value(static_cast<double>(gc::GCRegistry::instance().collect()));
+    });
+
+    def("gc_stats", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        auto stats = gc::GCRegistry::instance().stats();
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*map)["total_collections"] = Value(static_cast<double>(stats.total_collections));
+        (*map)["cycles_broken"] = Value(static_cast<double>(stats.cycles_broken));
+        (*map)["objects_freed"] = Value(static_cast<double>(stats.objects_freed));
+        (*map)["roots_traced"] = Value(static_cast<double>(stats.roots_traced));
+        return Value(map);
+    });
 }
 
 void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements) {

@@ -1,4 +1,4 @@
-#include "raven/compiler/compiler.hpp"
+#include "raven/compiler.hpp"
 
 namespace raven {
 

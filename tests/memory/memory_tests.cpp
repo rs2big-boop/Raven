@@ -4,6 +4,7 @@
 #include "raven/runtime/memory/root_registry.hpp"
 #include "raven/runtime/memory/managed_heap.hpp"
 #include "raven/runtime/memory/managed_ptr.hpp"
+#include "raven/gc.hpp"
 
 using namespace raven::runtime::memory;
 
@@ -109,4 +110,43 @@ TEST(MemoryTest, MakeManagedHelper) {
     EXPECT_TRUE(static_cast<bool>(ptr));
     EXPECT_EQ(ptr->type(), ObjectType::String);
     EXPECT_EQ(ptr->ref_count(), 1u);
+}
+
+TEST(MemoryTest, GCRegistrySingleton) {
+    auto& gc1 = raven::gc::GCRegistry::instance();
+    auto& gc2 = raven::gc::GCRegistry::instance();
+    EXPECT_EQ(&gc1, &gc2);
+}
+
+TEST(MemoryTest, GCCycleCollection) {
+    auto& gc = raven::gc::GCRegistry::instance();
+    gc.reset_stats();
+
+    // Create a self-referencing cyclic array: a = []; a[0] = a;
+    auto cyclic_arr = std::make_shared<std::vector<raven::Value>>();
+    cyclic_arr->push_back(raven::Value(cyclic_arr));
+    gc.track_array(cyclic_arr);
+
+    // Without registering root, collect() should detect and break the unreachable cycle
+    size_t broken = gc.collect();
+    EXPECT_GE(broken, 1u);
+    EXPECT_TRUE(cyclic_arr->empty());
+    EXPECT_GE(gc.stats().cycles_broken, 1u);
+}
+
+TEST(MemoryTest, GCRootProtection) {
+    auto& gc = raven::gc::GCRegistry::instance();
+    gc.reset_stats();
+
+    auto live_arr = std::make_shared<std::vector<raven::Value>>();
+    live_arr->push_back(raven::Value(42.0));
+    gc.track_array(live_arr);
+
+    raven::Value root_val(live_arr);
+    raven::gc::ScopedRoot root(root_val);
+
+    size_t broken = gc.collect();
+    EXPECT_EQ(broken, 0u);
+    EXPECT_EQ(live_arr->size(), 1u);
+    EXPECT_EQ((*live_arr)[0].as_number(), 42.0);
 }

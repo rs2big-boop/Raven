@@ -1,13 +1,25 @@
+# Build artifacts
 build/
 bin/
 *.o
 *.a
 *.so
-.vscode/
-.idea/
 compile_commands.json
 *.rvc
 dist/
+*.tar.gz
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Raven runtime modules & local locks
 raven_modules/
 raven.lock
+
+# Website artifacts
 site/node_modules/
+site/dist/
+site/.vite/

@@ -1,4 +1,4 @@
-#include "raven/interpreter/environment.hpp"
+#include "raven/environment.hpp"
 
 namespace raven {
 
