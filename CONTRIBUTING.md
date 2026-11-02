@@ -33,7 +33,7 @@ We provide canonical Go-style shell scripts in the repository root:
 # Fast incremental build
 ./make.bash
 
-# Full rebuild, run all 147 automated tests, and run stdlib tour
+# Full rebuild, run all 148 automated tests, and run stdlib tour
 ./all.bash
 
 # Run any script with the tree-walk interpreter
@@ -95,7 +95,7 @@ ctest --test-dir build --output-on-failure
 
 Before submitting a Pull Request, verify:
 - [ ] Code compiles cleanly with zero warnings (`./make.bash`).
-- [ ] All 147 unit and integration tests pass (`./all.bash`).
+- [ ] All 148 unit and integration tests pass (`./all.bash`).
 - [ ] New features include automated tests in `tests/`.
 - [ ] No regression in Differential Testing (`run_code` vs `run_vm_code`).
 - [ ] Documentation updated in `docs/` and `CHANGELOG.md`.

@@ -1367,6 +1367,25 @@ TEST(InterpreterTest, NativeWebFrameworkAndDSL) {
     EXPECT_EQ(run_code(code), "<div class=\"card\"><h1>Title</h1><p>Body</p></div>\nHello World!\n");
 }
 
+TEST(InterpreterTest, ResultAndOptionMonadTypes) {
+    std::string code =
+        "import \"stdlib/result\";\n"
+        "import \"stdlib/option\";\n"
+        "let ok_res = Ok(100);\n"
+        "let err_res = Err(\"failed\");\n"
+        "print(is_ok(ok_res));\n"
+        "print(is_err(err_res));\n"
+        "print(unwrap(ok_res));\n"
+        "print(unwrap_or(err_res, 0));\n"
+        "let opt_some = Some(\"Raven\");\n"
+        "let opt_none = None();\n"
+        "print(is_some(opt_some));\n"
+        "print(is_none(opt_none));\n"
+        "print(option_unwrap(opt_some));\n"
+        "print(option_unwrap_or(opt_none, \"fallback\"));\n";
+    EXPECT_EQ(run_code(code), "true\ntrue\n100\n0\ntrue\ntrue\nRaven\nfallback\n");
+}
+
 
 
 

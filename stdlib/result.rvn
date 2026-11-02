@@ -1,0 +1,59 @@
+// stdlib/result.rvn - Rust-style Result type (Ok / Err)
+// Usage:
+//   import "stdlib/result"
+//   let res = Ok(42);
+//   if (is_ok(res)) { print(unwrap(res)); }
+
+fn Ok(value) {
+    return {"__type__": "Result", "is_ok": true, "value": value, "error": nil};
+}
+
+fn Err(error) {
+    return {"__type__": "Result", "is_ok": false, "value": nil, "error": error};
+}
+
+fn is_ok(res) {
+    return type(res) == "map" && res["__type__"] == "Result" && res["is_ok"] == true;
+}
+
+fn is_err(res) {
+    return type(res) == "map" && res["__type__"] == "Result" && res["is_ok"] == false;
+}
+
+fn unwrap(res) {
+    if (is_ok(res)) {
+        return res["value"];
+    }
+    if (is_err(res)) {
+        panic("Called unwrap() on an Err Result: " + str(res["error"]));
+    }
+    panic("Called unwrap() on a non-Result value.");
+}
+
+fn unwrap_or(res, default_val) {
+    if (is_ok(res)) {
+        return res["value"];
+    }
+    return default_val;
+}
+
+fn unwrap_err(res) {
+    if (is_err(res)) {
+        return res["error"];
+    }
+    panic("Called unwrap_err() on an Ok Result.");
+}
+
+fn map_ok(res, transform_fn) {
+    if (is_ok(res)) {
+        return Ok(transform_fn(res["value"]));
+    }
+    return res;
+}
+
+fn and_then(res, next_fn) {
+    if (is_ok(res)) {
+        return next_fn(res["value"]);
+    }
+    return res;
+}

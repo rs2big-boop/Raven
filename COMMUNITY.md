@@ -48,7 +48,7 @@ Raven/
 │   ├── net/                 # HTTP client, URL parser
 │   ├── math/                # Math, statistics, PRNG random
 │   └── sync.rvn, ...        # Concurrency primitives
-├── tests/                   # 147 automated tests (GoogleTest & Differential tests)
+├── tests/                   # 148 automated tests (GoogleTest & Differential tests)
 ├── editors/vscode/          # VS Code & Cursor extension with debugger & LSP
 ├── site/                    # Official website in React 19 + TypeScript + Tailwind CSS
 └── examples/                # Real-world reference scripts, servers, and pipelines
@@ -89,7 +89,7 @@ cd Raven
 # 2. Build the toolchain (incremental build in ~2 seconds)
 ./make.bash
 
-# 3. Run the full test suite (147/147 tests + stdlib tour)
+# 3. Run the full test suite (148/148 tests + stdlib tour)
 ./all.bash
 
 # 4. Test standalone native binary compilation
