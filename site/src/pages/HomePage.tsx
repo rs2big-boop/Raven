@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  Copy, Check, ArrowRight, Terminal, Cpu, Box, ShieldCheck,
-  Zap, Code2, Globe, Bug, Package, GitBranch, Play
+  Copy, Check, ArrowRight, Terminal, Cpu, ShieldCheck,
+  Zap, Globe, Bug, Package, GitBranch, Play
 } from 'lucide-react';
 
-interface HomePageProps {
-  onNavigate: (page: string) => void;
-}
-
-export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Element {
+export default function HomePage(): React.JSX.Element {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'build' | 'run' | 'pkg'>('build');
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
@@ -32,7 +30,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
           {/* Release Badge */}
           <div className="inline-flex items-center space-x-2.5 px-3 py-1 rounded-md bg-[#161d28] border border-amber-500/30 text-amber-400 text-xs font-mono">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>Raven v1.0.0 is Official • 148 Tests Passing • Native Standalone Compiler</span>
+            <span>Raven v1.0.0 is Official • 150 Tests Passing • Native Standalone Compiler</span>
           </div>
 
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
@@ -112,26 +110,26 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
 
           {/* Action CTAs & Badges */}
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              onClick={() => onNavigate('playground')}
-              className="px-5 py-2.5 rounded-md bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition-colors flex items-center space-x-2 cursor-pointer shadow-sm"
+            <Link
+              to="/playground"
+              className="px-5 py-2.5 rounded-md bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition-colors flex items-center space-x-2 shadow-sm"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>Launch Web Playground</span>
-            </button>
-            <button
-              onClick={() => onNavigate('packages')}
-              className="px-5 py-2.5 rounded-md bg-[#0d1117] hover:bg-[#161b22] text-xs font-bold text-slate-200 border border-[#30363d] transition-colors flex items-center space-x-2 cursor-pointer"
+            </Link>
+            <Link
+              to="/packages"
+              className="px-5 py-2.5 rounded-md bg-[#0d1117] hover:bg-[#161b22] text-xs font-bold text-slate-200 border border-[#30363d] transition-colors flex items-center space-x-2"
             >
               <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>Browse Packages</span>
-            </button>
-            <button
-              onClick={() => onNavigate('docs')}
-              className="px-5 py-2.5 rounded-md bg-[#0d1117] hover:bg-[#161b22] text-xs font-medium text-slate-400 hover:text-white border border-[#21262d] transition-colors cursor-pointer"
+            </Link>
+            <Link
+              to="/docs"
+              className="px-5 py-2.5 rounded-md bg-[#0d1117] hover:bg-[#161b22] text-xs font-medium text-slate-400 hover:text-white border border-[#21262d] transition-colors"
             >
               <span>Language Specification</span>
-            </button>
+            </Link>
           </div>
         </div>
       </section>
@@ -155,7 +153,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* Pillar 1: Native Standalone Build */}
           <div 
-            onClick={() => onNavigate('architecture')}
+            onClick={() => navigate('/architecture')}
             className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -173,7 +171,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
 
           {/* Pillar 2: Dual Engine */}
           <div 
-            onClick={() => onNavigate('architecture')}
+            onClick={() => navigate('/architecture')}
             className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
@@ -191,7 +189,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
 
           {/* Pillar 3: CSP Concurrency */}
           <div 
-            onClick={() => onNavigate('docs')}
+            onClick={() => navigate('/docs')}
             className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -209,7 +207,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
 
           {/* Pillar 4: IDE & Debugger */}
           <div 
-            onClick={() => onNavigate('docs')}
+            onClick={() => navigate('/docs')}
             className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
@@ -227,7 +225,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
 
           {/* Pillar 5: Packages & Registry */}
           <div 
-            onClick={() => onNavigate('packages')}
+            onClick={() => navigate('/packages')}
             className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -245,7 +243,7 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
 
           {/* Pillar 6: Web Framework & Stdlib */}
           <div 
-            onClick={() => onNavigate('stdlib')}
+            onClick={() => navigate('/stdlib')}
             className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
@@ -275,12 +273,12 @@ export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Eleme
                 Idiomatic, Safe, and Expressive
               </h2>
             </div>
-            <button
-              onClick={() => onNavigate('playground')}
-              className="px-4 py-2 rounded-md bg-[#161b22] hover:bg-[#21262d] text-xs font-mono text-amber-400 border border-[#30363d] transition-colors self-start cursor-pointer"
+            <Link
+              to="/playground"
+              className="px-4 py-2 rounded-md bg-[#161b22] hover:bg-[#21262d] text-xs font-mono text-amber-400 border border-[#30363d] transition-colors self-start"
             >
               Open in Interactive Playground →
-            </button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -351,12 +349,12 @@ app.listen(8080)`}</pre>
               Corvus VM delivers 3.2x to 4.8x faster execution than tree-walking interpreters and consistently outpaces standard CPython 3.12 on compute-bound recursion and tight array iteration.
             </p>
           </div>
-          <button
-            onClick={() => onNavigate('benchmarks')}
-            className="px-5 py-2.5 rounded-md bg-[#161b22] hover:bg-[#21262d] text-xs font-mono text-slate-200 hover:text-white border border-[#30363d] transition-colors shrink-0 cursor-pointer"
+          <Link
+            to="/benchmarks"
+            className="px-5 py-2.5 rounded-md bg-[#161b22] hover:bg-[#21262d] text-xs font-mono text-slate-200 hover:text-white border border-[#30363d] transition-colors shrink-0"
           >
             Explore Detailed Benchmarks →
-          </button>
+          </Link>
         </div>
       </section>
     </div>

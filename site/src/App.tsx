@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -9,33 +10,38 @@ import ArchitecturePage from './pages/ArchitecturePage';
 import BenchmarksPage from './pages/BenchmarksPage';
 import PackagesPage from './pages/PackagesPage';
 
-export default function App(): React.JSX.Element {
-  const [currentPage, setCurrentPage] = useState<string>('home');
-
-  // Scroll to top upon page navigation
-  const handleNavigate = (pageId: string) => {
-    setCurrentPage(pageId);
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, [pathname]);
+  return null;
+}
 
+export default function App(): React.JSX.Element {
   return (
     <div className="min-h-screen bg-[#080a0f] text-slate-100 flex flex-col dev-grid-bg selection:bg-amber-500 selection:text-black">
+      <ScrollToTop />
       {/* Persistent Navigation */}
-      <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
+      <Navbar />
 
       {/* Routed Page Content */}
       <main className="flex-1 relative z-10">
-        {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
-        {currentPage === 'playground' && <PlaygroundPage />}
-        {currentPage === 'packages' && <PackagesPage />}
-        {currentPage === 'docs' && <DocsPage />}
-        {currentPage === 'stdlib' && <StdlibPage />}
-        {currentPage === 'architecture' && <ArchitecturePage />}
-        {currentPage === 'benchmarks' && <BenchmarksPage />}
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/playground" element={<PlaygroundPage />} />
+          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/docs" element={<DocsPage />} />
+          <Route path="/stdlib" element={<StdlibPage />} />
+          <Route path="/architecture" element={<ArchitecturePage />} />
+          <Route path="/benchmarks" element={<BenchmarksPage />} />
+          {/* Catch-all */}
+          <Route path="*" element={<HomePage />} />
+        </Routes>
       </main>
 
       {/* Persistent Footer */}
-      <Footer onNavigate={handleNavigate} />
+      <Footer />
     </div>
   );
 }

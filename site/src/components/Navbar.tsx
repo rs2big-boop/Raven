@@ -1,29 +1,33 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
-interface NavbarProps {
-  currentPage: string;
-  onNavigate: (page: string) => void;
-}
+export default function Navbar(): React.JSX.Element {
+  const location = useLocation();
+  const currentPath = location.pathname;
 
-export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
   const navItems = [
-    { id: 'home', label: 'Home' },
-    { id: 'playground', label: 'Playground' },
-    { id: 'packages', label: 'Packages' },
-    { id: 'stdlib', label: 'Standard Library' },
-    { id: 'docs', label: 'Documentation' },
-    { id: 'architecture', label: 'Architecture' },
-    { id: 'benchmarks', label: 'Benchmarks' },
+    { path: '/', label: 'Home' },
+    { path: '/playground', label: 'Playground' },
+    { path: '/packages', label: 'Packages' },
+    { path: '/stdlib', label: 'Standard Library' },
+    { path: '/docs', label: 'Documentation' },
+    { path: '/architecture', label: 'Architecture' },
+    { path: '/benchmarks', label: 'Benchmarks' },
   ];
+
+  const isItemActive = (path: string) => {
+    if (path === '/') return currentPath === '/';
+    return currentPath.startsWith(path);
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-[#080b10]/95 backdrop-blur-md border-b border-[#21262d]">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Brand */}
-        <div 
-          onClick={() => onNavigate('home')} 
-          className="flex items-center space-x-3 cursor-pointer select-none group"
+        <Link 
+          to="/" 
+          className="flex items-center space-x-3 select-none group"
         >
           <img 
             src="/logo.png" 
@@ -38,24 +42,24 @@ export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
               v1.0.0
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center space-x-1 text-xs font-medium">
           {navItems.map((item) => {
-            const isActive = currentPage === item.id;
+            const active = isItemActive(item.path);
             return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                  isActive
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  active
                     ? 'bg-[#161b22] text-amber-300 border border-[#30363d] shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 {item.label}
-              </button>
+              </Link>
             );
           })}
         </nav>
@@ -63,7 +67,7 @@ export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
         {/* Action Buttons */}
         <div className="flex items-center space-x-3">
           <a
-            href="https://github.com"
+            href="https://github.com/rs2big-boop/Raven"
             target="_blank"
             rel="noreferrer"
             className="p-2 text-slate-400 hover:text-white transition-colors"
@@ -73,13 +77,13 @@ export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
               <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
             </svg>
           </a>
-          <button
-            onClick={() => onNavigate('playground')}
-            className="px-3.5 py-1.5 rounded-md bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition-colors flex items-center space-x-1.5 cursor-pointer shadow-sm"
+          <Link
+            to="/playground"
+            className="px-3.5 py-1.5 rounded-md bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition-colors flex items-center space-x-1.5 shadow-sm"
           >
             <span>Playground</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          </Link>
         </div>
       </div>
     </header>

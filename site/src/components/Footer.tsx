@@ -1,18 +1,15 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-interface FooterProps {
-  onNavigate: (page: string) => void;
-}
-
-export default function Footer({ onNavigate }: FooterProps) {
+export default function Footer(): React.JSX.Element {
   const links = [
-    { label: 'Home', page: 'home' },
-    { label: 'Playground', page: 'playground' },
-    { label: 'Packages', page: 'packages' },
-    { label: 'Docs', page: 'docs' },
-    { label: 'Standard Library', page: 'stdlib' },
-    { label: 'Architecture', page: 'architecture' },
-    { label: 'Benchmarks', page: 'benchmarks' },
+    { label: 'Home', path: '/' },
+    { label: 'Playground', path: '/playground' },
+    { label: 'Packages', path: '/packages' },
+    { label: 'Docs', path: '/docs' },
+    { label: 'Standard Library', path: '/stdlib' },
+    { label: 'Architecture', path: '/architecture' },
+    { label: 'Benchmarks', path: '/benchmarks' },
   ];
 
   return (
@@ -20,27 +17,27 @@ export default function Footer({ onNavigate }: FooterProps) {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           {/* Brand */}
-          <div className="flex items-center space-x-3">
-            <img src="/logo.png" alt="Raven Logo" className="w-7 h-7 rounded-lg border border-slate-700/50" />
+          <Link to="/" className="flex items-center space-x-3 group">
+            <img src="/logo.png" alt="Raven Logo" className="w-7 h-7 rounded-lg border border-slate-700/50 group-hover:scale-105 transition-transform" />
             <div>
-              <span className="font-bold text-white text-sm">Raven Programming Language</span>
-              <p className="text-xs text-slate-500 mt-0.5">v1.0.0 • 148 Tests Passing • MIT License</p>
+              <span className="font-bold text-white text-sm group-hover:text-amber-400 transition-colors">Raven Programming Language</span>
+              <p className="text-xs text-slate-500 mt-0.5">v1.0.0 • 150 Tests Passing • MIT License</p>
             </div>
-          </div>
+          </Link>
 
           {/* Nav Links */}
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {links.map((l) => (
-              <button
-                key={l.page}
-                onClick={() => onNavigate(l.page)}
-                className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+              <Link
+                key={l.path}
+                to={l.path}
+                className="text-xs text-slate-400 hover:text-white transition-colors"
               >
                 {l.label}
-              </button>
+              </Link>
             ))}
             <a
-              href="https://github.com/rs2big/Raven"
+              href="https://github.com/rs2big-boop/Raven"
               target="_blank"
               rel="noreferrer"
               className="text-xs text-slate-400 hover:text-white transition-colors"

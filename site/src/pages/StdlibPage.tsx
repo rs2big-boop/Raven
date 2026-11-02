@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Search } from 'lucide-react';
 import { STDLIB_PACKAGES } from '../data/stdlib';
 import CodeBlock from '../components/CodeBlock';
 
-export default function StdlibPage() {
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+export default function StdlibPage(): React.JSX.Element {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchTerm = searchParams.get('q') || '';
+  const selectedCategory = searchParams.get('category') || 'All';
 
   const categories = ['All', 'Web & Networking', 'Concurrency', 'Data Structures', 'Core Utilities', 'Security', 'System'];
+
+  const updateFilters = (newCat?: string, newQ?: string) => {
+    const params: Record<string, string> = {};
+    const cat = newCat !== undefined ? newCat : selectedCategory;
+    const q = newQ !== undefined ? newQ : searchTerm;
+    if (cat && cat !== 'All') params.category = cat;
+    if (q && q.trim()) params.q = q;
+    setSearchParams(params);
+  };
 
   const filteredPackages = STDLIB_PACKAGES.filter((pkg) => {
     const matchesSearch = pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,7 +49,7 @@ export default function StdlibPage() {
             type="text"
             placeholder="Search packages, functions..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => updateFilters(undefined, e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 transition-colors"
           />
         </div>
@@ -48,7 +59,7 @@ export default function StdlibPage() {
           {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => updateFilters(cat, undefined)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat
                   ? 'bg-amber-600 text-white'
@@ -77,7 +88,11 @@ export default function StdlibPage() {
               {/* Function list */}
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {pkg.functions.map((fnName) => (
-                  <span key={fnName} className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-900/90 text-cyan-300 border border-slate-800">
+                  <span
+                    key={fnName}
+                    onClick={() => updateFilters(undefined, fnName)}
+                    className="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-900/90 text-cyan-300 border border-slate-800 cursor-pointer hover:border-cyan-500/50"
+                  >
                     {fnName}
                   </span>
                 ))}

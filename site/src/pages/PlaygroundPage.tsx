@@ -1,18 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Play, Copy, Check, Terminal, RotateCcw } from 'lucide-react';
 import { CODE_EXAMPLES } from '../data/examples';
 
-export default function PlaygroundPage() {
-  const [activeTab, setActiveTab] = useState<string>('web');
-  const [currentCode, setCurrentCode] = useState<string>(CODE_EXAMPLES.web.code);
-  const [consoleOutput, setConsoleOutput] = useState<string>(CODE_EXAMPLES.web.output);
+export default function PlaygroundPage(): React.JSX.Element {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const exampleParam = searchParams.get('example');
+  const initialTab = exampleParam && exampleParam in CODE_EXAMPLES ? exampleParam : 'web';
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [currentCode, setCurrentCode] = useState<string>(CODE_EXAMPLES[initialTab].code);
+  const [consoleOutput, setConsoleOutput] = useState<string>(CODE_EXAMPLES[initialTab].output);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (exampleParam && exampleParam in CODE_EXAMPLES && exampleParam !== activeTab) {
+      setActiveTab(exampleParam);
+      setCurrentCode(CODE_EXAMPLES[exampleParam].code);
+      setConsoleOutput(CODE_EXAMPLES[exampleParam].output);
+    }
+  }, [exampleParam]);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     setCurrentCode(CODE_EXAMPLES[key].code);
     setConsoleOutput(CODE_EXAMPLES[key].output);
+    setSearchParams({ example: key });
   };
 
   const handleReset = () => {
@@ -51,101 +65,84 @@ export default function PlaygroundPage() {
           </p>
         </div>
 
+        {/* Action Controls */}
         <div className="flex items-center space-x-3">
           <button
             onClick={handleReset}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
-            title="Reset code"
+            className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs text-slate-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
+            title="Reset to original code"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset</span>
           </button>
           <button
             onClick={handleCopy}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
+            className="px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs text-slate-300 flex items-center space-x-1.5 transition-colors cursor-pointer"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? "Copied" : "Copy"}</span>
+            <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
           <button
             onClick={handleRun}
             disabled={isRunning}
-            className="px-5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white flex items-center space-x-1.5 transition-all shadow-lg shadow-emerald-600/30 cursor-pointer disabled:opacity-50"
+            className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-xs font-bold text-white flex items-center space-x-2 shadow-lg shadow-amber-600/20 transition-all cursor-pointer"
           >
             <Play className={`w-3.5 h-3.5 fill-current ${isRunning ? 'animate-spin' : ''}`} />
-            <span>{isRunning ? "Running..." : "Run Code"}</span>
+            <span>{isRunning ? 'Running...' : 'Run Code'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main IDE Container */}
-      <div className="bg-[#0d1117] border border-[#21262d] rounded-2xl overflow-hidden shadow-2xl">
-        {/* Preset Tabs Bar */}
-        <div className="px-4 py-3 bg-slate-900/90 border-b border-slate-800 flex items-center space-x-2 overflow-x-auto">
-          {Object.keys(CODE_EXAMPLES).map((key) => {
-            const item = CODE_EXAMPLES[key];
-            const isActive = activeTab === key;
-            return (
-              <button
-                key={key}
-                onClick={() => handleTabChange(key)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 whitespace-nowrap cursor-pointer ${
-                  isActive
-                    ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
-              >
-                <span>{item.title}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${isActive ? 'bg-amber-800 text-amber-200' : 'bg-slate-800 text-slate-400'}`}>
-                  {item.badge}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Example Selector Tabs */}
+      <div className="flex space-x-2 border-b border-slate-800 pb-2 overflow-x-auto">
+        {Object.entries(CODE_EXAMPLES).map(([key, ex]) => (
+          <button
+            key={key}
+            onClick={() => handleTabChange(key)}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === key
+                ? 'bg-amber-600 text-white shadow-md shadow-amber-900/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            {ex.title}
+          </button>
+        ))}
+      </div>
 
-        {/* Editor & Console Split */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[520px]">
-          {/* Editable Code Area */}
-          <div className="lg:col-span-7 bg-[#0b0e17] p-5 font-mono text-sm leading-relaxed border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between">
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-xs text-slate-500 mb-3 select-none">
-                <span>main.rvn</span>
-                <span>UTF-8 • Interactive Editor</span>
-              </div>
-              <textarea
-                value={currentCode}
-                onChange={(e) => setCurrentCode(e.target.value)}
-                spellCheck="false"
-                className="w-full h-[400px] bg-transparent text-slate-200 text-xs md:text-[13px] leading-6 font-mono outline-none resize-none selection:bg-amber-600"
-              />
-            </div>
-            <div className="pt-3 border-t border-slate-800/80 text-xs text-slate-500">
-              Tip: Press Shift+F5 in VS Code or click Run Code here to execute instantly.
-            </div>
+      {/* Editor & Console Split View */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[500px]">
+        {/* Code Editor Panel */}
+        <div className="bg-[#0d1117] border border-[#21262d] rounded-2xl flex flex-col overflow-hidden">
+          <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+            <span className="flex items-center space-x-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-700 inline-block" />
+              <span>main.rvn</span>
+            </span>
+            <span className="text-slate-500">Raven v1.1.0</span>
           </div>
 
-          {/* Terminal Output */}
-          <div className="lg:col-span-5 bg-[#06080d] p-5 flex flex-col justify-between font-mono">
-            <div>
-              <div className="flex items-center justify-between mb-3 border-b border-slate-800/80 pb-2">
-                <div className="flex items-center space-x-2 text-xs text-slate-400">
-                  <Terminal className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Interactive Terminal</span>
-                </div>
-                <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-                  Ready (0ms)
-                </span>
-              </div>
-              <pre className="text-slate-300 text-xs leading-5 whitespace-pre-wrap font-mono">
-                {consoleOutput}
-              </pre>
-            </div>
+          <textarea
+            value={currentCode}
+            onChange={(e) => setCurrentCode(e.target.value)}
+            spellCheck={false}
+            className="flex-1 w-full bg-transparent text-slate-200 font-mono text-sm p-4 outline-none resize-none selection:bg-amber-500/30 leading-relaxed font-medium"
+            placeholder="Write Raven code here..."
+          />
+        </div>
 
-            <div className="mt-6 text-[11px] text-slate-500 flex items-center justify-between pt-3 border-t border-slate-800/60">
-              <span>Engine: Corvus Register/Stack VM</span>
-              <span>Memory: 1.4 MB</span>
-            </div>
+        {/* Console Execution Output Panel */}
+        <div className="bg-[#0d1117] border border-[#21262d] rounded-2xl flex flex-col overflow-hidden">
+          <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+            <span className="flex items-center space-x-2">
+              <Terminal className="w-3.5 h-3.5 text-amber-400" />
+              <span>Standard Output (Stdout)</span>
+            </span>
+            <span className="text-[11px] text-slate-500">Exit Code: 0 (Success)</span>
+          </div>
+
+          <div className="flex-1 p-4 font-mono text-xs text-slate-300 whitespace-pre overflow-auto bg-slate-950/60 leading-relaxed">
+            {consoleOutput}
           </div>
         </div>
       </div>

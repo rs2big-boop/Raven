@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BookOpen, ChevronRight, Hash } from 'lucide-react';
 import { DOCS_SECTIONS, DocItem } from '../data/docs';
 import CodeBlock from '../components/CodeBlock';
 
-export default function DocsPage() {
-  const [activeSectionId, setActiveSectionId] = useState<string>(DOCS_SECTIONS[0].items[0].id);
+export default function DocsPage(): React.JSX.Element {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSectionId = searchParams.get('section') || DOCS_SECTIONS[0].items[0].id;
 
   let activeItem: DocItem | null = null;
   for (const sec of DOCS_SECTIONS) {
@@ -15,6 +17,15 @@ export default function DocsPage() {
       }
     }
   }
+
+  // Fallback to first item if requested section not found
+  if (!activeItem) {
+    activeItem = DOCS_SECTIONS[0].items[0];
+  }
+
+  const handleSelectSection = (id: string) => {
+    setSearchParams({ section: id });
+  };
 
   return (
     <div className="py-10 px-6 max-w-7xl mx-auto">
@@ -34,11 +45,11 @@ export default function DocsPage() {
                     {sec.title}
                   </div>
                   {sec.items.map((item) => {
-                    const isActive = activeSectionId === item.id;
+                    const isActive = activeItem?.id === item.id;
                     return (
                       <button
                         key={item.id}
-                        onClick={() => setActiveSectionId(item.id)}
+                        onClick={() => handleSelectSection(item.id)}
                         className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
                           isActive
                             ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30 font-semibold'

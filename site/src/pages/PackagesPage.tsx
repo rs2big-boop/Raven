@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Package, Download, Star, ExternalLink, Copy, Check, Terminal, ShieldCheck, Tag, UploadCloud } from 'lucide-react';
-import { COMMUNITY_PACKAGES, RavenPackage } from '../data/packages';
+import { useSearchParams } from 'react-router-dom';
+import { Search, Package, Download, Star, ExternalLink, Copy, Check, Terminal, ShieldCheck, UploadCloud } from 'lucide-react';
+import { COMMUNITY_PACKAGES } from '../data/packages';
 
 export default function PackagesPage(): React.JSX.Element {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedCategory = searchParams.get('category') || 'all';
+  const searchQuery = searchParams.get('q') || '';
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const categories = [
@@ -17,6 +19,15 @@ export default function PackagesPage(): React.JSX.Element {
     { id: 'data', label: 'Data & Serialization' },
     { id: 'tools', label: 'Developer Tools' }
   ];
+
+  const updateFilters = (newCat?: string, newQ?: string) => {
+    const params: Record<string, string> = {};
+    const cat = newCat !== undefined ? newCat : selectedCategory;
+    const q = newQ !== undefined ? newQ : searchQuery;
+    if (cat && cat !== 'all') params.category = cat;
+    if (q && q.trim()) params.q = q;
+    setSearchParams(params);
+  };
 
   const filteredPackages = useMemo(() => {
     return COMMUNITY_PACKAGES.filter((pkg) => {
@@ -83,7 +94,7 @@ export default function PackagesPage(): React.JSX.Element {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => updateFilters(undefined, e.target.value)}
             placeholder="Search packages by name, description, author, or tag (e.g. 'router', 'jwt', 'postgres')..."
             className="w-full pl-11 pr-4 py-3 bg-[#0d1117] border border-[#21262d] rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/80 transition-colors"
           />
@@ -94,7 +105,7 @@ export default function PackagesPage(): React.JSX.Element {
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
+              onClick={() => updateFilters(cat.id, undefined)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 selectedCategory === cat.id
                   ? 'bg-amber-500/15 text-amber-300 border border-amber-500/40'
@@ -147,7 +158,8 @@ export default function PackagesPage(): React.JSX.Element {
                   {pkg.tags.map((t) => (
                     <span
                       key={t}
-                      className="px-2 py-0.5 rounded bg-[#161b22] text-[#8b949e] text-[10px] font-mono border border-[#30363d]"
+                      onClick={() => updateFilters(undefined, t)}
+                      className="px-2 py-0.5 rounded bg-[#161b22] text-[#8b949e] text-[10px] font-mono border border-[#30363d] cursor-pointer hover:text-amber-300 hover:border-amber-500/30 transition-colors"
                     >
                       #{t}
                     </span>
