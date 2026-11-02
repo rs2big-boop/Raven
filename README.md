@@ -7,8 +7,10 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-77%2F77%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-147%2F147%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
+> [![Native](https://img.shields.io/badge/native%20build-standalone%20ELF-orange)](#)
+> [![IDE](https://img.shields.io/badge/IDE-VS%20Code%20%26%20Cursor-purple)](#)
 > [![License](https://img.shields.io/badge/license-MIT-green)](#)
 
 ---
@@ -23,6 +25,7 @@ Discover why Raven exists, the problems it solves, its unique design, and the 5-
 
 Raven was designed to provide a modern, ergonomic, and rock-solid scripting and systems language experience:
 
+- **Standalone Native Binary Compilation (`raven build`)**: Produce self-contained ELF 64-bit executables using Raven's own Corvus engine with **zero external compiler dependencies** (no GCC, Clang, or libc dev packages required).
 - **Native CSP Concurrency**: Real multi-threaded `spawn()` and native thread-safe channels (`chan_create()`, `chan_send()`, `chan_recv()`).
 - **Default Function Parameters**: `fn greet(name = "World") { ... }` supported in functions and closures.
 - **Null Coalescing Operator (`??`)**: Short-circuiting fallback operator (`let host = env("HOST") ?? "localhost"`).
@@ -33,6 +36,7 @@ Raven was designed to provide a modern, ergonomic, and rock-solid scripting and 
 - **Multi-Line Strings**: Clean `""" ... """` triple-quoted syntax for templates and multiline text.
 - **"Did You Mean?" Suggestions**: Automatic Levenshtein distance typo detection for undefined variables and functions.
 - **Full Call Stack Traces**: Deterministic multi-frame call stacks with function names, line numbers, and columns on runtime errors.
+- **Interactive Debugger (`rvndb`) & VS Code/Cursor Integration**: Full gutter breakpoints, F5 debugging, and toolbar Run/Debug buttons.
 - **Interactive REPL**: Rich shell with `.help`, `.load`, `.clear`, `.version`, multi-line input, and `=>` expression previews.
 - **Built-in Package Manager**: `raven pkg init`, `raven pkg install <repo>[@tag]`, `raven pkg list`, and `raven.lock`.
 
@@ -44,6 +48,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 | Tool / Command | Analogous to | Description |
 |---|---|---|
+| **`raven build <file> [-o bin]`** | `go build` / `cargo build` | **Standalone Native Compilation**: Compile directly to a portable native ELF executable without GCC/Clang. |
 | **`raven run <file>`** | `go run` / `python` | Execute Raven script with automatic module resolution and instant startup. |
 | **`raven init [name]`** | `go mod init` / `cargo init` | Initialize a new structured Raven project with `raven.json` manifest and `src/main.rvn`. |
 | **`raven fmt [-w] <file>`** | `gofmt` | Canonical code formatter (asthetically formats indentation, spacing, and braces). |
@@ -52,8 +57,8 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 | **`raven bench <file>`** | `go test -bench` | Microsecond-accurate benchmark runner for scripts and modules. |
 | **`raven debug <file>`** | `dlv` / `gdb` / `pdb` | Interactive step-through debugger (`rvndb`) with breakpoints, stack inspection, variable inspection, and step over/into. |
 | **`raven lsp`** | `gopls` | Official Language Server Protocol (LSP) server providing diagnostics, completions, formatting, and hover. |
-| **`ravenc`** | `javac` | Dedicated compiler: Compiles `.rvn` source code into optimized `.rvc` binary bytecode. |
-| **`rvm`** | `java` (JVM) | High-speed Corvus Virtual Machine executing pre-compiled `.rvc` bytecode. |
+| **`ravenc`** | `javac` | Dedicated compiler: Compiles `.rvn` source code into optimized `.rvc` binary bytecode or native binaries (`--native`). |
+| **`rvm`** | `java` (JVM) | High-speed Corvus Virtual Machine executing pre-compiled `.rvc` bytecode or embedded native binaries. |
 
 ---
 
@@ -77,7 +82,25 @@ Standard Go-style root scripts are provided for fast development:
 
 ## Quickstart
 
-### 1. Compile to Bytecode with `ravenc`
+### 1. Compile to a Standalone Native Executable (Zero External Dependencies)
+Compile your Raven script directly into a standalone ELF 64-bit binary without needing GCC or Clang:
+```bash
+./build/raven build examples/fibonacci.rvn -o fib_app
+./fib_app
+```
+*Output:*
+```text
+⚡ Successfully compiled standalone native binary: 'fib_app'
+   Binary size: 505575 bytes
+   Direct execution: ./fib_app
+fib(0) = 0
+fib(1) = 1
+fib(2) = 1
+...
+fib(10) = 55
+```
+
+### 2. Compile to Bytecode with `ravenc`
 ```bash
 ./build/ravenc examples/hello.rvn -o hello.rvc -O
 ```
@@ -86,7 +109,7 @@ Standard Go-style root scripts are provided for fast development:
 Successfully compiled 'examples/hello.rvn' -> 'hello.rvc' (31 bytes bytecode, 9 constants)
 ```
 
-### 2. Execute Bytecode with `rvm` (Corvus Engine)
+### 3. Execute Bytecode with `rvm` (Corvus Engine)
 ```bash
 ./build/rvm -b hello.rvc
 ```
@@ -98,7 +121,7 @@ Adult
 [RVM Benchmark: execution finished in 21 us (0.021 ms)]
 ```
 
-### 3. Disassemble Bytecode
+### 4. Disassemble Bytecode
 ```bash
 ./build/ravenc -d examples/hello.rvn
 ```
@@ -291,10 +314,10 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (77 automated unit, regression, toolchain, differential & VM integration tests):
+Raven includes a comprehensive test suite (**147 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Concurrency, Packages, and IR Optimization passes):
 
 ```bash
-# Fast build and test
+# Fast build and test (Runs all 147 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -308,34 +331,39 @@ sudo ./install.sh
 
 ## Real-World Reference Projects
 
-Four production-pattern reference projects are included under `examples/projects/`:
+Production-pattern reference projects are included under `examples/projects/`:
 1. **[HTTP REST API Server](examples/projects/01_rest_api_server.rvn)**: Routing, Middleware Pipeline, JSON Serialization, and Thread-Safe Mutex Store.
 2. **[Production CLI Application](examples/projects/02_cli_tool.rvn)**: Subcommands, Flags, JSON Configuration, and File System I/O.
 3. **[Key-Value Database Client](examples/projects/03_kv_database_client.rvn)**: Client Session Management, CRUD, Atomic Counters, and Batch Pipeline Execution.
 4. **[Concurrent Task Runner](examples/projects/04_concurrent_task_runner.rvn)**: Native POSIX Threads, WaitGroup Barrier Synchronization, and CSP Channel Queue.
+5. **[Official Full-Stack Website Server](examples/serve_website.rvn)**: Production HTTP server written in Raven serving the React 19 + TypeScript web application with routing and static assets.
 
-## VS Code Extension
+## VS Code & Cursor IDE Extension + Debugger
 
-Raven comes with a full-featured Visual Studio Code extension located in `editors/vscode`:
-- **Syntax Highlighting**: Complete grammar for keywords, builtins, operators, strings, numbers, and comments.
-- **Language Server (LSP)**: Automatic diagnostics on type, live linting, code completions, hover tooltips, and document formatting.
-- **Snippets**: Pre-built templates for `fn`, `struct`, `while`, `for-in`, `if-else`, `match`, `try-catch`, and `import`.
-- **Keybindings & Actions**:
-  - `Shift+F5`: Run active Raven file in terminal
-  - Format on Save: Configurable automatic `raven fmt` execution
-  - Context Menu Actions: Run, Format, Vet, Doc generation
-  - Status Bar: One-click "Raven Run" button
+Raven comes with a full-featured extension for Visual Studio Code and Cursor (`editors/vscode`):
+- **Full Debugger Integration (`rvndb`)**: Set breakpoints directly in the editor gutter, press `F5` to start debugging, step over/into (`F10`/`F11`), and inspect variables.
+- **Run & Debug Toolbar Buttons**: One-click Run (`play` icon) and Debug (`debug-alt` icon) buttons directly in the editor title bar.
+- **Language Server (LSP)**: Real-time diagnostics, type checking, auto-completions, hover tooltips, and document formatting on save.
+- **Syntax Highlighting & Snippets**: Rich syntax colors and pre-built templates for `fn`, `struct`, `while`, `for-in`, `if-else`, `match`, and `spawn`.
 
-To install:
+To install into VS Code or Cursor:
 ```bash
-cp -r editors/vscode ~/.vscode/extensions/raven-lang
+./scripts/install_vscode_ext.sh
 ```
+
+## Official Website & Interactive Playground
+
+The official Raven web portal is built with **React 19 + TypeScript 5.8 + Vite 6 + Tailwind CSS v4** in `site/`:
+- **Interactive Playground**: Write and preview Raven code in real time.
+- **Full Documentation & Guides**: Complete language specifications, standard library package explorer, and architecture internals.
+- **Served by Raven**: Can be hosted using Raven's own web framework via `raven examples/serve_website.rvn`.
 
 ---
 
 ## Community & Open Source
 
 Raven is **built in the open**. We welcome developers from all backgrounds to help shape the language:
+- 🌐 [**Community Guide & Hub**](COMMUNITY.md)
 - 📜 [**Manifesto & 5-Year Vision**](RAVEN_VISION.md)
 - 🤝 [**Contributing Guide**](CONTRIBUTING.md)
 - 💖 [**Code of Conduct**](CODE_OF_CONDUCT.md)

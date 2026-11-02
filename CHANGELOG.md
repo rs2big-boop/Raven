@@ -2,10 +2,24 @@
 
 All notable changes to the Raven programming language are documented in this file.
 
-## [1.1.0-dev] — 2026-10-30
+## [1.0.0] — 2026-11-02
 
 ### Added
-- **Foreign Function Interface (FFI)**: Native `ffi_open`, `ffi_close`, `ffi_call` (`<dlfcn.h>`) with `stdlib/ffi.rvn` module for zero-overhead calling into C/shared libraries.
+- **Standalone Native ELF Binary Generator (`raven build`)**:
+  - `raven build script.rvn -o binary` and `ravenc --native` compile Raven scripts into self-contained ELF 64-bit executables using Raven's own Corvus engine with **zero external compiler dependencies** (no GCC, Clang, or C build tools required).
+  - Executable embeds serialized bytecode and auto-executes upon invocation via direct ELF loading.
+- **VS Code & Cursor IDE Extension v1.0.0**:
+  - Integrated step-through debugger (`rvndb`) with editor gutter breakpoints and `F5` launch support.
+  - Added Run (`play`) and Debug (`debug-alt`) buttons directly in editor title bar.
+  - Packaged standalone `.vsix` with installer script (`scripts/install_vscode_ext.sh`).
+- **Native Web Framework (`stdlib/web/`)**:
+  - Express/Sinatra-style router (`stdlib/web/app.rvn`), safe HTML element DSL (`stdlib/web/html.rvn`), and template engine (`stdlib/web/template.rvn`).
+- **Official Web Portal in React 19 + TypeScript (`site/`)**:
+  - Built with React 19, TypeScript 5.8, Vite 6, and Tailwind CSS v4.
+  - Full interactive Playground, standard library explorer, interactive documentation, and architecture diagrams.
+  - Production server in Raven ([examples/serve_website.rvn](examples/serve_website.rvn)) serves the compiled frontend.
+- **Full Test Suite (147/147 tests passing at 100%)**:
+  - Lexer, Parser, AST, Tree-Walk Interpreter, Corvus Bytecode VM, Differential Testing, Native Concurrency, Memory Subsystem, and IR Passes.
 - **Corvus VM & Compiler Full Parity**:
   - `MapExpr` & `OpCode::BuildMap` supporting full map literals in Bytecode.
   - `PropertyExpr` & `PropertyAssignExpr` (`obj.prop`, `obj.prop = val`) in Corvus VM.

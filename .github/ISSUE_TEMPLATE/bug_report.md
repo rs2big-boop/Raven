@@ -26,8 +26,10 @@ fn main() {
 ```
 
 **Execution Command**
-- [ ] Tree-Walk Interpreter: `raven run script.rvn`
+- [ ] Native Standalone Executable: `raven build script.rvn -o app && ./app`
 - [ ] Corvus VM: `ravenc script.rvn -o script.rvc && rvm script.rvc`
+- [ ] Tree-Walk Interpreter: `raven run script.rvn`
+- [ ] Debugger: `raven debug script.rvn` or VS Code / Cursor F5
 
 **Expected Behavior**
 A clear description of what you expected to happen.
