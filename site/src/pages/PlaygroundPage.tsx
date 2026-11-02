@@ -79,7 +79,7 @@ export default function PlaygroundPage() {
       </div>
 
       {/* Main IDE Container */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+      <div className="bg-[#0d1117] border border-[#21262d] rounded-2xl overflow-hidden shadow-2xl">
         {/* Preset Tabs Bar */}
         <div className="px-4 py-3 bg-slate-900/90 border-b border-slate-800 flex items-center space-x-2 overflow-x-auto">
           {Object.keys(CODE_EXAMPLES).map((key) => {
@@ -91,12 +91,12 @@ export default function PlaygroundPage() {
                 onClick={() => handleTabChange(key)}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                    ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
                 <span>{item.title}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${isActive ? 'bg-purple-800 text-purple-200' : 'bg-slate-800 text-slate-400'}`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${isActive ? 'bg-amber-800 text-amber-200' : 'bg-slate-800 text-slate-400'}`}>
                   {item.badge}
                 </span>
               </button>
@@ -117,7 +117,7 @@ export default function PlaygroundPage() {
                 value={currentCode}
                 onChange={(e) => setCurrentCode(e.target.value)}
                 spellCheck="false"
-                className="w-full h-[400px] bg-transparent text-slate-200 text-xs md:text-[13px] leading-6 font-mono outline-none resize-none selection:bg-purple-600"
+                className="w-full h-[400px] bg-transparent text-slate-200 text-xs md:text-[13px] leading-6 font-mono outline-none resize-none selection:bg-amber-600"
               />
             </div>
             <div className="pt-3 border-t border-slate-800/80 text-xs text-slate-500">
@@ -130,7 +130,7 @@ export default function PlaygroundPage() {
             <div>
               <div className="flex items-center justify-between mb-3 border-b border-slate-800/80 pb-2">
                 <div className="flex items-center space-x-2 text-xs text-slate-400">
-                  <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                  <Terminal className="w-3.5 h-3.5 text-amber-400" />
                   <span>Interactive Terminal</span>
                 </div>
                 <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">

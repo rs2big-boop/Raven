@@ -40,9 +40,9 @@ export default function ArchitecturePage() {
       {/* Subsystem Pipeline Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {subsystems.map((sub, idx) => (
-          <div key={idx} className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
+          <div key={idx} className="bg-[#0d1117] border border-[#21262d] p-6 rounded-2xl space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center font-bold text-xs text-purple-400">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-bold text-xs text-amber-400">
                 {idx + 1}
               </div>
               <h3 className="text-lg font-bold text-white">{sub.title}</h3>
@@ -64,7 +64,7 @@ export default function ArchitecturePage() {
       </div>
 
       {/* Execution Flow Diagram */}
-      <div className="glass-panel p-8 rounded-2xl border border-slate-800 space-y-6">
+      <div className="bg-[#0d1117] border border-[#21262d] p-8 rounded-2xl space-y-6">
         <h2 className="text-xl font-bold text-white flex items-center space-x-2">
           <Terminal className="w-5 h-5 text-cyan-400" />
           <span>Pipeline Data Flow</span>

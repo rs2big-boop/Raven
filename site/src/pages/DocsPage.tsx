@@ -21,9 +21,9 @@ export default function DocsPage() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         {/* Sidebar Navigation */}
         <aside className="md:col-span-4 lg:col-span-3 space-y-6">
-          <div className="glass-panel p-4 rounded-xl border border-slate-800 sticky top-24">
+          <div className="bg-[#0d1117] border border-[#21262d] p-4 rounded-xl sticky top-24">
             <div className="flex items-center space-x-2 text-sm font-bold text-white mb-4 pb-2 border-b border-slate-800">
-              <BookOpen className="w-4 h-4 text-purple-400" />
+              <BookOpen className="w-4 h-4 text-amber-400" />
               <span>Documentation</span>
             </div>
 
@@ -41,12 +41,12 @@ export default function DocsPage() {
                         onClick={() => setActiveSectionId(item.id)}
                         className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
                           isActive
-                            ? 'bg-purple-600/25 text-purple-200 border border-purple-500/40 font-semibold'
+                            ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30 font-semibold'
                             : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                         }`}
                       >
                         <span>{item.title}</span>
-                        {isActive && <ChevronRight className="w-3.5 h-3.5 text-purple-400" />}
+                        {isActive && <ChevronRight className="w-3.5 h-3.5 text-amber-400" />}
                       </button>
                     );
                   })}
@@ -59,10 +59,10 @@ export default function DocsPage() {
         {/* Content Area */}
         <main className="md:col-span-8 lg:col-span-9">
           {activeItem && (
-            <div className="glass-card p-8 rounded-2xl border border-slate-800 space-y-6">
+            <div className="bg-[#0d1117] border border-[#21262d] p-8 rounded-2xl space-y-6">
               <div className="border-b border-slate-800 pb-4">
                 <h1 className="text-3xl font-extrabold text-white flex items-center space-x-3">
-                  <Hash className="w-6 h-6 text-purple-400" />
+                  <Hash className="w-6 h-6 text-amber-400" />
                   <span>{activeItem.title}</span>
                 </h1>
               </div>

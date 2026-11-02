@@ -22,7 +22,7 @@ export default function StdlibPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl md:text-4xl font-extrabold text-white flex items-center space-x-3">
-          <Box className="w-8 h-8 text-purple-400" />
+          <Box className="w-8 h-8 text-amber-400" />
           <span>Standard Library Index</span>
         </h1>
         <p className="mt-2 text-slate-400 text-sm max-w-2xl">
@@ -31,7 +31,7 @@ export default function StdlibPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="glass-panel p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-[#0d1117] border border-[#21262d] p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
           <input
@@ -39,7 +39,7 @@ export default function StdlibPage() {
             placeholder="Search packages, functions..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 outline-none focus:border-purple-500 transition-colors"
+            className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 outline-none focus:border-amber-500 transition-colors"
           />
         </div>
 
@@ -51,7 +51,7 @@ export default function StdlibPage() {
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-amber-600 text-white'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
@@ -64,10 +64,10 @@ export default function StdlibPage() {
       {/* Packages Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredPackages.map((pkg) => (
-          <div key={pkg.name} className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4 hover:border-slate-700 transition-all flex flex-col justify-between">
+          <div key={pkg.name} className="bg-[#0d1117] border border-[#21262d] p-6 rounded-2xl space-y-4 hover:border-slate-700 transition-all flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-mono font-bold text-base text-purple-400">{pkg.name}</span>
+                <span className="font-mono font-bold text-base text-amber-400">{pkg.name}</span>
                 <span className="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                   {pkg.category}
                 </span>

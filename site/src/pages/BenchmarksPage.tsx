@@ -55,7 +55,7 @@ export default function BenchmarksPage() {
       {/* Benchmark Metric Cards */}
       <div className="space-y-6">
         {benchmarks.map((b, idx) => (
-          <div key={idx} className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
+          <div key={idx} className="bg-[#0d1117] border border-[#21262d] p-6 rounded-2xl space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
               <div>
                 <h3 className="text-base font-bold text-white">{b.metric}</h3>
@@ -68,8 +68,8 @@ export default function BenchmarksPage() {
 
             {/* Comparison Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-1 text-center">
-              <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/40">
-                <div className="text-[11px] font-bold text-purple-300 uppercase tracking-wider mb-1">Raven (Corvus)</div>
+              <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30">
+                <div className="text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">Raven (Corvus)</div>
                 <div className="text-lg font-extrabold text-white font-mono">{b.raven}</div>
               </div>
 
