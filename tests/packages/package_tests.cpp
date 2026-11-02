@@ -74,3 +74,30 @@ TEST(PackageTest, PackageManagerInitManifest) {
 
     fs::remove(manifest);
 }
+
+TEST(PackageTest, PackageManagerSearchRegistry) {
+    auto all_pkgs = PackageManager::search_registry("");
+    EXPECT_GE(all_pkgs.size(), 5u);
+
+    auto router_pkg = PackageManager::search_registry("router");
+    ASSERT_FALSE(router_pkg.empty());
+    EXPECT_EQ(router_pkg[0].name, "raven-router");
+
+    auto redis_pkg = PackageManager::search_registry("redis");
+    ASSERT_FALSE(redis_pkg.empty());
+    EXPECT_EQ(redis_pkg[0].name, "raven-redis");
+}
+
+TEST(PackageTest, PackageManagerAddDependencyAndPublish) {
+    std::string manifest = "/tmp/test_add_dep.json";
+    fs::remove(manifest);
+
+    EXPECT_TRUE(PackageManager::init_manifest("demo_pkg", manifest));
+    EXPECT_TRUE(PackageManager::add_dependency("raven-jwt", "0.9.4", manifest));
+
+    std::string pub_msg;
+    EXPECT_TRUE(PackageManager::publish_package(manifest, pub_msg));
+    EXPECT_NE(pub_msg.find("successfully validated"), std::string::npos);
+
+    fs::remove(manifest);
+}

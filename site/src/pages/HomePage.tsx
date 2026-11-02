@@ -1,223 +1,362 @@
 import React, { useState } from 'react';
 import {
-  Sparkles, Copy, Check, ArrowRight, Cpu, Layers, Globe,
-  ShieldCheck, Bug, Box
+  Copy, Check, ArrowRight, Terminal, Cpu, Box, ShieldCheck,
+  Zap, Code2, Globe, Bug, Package, GitBranch, Play
 } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
 }
 
-export default function HomePage({ onNavigate }: HomePageProps) {
-  const [copiedInstall, setCopiedInstall] = useState(false);
-  const installCmd = "curl -fsSL https://raven-lang.org/install.sh | bash";
+export default function HomePage({ onNavigate }: HomePageProps): React.JSX.Element {
+  const [activeTab, setActiveTab] = useState<'build' | 'run' | 'pkg'>('build');
+  const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  const handleCopyInstall = () => {
-    navigator.clipboard.writeText(installCmd);
-    setCopiedInstall(true);
-    setTimeout(() => setCopiedInstall(false), 2000);
+  const commandSnippets = {
+    build: "raven build app.rvn -o app && ./app",
+    run: "raven run app.rvn",
+    pkg: "raven pkg add raven-router"
+  };
+
+  const handleCopy = (key: 'build' | 'run' | 'pkg') => {
+    navigator.clipboard.writeText(commandSnippets[key]);
+    setCopiedCmd(key);
+    setTimeout(() => setCopiedCmd(null), 2000);
   };
 
   return (
-    <div className="space-y-24 pb-20">
+    <div className="space-y-20 pb-24">
       {/* Hero Section */}
-      <section className="relative z-10 pt-20 px-6 max-w-7xl mx-auto text-center">
-        <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300 text-xs font-medium mb-8 backdrop-blur-md">
-          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Raven v1.1.0 Released: Native Web Framework & Full VS Code Debugger</span>
-        </div>
-
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.12]">
-          Modern Simplicity. <br />
-          <span className="bg-gradient-to-r from-purple-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
-            Native Concurrency.
-          </span>
-        </h1>
-
-        <p className="mt-6 text-lg md:text-xl text-slate-400 max-w-2xl mx-auto font-normal leading-relaxed">
-          Raven combines the ergonomic syntax of Python, real CSP multi-threading inspired by Go, and gradual types with dual execution engines.
-        </p>
-
-        {/* Quick Install Bar */}
-        <div className="mt-10 max-w-xl mx-auto">
-          <div className="glass-panel p-2 rounded-xl flex items-center justify-between shadow-2xl border border-slate-700/60">
-            <div className="flex items-center space-x-3 px-3 overflow-x-auto text-sm font-mono text-slate-300">
-              <span className="text-purple-400 select-none">$</span>
-              <span className="whitespace-nowrap">{installCmd}</span>
-            </div>
-            <button
-              onClick={handleCopyInstall}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white flex items-center space-x-1.5 transition-colors border border-slate-600/50 cursor-pointer"
-            >
-              {copiedInstall ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4 text-slate-300" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
+      <section className="pt-20 px-6 max-w-7xl mx-auto">
+        <div className="space-y-6 max-w-4xl">
+          {/* Release Badge */}
+          <div className="inline-flex items-center space-x-2.5 px-3 py-1 rounded-md bg-[#161d28] border border-amber-500/30 text-amber-400 text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>Raven v1.0.0 is Official • 148 Tests Passing • Native Standalone Compiler</span>
           </div>
-          <p className="text-xs text-slate-500 mt-2.5">
-            Works out of the box on Linux & macOS. Zero dependencies. C++20 core engine.
+
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08]">
+            Simple as Python. <br />
+            Concurrent as Go. <br />
+            <span className="text-amber-400">Standalone as C.</span>
+          </h1>
+
+          <p className="text-base sm:text-lg text-slate-400 max-w-2xl leading-relaxed">
+            Raven is a modern general-purpose language with a dual execution engine (Tree-Walk Interpreter & Corvus VM), native CSP concurrency, and a built-in compiler that emits standalone 64-bit ELF executables with <strong className="text-slate-200">zero external C compiler dependencies</strong>.
           </p>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-          <button
-            onClick={() => onNavigate('playground')}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-sm font-bold text-white shadow-xl shadow-purple-600/30 transition-all flex items-center space-x-2 cursor-pointer"
-          >
-            <span>Open Live Playground</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onNavigate('docs')}
-            className="px-6 py-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-sm font-semibold text-slate-200 border border-slate-700 transition-colors cursor-pointer"
-          >
-            Explore Documentation
-          </button>
-        </div>
-      </section>
+          {/* Quick Terminal Command Bar */}
+          <div className="pt-2 max-w-2xl">
+            <div className="terminal-window rounded-xl overflow-hidden">
+              {/* Tab Header */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-[#0a0e17] border-b border-[#1e2633] text-xs font-mono">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#30363d]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#30363d]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#30363d]" />
+                  <span className="text-slate-500 pl-2">raven-cli</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setActiveTab('build')}
+                    className={`px-2.5 py-1 rounded text-[11px] transition-colors cursor-pointer ${
+                      activeTab === 'build' ? 'bg-[#1b2330] text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    Native Build (No GCC)
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('run')}
+                    className={`px-2.5 py-1 rounded text-[11px] transition-colors cursor-pointer ${
+                      activeTab === 'run' ? 'bg-[#1b2330] text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    Instant Run
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('pkg')}
+                    className={`px-2.5 py-1 rounded text-[11px] transition-colors cursor-pointer ${
+                      activeTab === 'pkg' ? 'bg-[#1b2330] text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    Package Hub
+                  </button>
+                </div>
+              </div>
 
-      {/* Feature Pillars */}
-      <section className="px-6 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-            Engineered for Modern Software
-          </h2>
-          <p className="mt-3 text-slate-400 max-w-xl mx-auto text-sm">
-            Everything you need for microservices, web apps, tools, and background workloads without installing 50 dependencies.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div 
-            onClick={() => onNavigate('architecture')}
-            className="glass-panel p-6 rounded-xl hover:border-purple-500/50 transition-all group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-105 transition-transform">
-              <Cpu className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Dual Execution Engine</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Instant Tree-Walk Interpreter for REPL and prototyping, paired with the Corvus Bytecode VM and bytecode serializer for maximum throughput.
-            </p>
-          </div>
-
-          <div 
-            onClick={() => onNavigate('docs')}
-            className="glass-panel p-6 rounded-xl hover:border-cyan-500/50 transition-all group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4 group-hover:scale-105 transition-transform">
-              <Layers className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Real CSP Multi-threading</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Native OS threads, typed channels with buffering, WaitGroups, and worker pools. True parallelism without the limitations of a GIL.
-            </p>
-          </div>
-
-          <div 
-            onClick={() => onNavigate('stdlib')}
-            className="glass-panel p-6 rounded-xl hover:border-emerald-500/50 transition-all group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4 group-hover:scale-105 transition-transform">
-              <Globe className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Native Web Framework</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Built-in <code className="text-emerald-300 font-mono text-xs">stdlib/web</code> with Express-style routing, HTML Element Builder DSL, and string templating out of the box.
-            </p>
-          </div>
-
-          <div 
-            onClick={() => onNavigate('docs')}
-            className="glass-panel p-6 rounded-xl hover:border-amber-500/50 transition-all group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Gradual Type Annotations</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Type-safe when building critical systems, dynamic when prototyping. Verified at declaration, call boundaries, and execution.
-            </p>
-          </div>
-
-          <div 
-            onClick={() => onNavigate('docs')}
-            className="glass-panel p-6 rounded-xl hover:border-indigo-500/50 transition-all group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-105 transition-transform">
-              <Bug className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">rvndb & VS Code Debugger</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Full F5 debugging, gutter breakpoints, call stack inspection, and expression evaluation right inside your editor.
-            </p>
-          </div>
-
-          <div 
-            onClick={() => onNavigate('stdlib')}
-            className="glass-panel p-6 rounded-xl hover:border-pink-500/50 transition-all group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-lg bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 mb-4 group-hover:scale-105 transition-transform">
-              <Box className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Production Standard Library</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Min-Heap PriorityQueue, Trie, BST, Deque, HMAC-SHA256 crypto, TCP/UDP sockets, JSON, CSV, Regex, and package manager.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Code Snippet Spotlight */}
-      <section className="px-6 max-w-7xl mx-auto">
-        <div className="glass-card rounded-2xl p-8 border border-slate-800">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
-            <div className="max-w-xl space-y-4">
-              <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest font-semibold">
-                Ergonomics In Action
-              </span>
-              <h2 className="text-3xl font-extrabold text-white">
-                Clean, expressively modern code you actually enjoy writing.
-              </h2>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                No semicolon tax, no mandatory condition parentheses, native slicing, and first-class destructuring. Everything is tuned for fast, readable programming.
-              </p>
-              <div className="pt-2">
+              {/* Terminal Body */}
+              <div className="p-4 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center space-x-2.5 overflow-x-auto text-slate-200">
+                  <span className="text-amber-400 select-none">$</span>
+                  <span>{commandSnippets[activeTab]}</span>
+                </div>
                 <button
-                  onClick={() => onNavigate('playground')}
-                  className="px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-bold text-white flex items-center space-x-2 transition-colors cursor-pointer"
+                  onClick={() => handleCopy(activeTab)}
+                  className="px-3 py-1.5 rounded-md bg-[#161b22] hover:bg-[#21262d] text-slate-300 hover:text-white border border-[#30363d] transition-colors flex items-center space-x-1.5 cursor-pointer ml-3 shrink-0"
                 >
-                  <span>Open In Playground</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  {copiedCmd === activeTab ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
+          </div>
 
-            <div className="w-full lg:w-1/2 rounded-xl overflow-hidden border border-slate-800 bg-[#090c14] p-5 font-mono text-xs leading-6 text-slate-200">
-              <pre className="overflow-x-auto whitespace-pre">
-{`// Seamless Modern Raven Syntax
-let users = ["Alice", "Bob", "Charlie", "Diana"]
-let [admin, lead] = users[:2] // Slice + Destructure
+          {/* Action CTAs & Badges */}
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <button
+              onClick={() => onNavigate('playground')}
+              className="px-5 py-2.5 rounded-md bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition-colors flex items-center space-x-2 cursor-pointer shadow-sm"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Launch Web Playground</span>
+            </button>
+            <button
+              onClick={() => onNavigate('packages')}
+              className="px-5 py-2.5 rounded-md bg-[#0d1117] hover:bg-[#161b22] text-xs font-bold text-slate-200 border border-[#30363d] transition-colors flex items-center space-x-2 cursor-pointer"
+            >
+              <Package className="w-3.5 h-3.5 text-amber-400" />
+              <span>Browse Packages</span>
+            </button>
+            <button
+              onClick={() => onNavigate('docs')}
+              className="px-5 py-2.5 rounded-md bg-[#0d1117] hover:bg-[#161b22] text-xs font-medium text-slate-400 hover:text-white border border-[#21262d] transition-colors cursor-pointer"
+            >
+              <span>Language Specification</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
-fn greet(user, role: String = "Engineer") {
-    print("Welcome " + user + " (" + role + ")!")
-}
+      {/* Core Architectural Pillars */}
+      <section className="px-6 max-w-7xl mx-auto space-y-8">
+        <div className="border-b border-[#21262d] pb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <span className="text-xs font-mono text-amber-400 font-semibold tracking-wider uppercase">
+              Engineered Subsystems
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+              Everything in One Cohesive Toolchain
+            </h2>
+          </div>
+          <div className="text-xs font-mono text-slate-500">
+            No external compiler • No runtime dependencies • 100% C++20 Core
+          </div>
+        </div>
 
-for user in users {
-    greet(user)
-}`}
-              </pre>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Pillar 1: Native Standalone Build */}
+          <div 
+            onClick={() => onNavigate('architecture')}
+            className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Zap className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-white">Standalone Native Binary Generator</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Compile <code className="text-amber-300">.rvn</code> into a standalone 64-bit ELF executable (<code className="text-amber-300">raven build</code>) embedding the Corvus engine with zero GCC/Clang dependencies.
+            </p>
+            <div className="pt-2 text-xs font-mono text-amber-400/90 flex items-center space-x-1">
+              <span>View build internals</span>
+              <ArrowRight className="w-3 h-3" />
             </div>
           </div>
+
+          {/* Pillar 2: Dual Engine */}
+          <div 
+            onClick={() => onNavigate('architecture')}
+            className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+              <Cpu className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-white">Dual-Engine Runtime</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Instant Tree-Walk Interpreter for sub-2ms startup and debugging, paired with the Corvus Bytecode VM for optimized loop throughput.
+            </p>
+            <div className="pt-2 text-xs font-mono text-sky-400/90 flex items-center space-x-1">
+              <span>Inspect architecture</span>
+              <ArrowRight className="w-3 h-3" />
+            </div>
+          </div>
+
+          {/* Pillar 3: CSP Concurrency */}
+          <div 
+            onClick={() => onNavigate('docs')}
+            className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <GitBranch className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-white">Native CSP Concurrency</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              True multi-threaded <code className="text-emerald-300">spawn()</code>, thread-safe typed channels (<code className="text-emerald-300">chan</code>), Mutexes, and WaitGroups without a Global Interpreter Lock (GIL).
+            </p>
+            <div className="pt-2 text-xs font-mono text-emerald-400/90 flex items-center space-x-1">
+              <span>Explore concurrency</span>
+              <ArrowRight className="w-3 h-3" />
+            </div>
+          </div>
+
+          {/* Pillar 4: IDE & Debugger */}
+          <div 
+            onClick={() => onNavigate('docs')}
+            className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <Bug className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-white">VS Code & Cursor Debugger</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Full F5 debugging, editor gutter breakpoints, variable inspection, step over/into, and official LSP language server integration.
+            </p>
+            <div className="pt-2 text-xs font-mono text-purple-400/90 flex items-center space-x-1">
+              <span>Debugger setup guide</span>
+              <ArrowRight className="w-3 h-3" />
+            </div>
+          </div>
+
+          {/* Pillar 5: Packages & Registry */}
+          <div 
+            onClick={() => onNavigate('packages')}
+            className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Package className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-white">Package Registry Hub</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Integrated package manager (<code className="text-amber-300">raven pkg search/add/publish</code>) backed by deterministic lockfiles (<code className="text-amber-300">raven.lock</code>).
+            </p>
+            <div className="pt-2 text-xs font-mono text-amber-400/90 flex items-center space-x-1">
+              <span>Browse 20+ packages</span>
+              <ArrowRight className="w-3 h-3" />
+            </div>
+          </div>
+
+          {/* Pillar 6: Web Framework & Stdlib */}
+          <div 
+            onClick={() => onNavigate('stdlib')}
+            className="dev-card rounded-xl p-6 space-y-3 cursor-pointer"
+          >
+            <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+              <Globe className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-white">Native Web Framework</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Express-style HTTP routing, HTML Element Builder DSL, safe string templating, and 25+ standard library packages ready out-of-the-box.
+            </p>
+            <div className="pt-2 text-xs font-mono text-rose-400/90 flex items-center space-x-1">
+              <span>View stdlib packages</span>
+              <ArrowRight className="w-3 h-3" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Code Showcase & Syntax Ergonomics */}
+      <section className="px-6 max-w-7xl mx-auto">
+        <div className="dev-panel rounded-2xl p-6 sm:p-8 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#21262d] pb-6">
+            <div>
+              <span className="text-xs font-mono text-amber-400 font-semibold tracking-wider uppercase">
+                Syntax In Action
+              </span>
+              <h2 className="text-2xl font-bold text-white mt-1">
+                Idiomatic, Safe, and Expressive
+              </h2>
+            </div>
+            <button
+              onClick={() => onNavigate('playground')}
+              className="px-4 py-2 rounded-md bg-[#161b22] hover:bg-[#21262d] text-xs font-mono text-amber-400 border border-[#30363d] transition-colors self-start cursor-pointer"
+            >
+              Open in Interactive Playground →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Snippet 1: Concurrency & Channels */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-2">
+                <span>01_concurrent_pipeline.rvn</span>
+                <span className="text-emerald-400">CSP Concurrency</span>
+              </div>
+              <div className="terminal-window rounded-xl p-4 font-mono text-xs text-slate-200 leading-6 overflow-x-auto">
+                <pre>{`import "stdlib/sync"
+
+let ch = chan_create(10)
+let wg = create_wait_group()
+
+// Spawn background worker
+wg.add(1)
+spawn(fn() {
+    let item = chan_recv(ch)
+    print("Processed job:", item)
+    wg.done()
+})
+
+chan_send(ch, {"task": "index_corpus", "id": 42})
+wg.wait()
+chan_close(ch)`}</pre>
+              </div>
+            </div>
+
+            {/* Snippet 2: Web Server & Routing */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-2">
+                <span>02_web_server.rvn</span>
+                <span className="text-sky-400">Native Web DSL</span>
+              </div>
+              <div className="terminal-window rounded-xl p-4 font-mono text-xs text-slate-200 leading-6 overflow-x-auto">
+                <pre>{`import "stdlib/web/app"
+import "stdlib/web/html"
+
+let app = create_app()
+
+app.get("/", fn(req) {
+    let doc = html_doc("Raven App", [
+        h1_el({}, "Raven Web Server"),
+        p_el({}, "Running natively on Corvus VM.")
+    ])
+    return {"status": 200, "body": doc}
+})
+
+app.listen(8080)`}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Benchmarks Preview Banner */}
+      <section className="px-6 max-w-7xl mx-auto">
+        <div className="dev-card rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <span className="text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider">
+              Empirical Performance
+            </span>
+            <h3 className="text-xl font-bold text-white">
+              Sub-4ms Instant Startup. High Bytecode Throughput.
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Corvus VM delivers 3.2x to 4.8x faster execution than tree-walking interpreters and consistently outpaces standard CPython 3.12 on compute-bound recursion and tight array iteration.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigate('benchmarks')}
+            className="px-5 py-2.5 rounded-md bg-[#161b22] hover:bg-[#21262d] text-xs font-mono text-slate-200 hover:text-white border border-[#30363d] transition-colors shrink-0 cursor-pointer"
+          >
+            Explore Detailed Benchmarks →
+          </button>
         </div>
       </section>
     </div>

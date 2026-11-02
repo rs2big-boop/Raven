@@ -10,15 +10,16 @@ export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
   const navItems = [
     { id: 'home', label: 'Home' },
     { id: 'playground', label: 'Playground' },
-    { id: 'docs', label: 'Documentation' },
+    { id: 'packages', label: 'Packages' },
     { id: 'stdlib', label: 'Standard Library' },
+    { id: 'docs', label: 'Documentation' },
     { id: 'architecture', label: 'Architecture' },
     { id: 'benchmarks', label: 'Benchmarks' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80">
-      <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-[#080b10]/95 backdrop-blur-md border-b border-[#21262d]">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Brand */}
         <div 
           onClick={() => onNavigate('home')} 
@@ -27,30 +28,30 @@ export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
           <img 
             src="/logo.png" 
             alt="Raven Logo" 
-            className="w-9 h-9 rounded-lg shadow-md shadow-purple-900/40 group-hover:scale-105 transition-transform" 
+            className="w-8 h-8 rounded-lg border border-slate-700/60 shadow-sm group-hover:scale-105 transition-transform" 
           />
           <div className="flex items-baseline space-x-2">
-            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-purple-400 via-indigo-200 to-cyan-400 bg-clip-text text-transparent">
+            <span className="font-extrabold text-lg tracking-tight text-white group-hover:text-amber-400 transition-colors">
               Raven
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono font-medium border border-purple-500/30">
-              v1.1.0
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono font-semibold border border-amber-500/30">
+              v1.0.0
             </span>
           </div>
         </div>
 
         {/* Navigation Links */}
-        <nav className="hidden md:flex items-center space-x-1 lg:space-x-2 text-sm font-medium">
+        <nav className="hidden md:flex items-center space-x-1 text-xs font-medium">
           {navItems.map((item) => {
             const isActive = currentPage === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40 shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    ? 'bg-[#161b22] text-amber-300 border border-[#30363d] shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
                 }`}
               >
                 {item.label}
@@ -74,9 +75,9 @@ export default function Navbar({ currentPage, onNavigate }: NavbarProps) {
           </a>
           <button
             onClick={() => onNavigate('playground')}
-            className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-bold text-white shadow-lg shadow-purple-600/25 transition-all flex items-center space-x-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 rounded-md bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 transition-colors flex items-center space-x-1.5 cursor-pointer shadow-sm"
           >
-            <span>Try Playground</span>
+            <span>Playground</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

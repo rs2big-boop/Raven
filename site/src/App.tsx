@@ -7,6 +7,7 @@ import DocsPage from './pages/DocsPage';
 import StdlibPage from './pages/StdlibPage';
 import ArchitecturePage from './pages/ArchitecturePage';
 import BenchmarksPage from './pages/BenchmarksPage';
+import PackagesPage from './pages/PackagesPage';
 
 export default function App(): React.JSX.Element {
   const [currentPage, setCurrentPage] = useState<string>('home');
@@ -18,14 +19,7 @@ export default function App(): React.JSX.Element {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col selection:bg-purple-600 selection:text-white">
-      {/* Background ambient lighting */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[20%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px]" />
-        <div className="absolute top-[40%] right-[10%] w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] left-[30%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[140px]" />
-      </div>
-
+    <div className="min-h-screen bg-[#080a0f] text-slate-100 flex flex-col dev-grid-bg selection:bg-amber-500 selection:text-black">
       {/* Persistent Navigation */}
       <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
 
@@ -33,6 +27,7 @@ export default function App(): React.JSX.Element {
       <main className="flex-1 relative z-10">
         {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
         {currentPage === 'playground' && <PlaygroundPage />}
+        {currentPage === 'packages' && <PackagesPage />}
         {currentPage === 'docs' && <DocsPage />}
         {currentPage === 'stdlib' && <StdlibPage />}
         {currentPage === 'architecture' && <ArchitecturePage />}

@@ -15,6 +15,7 @@
 #include "raven/doc_generator.hpp"
 #include "raven/lsp.hpp"
 #include "raven/debugger.hpp"
+#include "raven/packages/package_manager.hpp"
 
 namespace raven {
 
@@ -490,6 +491,73 @@ int main(int argc, char* argv[]) {
                 return 0;
             }
 
+            if (subcmd == "search") {
+                std::string query = (argc > 3) ? argv[3] : "";
+                std::cout << "🔍 Searching Raven Community Registry for: '" << query << "'\n\n";
+                auto results = raven::packages::PackageManager::search_registry(query);
+                if (results.empty()) {
+                    std::cout << "  No matching packages found.\n";
+                    return 0;
+                }
+                for (const auto& pkg : results) {
+                    std::cout << "  • " << pkg.name << " (v" << pkg.version << ") by @" << pkg.author << "\n"
+                              << "    " << pkg.description << "\n"
+                              << "    ⭐ " << pkg.stars << " stars  |  ⬇ " << pkg.downloads << " installs\n"
+                              << "    Install: raven pkg add " << pkg.name << "\n\n";
+                }
+                return 0;
+            }
+
+            if (subcmd == "add") {
+                if (argc < 4) {
+                    std::cerr << "Usage: raven pkg add <package-name> [version]\n";
+                    return 1;
+                }
+                std::string pkg_name = argv[3];
+                std::string version = (argc > 4) ? argv[4] : "latest";
+                auto info = raven::packages::PackageManager::get_package_info(pkg_name);
+                if (version == "latest") version = info.version;
+
+                std::cout << "📦 Adding dependency '" << pkg_name << "@" << version << "' to raven.json...\n";
+                if (raven::packages::PackageManager::add_dependency(pkg_name, version, "raven.json")) {
+                    std::cout << "✅ Successfully added '" << pkg_name << "' to raven.json\n"
+                              << "   Run 'raven pkg install' to download and lock.\n";
+                    return 0;
+                } else {
+                    std::cerr << "❌ Failed to update raven.json manifest.\n";
+                    return 1;
+                }
+            }
+
+            if (subcmd == "info") {
+                if (argc < 4) {
+                    std::cerr << "Usage: raven pkg info <package-name>\n";
+                    return 1;
+                }
+                std::string pkg_name = argv[3];
+                auto pkg = raven::packages::PackageManager::get_package_info(pkg_name);
+                std::cout << "📦 Package: " << pkg.name << " (v" << pkg.version << ")\n"
+                          << "   Author:      @" << pkg.author << "\n"
+                          << "   Description: " << pkg.description << "\n"
+                          << "   Repository:  " << pkg.repo << "\n"
+                          << "   Downloads:   " << pkg.downloads << "\n"
+                          << "   Stars:       " << pkg.stars << "\n";
+                return 0;
+            }
+
+            if (subcmd == "publish") {
+                std::cout << "🚀 Validating and publishing package to Raven Community Registry...\n";
+                std::string msg;
+                if (raven::packages::PackageManager::publish_package("raven.json", msg)) {
+                    std::cout << "✅ " << msg << "\n"
+                              << "   Package verified and published to https://packages.raven-lang.org\n";
+                    return 0;
+                } else {
+                    std::cerr << "❌ " << msg << "\n";
+                    return 1;
+                }
+            }
+
             if (subcmd == "init") {
                 std::string pkg_name = (argc > 3) ? argv[3] : "my_package";
                 std::ofstream manifest("raven.json");
@@ -561,10 +629,13 @@ int main(int argc, char* argv[]) {
                 return ret;
             }
 
-            std::cout << "Raven Package Manager (raven pkg):\n"
-                      << "  raven pkg init [name]             Initialize new package manifest\n"
+            std::cout << "Raven Package Manager & Ecosystem Hub (raven pkg):\n"
+                      << "  raven pkg search [query]          Search community package registry\n"
+                      << "  raven pkg add <name> [version]    Add dependency to raven.json\n"
+                      << "  raven pkg info <name>             Display package metadata & downloads\n"
                       << "  raven pkg install                 Install dependencies from raven.json\n"
                       << "  raven pkg install <repo>[@tag]    Install git package and lock version\n"
+                      << "  raven pkg publish                 Validate and publish package to registry\n"
                       << "  raven pkg list                    List all installed packages\n";
             return 0;
         }
