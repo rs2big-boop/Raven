@@ -4,6 +4,11 @@
   "description": "Rich language support, LSP, formatter, linter, and runtime tools for the Raven Programming Language (.rvn)",
   "version": "1.0.0",
   "publisher": "raven-lang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/raven-lang/raven"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -15,7 +20,11 @@
     "Snippets"
   ],
   "activationEvents": [
-    "onLanguage:raven"
+    "onLanguage:raven",
+    "onCommand:raven.run",
+    "onCommand:raven.debug",
+    "onCommand:raven.fmt",
+    "onCommand:raven.vet"
   ],
   "contributes": {
     "languages": [
