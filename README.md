@@ -7,7 +7,7 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-148%2F148%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-150%2F150%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
 > [![Native](https://img.shields.io/badge/native%20build-standalone%20ELF-orange)](#)
 > [![IDE](https://img.shields.io/badge/IDE-VS%20Code%20%26%20Cursor-purple)](#)
@@ -101,7 +101,7 @@ flowchart TD
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (148/148 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (150/150 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -349,10 +349,10 @@ Raven ships with an extensive, batteries-included standard library:
 
 ## Building, Installing and Testing
 
-Raven includes a comprehensive test suite (**148 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Concurrency, Packages, and IR Optimization passes):
+Raven includes a comprehensive test suite (**150 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Concurrency, Packages, and IR Optimization passes):
 
 ```bash
-# Fast build and test (Runs all 148 tests + stdlib tour)
+# Fast build and test (Runs all 150 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -434,7 +434,7 @@ Raven provides a strictly defined and documented language specification in [**do
 
 | Tier | Operating System & Architecture | Support Level | Capabilities |
 |---|---|---|---|
-| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Standalone Native ELF compilation (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (148/148 tests). |
+| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Standalone Native ELF compilation (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (150/150 tests). |
 | **Tier 2** | **macOS (Apple Silicon M-series & Intel x86_64)** | **Source-Compatible** | Full support for source builds via Clang/CMake. Tree-Walk Interpreter, Corvus VM, REPL, and tools. |
 | **Tier 2** | **Linux ARM64 (aarch64)** | **Source-Compatible** | Full support for Linux on ARM (Raspberry Pi, AWS Graviton). |
 | **Tier 3** | **Windows 10/11 (x86_64)** | **Roadmap (v1.1 - v2.0)** | Currently runnable via WSL2. Native Windows PE standalone `.exe` generator and Win32 thread scheduler planned. |
