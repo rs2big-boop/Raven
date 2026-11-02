@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -13,6 +14,49 @@
 
 using namespace raven;
 
+static const char RAVEN_NATIVE_MAGIC[16] = "RAVEN_NATIVE_V1";
+
+static bool check_and_run_embedded_native(int argc, char* argv[]) {
+    std::string exe_path = "/proc/self/exe";
+    std::ifstream file(exe_path, std::ios::binary | std::ios::ate);
+    if (!file.is_open() && argc > 0 && argv[0] != nullptr) {
+        exe_path = argv[0];
+        file.open(exe_path, std::ios::binary | std::ios::ate);
+    }
+    if (!file.is_open()) return false;
+
+    std::streamsize file_size = file.tellg();
+    if (file_size < 32) return false;
+
+    file.seekg(file_size - 24);
+    char magic[16];
+    file.read(magic, 16);
+    if (std::memcmp(magic, RAVEN_NATIVE_MAGIC, 16) != 0) {
+        return false;
+    }
+
+    uint64_t payload_size = 0;
+    file.read(reinterpret_cast<char*>(&payload_size), sizeof(payload_size));
+    if (payload_size == 0 || static_cast<std::streamsize>(payload_size) + 24 > file_size) {
+        return false;
+    }
+
+    file.seekg(file_size - 24 - payload_size);
+    std::string payload(payload_size, '\0');
+    file.read(&payload[0], payload_size);
+
+    std::istringstream stream(payload, std::ios::binary);
+    Chunk chunk;
+    if (!BytecodeSerializer::deserialize(stream, chunk)) {
+        std::cerr << "Fatal error: Embedded bytecode payload is corrupted.\n";
+        std::exit(1);
+    }
+
+    VM vm(std::cout);
+    auto result = vm.run(chunk);
+    std::exit(result == InterpretResult::Ok ? 0 : 70);
+}
+
 void print_usage() {
     std::cout << "Raven Virtual Machine (RVM) - Corvus Engine\n\n"
               << "Usage: rvm [options] <bytecode.rvc | script.rvn>\n\n"
@@ -23,6 +67,8 @@ void print_usage() {
 }
 
 int main(int argc, char* argv[]) {
+    check_and_run_embedded_native(argc, argv);
+
     if (argc < 2) {
         print_usage();
         return 1;

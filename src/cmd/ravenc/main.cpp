@@ -1,7 +1,10 @@
+#include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
 
 #include "raven/bytecode_serializer.hpp"
 #include "raven/compiler.hpp"
@@ -9,16 +12,45 @@
 #include "raven/optimizer.hpp"
 #include "raven/parser.hpp"
 
+namespace fs = std::filesystem;
 using namespace raven;
 
+static const char RAVEN_NATIVE_MAGIC[16] = "RAVEN_NATIVE_V1";
+
 void print_usage() {
-    std::cout << "Raven Bytecode Compiler (ravenc)\n\n"
+    std::cout << "Raven Bytecode & Native Compiler (ravenc)\n\n"
               << "Usage: ravenc [options] <input.rvn>\n\n"
               << "Options:\n"
-              << "  -o <file.rvc>   Output compiled bytecode file (default: <input>.rvc)\n"
+              << "  -o <file>       Output compiled file (default: <input>.rvc or executable)\n"
+              << "  --native        Compile directly to a standalone native executable\n"
               << "  -O, --optimize  Enable compile-time constant folding & dead code elimination\n"
               << "  -d, --disasm    Print bytecode disassembly to stdout\n"
               << "  -h, --help      Display this help message\n";
+}
+
+static std::string find_rvm_runtime() {
+    std::vector<std::string> candidates = {
+        "/proc/self/exe",
+        "/home/ran/MiniLang/build/rvm",
+        "/home/ran/Raven/build/rvm",
+        "./rvm",
+        "./build/rvm",
+        "/usr/local/bin/rvm",
+        "/usr/bin/rvm"
+    };
+
+    try {
+        auto self_dir = fs::canonical("/proc/self/exe").parent_path();
+        candidates.insert(candidates.begin(), (self_dir / "rvm").string());
+    } catch (...) {}
+
+    for (const auto& path : candidates) {
+        if (path == "/proc/self/exe") continue;
+        if (fs::exists(path) && !fs::is_directory(path)) {
+            return path;
+        }
+    }
+    return "";
 }
 
 int main(int argc, char* argv[]) {
@@ -31,6 +63,7 @@ int main(int argc, char* argv[]) {
     std::string output_path;
     bool optimize = false;
     bool disasm = false;
+    bool native = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -41,6 +74,8 @@ int main(int argc, char* argv[]) {
             optimize = true;
         } else if (arg == "-d" || arg == "--disasm") {
             disasm = true;
+        } else if (arg == "--native" || arg == "--standalone") {
+            native = true;
         } else if (arg == "-o" && i + 1 < argc) {
             output_path = argv[++i];
         } else if (arg[0] == '-') {
@@ -58,10 +93,10 @@ int main(int argc, char* argv[]) {
 
     if (output_path.empty()) {
         auto dot = input_path.find_last_of('.');
-        if (dot != std::string::npos) {
-            output_path = input_path.substr(0, dot) + ".rvc";
+        if (native) {
+            output_path = (dot != std::string::npos) ? input_path.substr(0, dot) : (input_path + ".bin");
         } else {
-            output_path = input_path + ".rvc";
+            output_path = (dot != std::string::npos) ? input_path.substr(0, dot) + ".rvc" : (input_path + ".rvc");
         }
     }
 
@@ -100,6 +135,52 @@ int main(int argc, char* argv[]) {
 
     if (disasm) {
         chunk.disassemble(std::cout, input_path);
+    }
+
+    if (native) {
+        std::string rvm_path = find_rvm_runtime();
+        if (rvm_path.empty()) {
+            std::cerr << "Error: Could not locate native runtime engine template ('rvm').\n";
+            return 1;
+        }
+
+        std::ifstream rvm_in(rvm_path, std::ios::binary);
+        if (!rvm_in.is_open()) {
+            std::cerr << "Error: Failed to read runtime template '" << rvm_path << "'\n";
+            return 1;
+        }
+
+        std::ostringstream payload_stream(std::ios::binary);
+        if (!BytecodeSerializer::serialize(chunk, payload_stream)) {
+            std::cerr << "Error: Failed to serialize bytecode payload.\n";
+            return 1;
+        }
+        std::string payload = payload_stream.str();
+        uint64_t payload_size = static_cast<uint64_t>(payload.size());
+
+        std::ofstream out(output_path, std::ios::binary);
+        if (!out.is_open()) {
+            std::cerr << "Error: Cannot open output executable '" << output_path << "' for writing.\n";
+            return 1;
+        }
+
+        // 1. Copy entire RVM engine
+        out << rvm_in.rdbuf();
+        // 2. Append serialized bytecode
+        out.write(payload.data(), payload.size());
+        // 3. Append magic trailer
+        out.write(RAVEN_NATIVE_MAGIC, 16);
+        // 4. Append uint64 payload size
+        out.write(reinterpret_cast<const char*>(&payload_size), sizeof(payload_size));
+        out.close();
+
+        // 5. Set executable permissions (chmod +x)
+        chmod(output_path.c_str(), 0755);
+
+        std::cout << "⚡ Successfully compiled standalone native binary: '" << output_path << "'\n"
+                  << "   Binary size: " << fs::file_size(output_path) << " bytes\n"
+                  << "   Direct execution: ./" << output_path << "\n";
+        return 0;
     }
 
     if (!BytecodeSerializer::save_to_file(output_path, chunk)) {

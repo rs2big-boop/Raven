@@ -248,6 +248,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Raven Programming Language (C++20)\n\n"
                       << "Usage: raven [command|options] [arguments]\n\n"
                       << "Commands:\n"
+                      << "  build <file> [-o bin]   Compile directly to a standalone native executable\n"
                       << "  init [name]             Initialize a new Raven project with raven.json\n"
                       << "  run <file.rvn>          Execute a Raven script file\n"
                       << "  fmt <file.rvn> [-w]     Format Raven source code (like gofmt)\n"
@@ -264,6 +265,48 @@ int main(int argc, char* argv[]) {
                       << "  --version, -v           Print Raven version\n"
                       << "  --help, -h              Show this help message\n";
             return 0;
+        }
+
+        if (first_arg == "build" && argc > 2) {
+            std::string input_file;
+            std::string output_file;
+            bool native = true;
+
+            for (int i = 2; i < argc; ++i) {
+                std::string arg = argv[i];
+                if (arg == "-o" && i + 1 < argc) {
+                    output_file = argv[++i];
+                } else if (arg == "--bytecode") {
+                    native = false;
+                } else if (arg == "--native") {
+                    native = true;
+                } else if (arg[0] != '-') {
+                    input_file = arg;
+                }
+            }
+
+            if (input_file.empty()) {
+                std::cerr << "Error: No input file specified for 'raven build'.\n";
+                return 1;
+            }
+
+            if (output_file.empty()) {
+                auto dot = input_file.find_last_of('.');
+                output_file = (dot != std::string::npos) ? input_file.substr(0, dot) : (input_file + (native ? "" : ".rvc"));
+            }
+
+            std::string ravenc_bin = "ravenc";
+            try {
+                auto self_dir = std::filesystem::canonical("/proc/self/exe").parent_path();
+                if (std::filesystem::exists(self_dir / "ravenc")) {
+                    ravenc_bin = (self_dir / "ravenc").string();
+                } else if (std::filesystem::exists("/home/ran/MiniLang/build/ravenc")) {
+                    ravenc_bin = "/home/ran/MiniLang/build/ravenc";
+                }
+            } catch (...) {}
+
+            std::string cmd = "\"" + ravenc_bin + "\" " + (native ? "--native " : "") + input_file + " -o " + output_file;
+            return std::system(cmd.c_str()) == 0 ? 0 : 1;
         }
 
         if (first_arg == "lsp") {
