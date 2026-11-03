@@ -1,2 +1,8 @@
-// examples/hello_world/main.rvn
-print("Hello, Raven World!")
+// This is a simple example of a Raven program that prints "Hello, World!" and performs some basic operations.
+print "Hello, World!" // you can use print command with parentheses and semicolon or without them
+print 10 + 20
+fn calculate(a, b) {
+    return a + b
+}
+print calculate(10, 20)
+print "Hello " + name

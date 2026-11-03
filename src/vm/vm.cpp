@@ -1,8 +1,20 @@
 #include "raven/vm.hpp"
+#include "raven/interpreter.hpp"
 
 namespace raven {
 
-VM::VM(std::ostream& out) : out_(out) {}
+VM::VM(std::ostream& out) : out_(out) {
+    // Populate globals with all native builtins from the Interpreter.
+    // This gives the VM full parity with the tree-walk engine: filter, map, reduce,
+    // sort_arr, regex_match, http_get, etc. all work in bytecode mode.
+    Interpreter bootstrap(out);
+    const auto& builtins = bootstrap.globals()->values();
+    for (const auto& [name, val] : builtins) {
+        globals_[name] = val;
+    }
+}
+
+VM::~VM() = default;  // Needs to be here where Interpreter is fully defined
 
 void VM::push(Value value) {
     stack_.push_back(std::move(value));
@@ -518,8 +530,42 @@ InterpretResult VM::run(const Chunk& chunk) {
                     frames_.push_back(frame);
                     ip = fn->entry_ip();
                 } else {
-                    out_ << "Runtime error: unsupported callable in VM.\n";
-                    return InterpretResult::RuntimeError;
+                    // Native / builtin callable — call directly via Callable::call().
+                    // We create a lightweight Interpreter bridge so the native fn has
+                    // access to its own call_callable helper (for higher-order builtins
+                    // like map/filter/reduce that invoke user-supplied functions).
+                    auto callable = callee.as_callable();
+                    int expected = callable->arity();
+                    if (expected >= 0 && static_cast<int>(arg_count) != expected) {
+                        out_ << "Runtime error: expected " << expected
+                             << " arguments but got " << static_cast<int>(arg_count) << ".\n";
+                        return InterpretResult::RuntimeError;
+                    }
+
+                    // Collect arguments off the stack (they are in order: arg0 at bottom)
+                    std::vector<Value> args(arg_count);
+                    for (int i = arg_count - 1; i >= 0; --i) {
+                        args[i] = pop();
+                    }
+                    pop(); // pop the callable itself
+
+                    // Execute the native. Use a shared Interpreter bridge to handle
+                    // higher-order callbacks (map/filter/reduce pass a Value fn back
+                    // into the interpreter). We lazily create it.
+                    if (!native_interp_) {
+                        native_interp_ = std::make_unique<Interpreter>(out_);
+                        // Sync globals to bridge so any user-defined globals are visible
+                        for (const auto& [k, v] : globals_) {
+                            native_interp_->globals()->define(k, v);
+                        }
+                    }
+                    try {
+                        Value result = callable->call(*native_interp_, args);
+                        push(result);
+                    } catch (const std::exception& e) {
+                        out_ << "Runtime error: " << e.what() << "\n";
+                        return InterpretResult::RuntimeError;
+                    }
                 }
                 break;
             }

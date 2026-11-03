@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -9,6 +10,10 @@
 #include "raven/value.hpp"
 
 namespace raven {
+
+// Forward declaration to avoid circular header dependency.
+// The full Interpreter is included in vm.cpp.
+class Interpreter;
 
 enum class InterpretResult {
     Ok,
@@ -24,6 +29,7 @@ struct CallFrame {
 class VM {
 public:
     explicit VM(std::ostream& out = std::cout);
+    ~VM();  // Defined in vm.cpp where Interpreter is fully known
 
     InterpretResult run(const Chunk& chunk);
 
@@ -38,6 +44,9 @@ private:
     std::vector<Value> stack_;
     std::unordered_map<std::string, Value> globals_;
     std::vector<CallFrame> frames_;
+    // Lazily-created interpreter bridge used to execute native/builtin callables.
+    // Reused across native calls within a single run() invocation.
+    std::unique_ptr<Interpreter> native_interp_;
 };
 
 } // namespace raven
