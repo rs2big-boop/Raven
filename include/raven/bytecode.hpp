@@ -35,6 +35,7 @@ private:
 
 enum class OpCode : uint8_t {
     Constant,
+    ConstantLong,  // 3-byte index (big-endian 24-bit) — supports up to 16M constants
     Nil,
     True,
     False,
@@ -59,8 +60,11 @@ enum class OpCode : uint8_t {
     Pop,
 
     DefineGlobal,
+    DefineGlobalLong,
     GetGlobal,
+    GetGlobalLong,
     SetGlobal,
+    SetGlobalLong,
     GetLocal,
     SetLocal,
 
@@ -136,6 +140,15 @@ public:
                    << constants[constant_idx].to_string() << "')\n";
                 return offset + 2;
             }
+            case OpCode::ConstantLong: {
+                uint32_t constant_idx = (static_cast<uint32_t>(code[offset + 1]) << 16)
+                                      | (static_cast<uint32_t>(code[offset + 2]) << 8)
+                                      |  static_cast<uint32_t>(code[offset + 3]);
+                os << std::left << std::setw(18) << "OP_CONSTANT_LONG" << " "
+                   << constant_idx << " ('"
+                   << constants[constant_idx].to_string() << "')\n";
+                return offset + 4;
+            }
             case OpCode::Nil:
                 os << "OP_NIL\n";
                 return offset + 1;
@@ -197,6 +210,15 @@ public:
                    << constants[name_idx].to_string() << "')\n";
                 return offset + 2;
             }
+            case OpCode::DefineGlobalLong: {
+                uint32_t name_idx = (static_cast<uint32_t>(code[offset + 1]) << 16)
+                                  | (static_cast<uint32_t>(code[offset + 2]) << 8)
+                                  |  static_cast<uint32_t>(code[offset + 3]);
+                os << std::left << std::setw(18) << "OP_DEFINE_GLOBAL_LONG" << " "
+                   << name_idx << " ('"
+                   << constants[name_idx].to_string() << "')\n";
+                return offset + 4;
+            }
             case OpCode::GetGlobal: {
                 uint8_t name_idx = code[offset + 1];
                 os << std::left << std::setw(18) << "OP_GET_GLOBAL" << " "
@@ -204,12 +226,30 @@ public:
                    << constants[name_idx].to_string() << "')\n";
                 return offset + 2;
             }
+            case OpCode::GetGlobalLong: {
+                uint32_t name_idx = (static_cast<uint32_t>(code[offset + 1]) << 16)
+                                  | (static_cast<uint32_t>(code[offset + 2]) << 8)
+                                  |  static_cast<uint32_t>(code[offset + 3]);
+                os << std::left << std::setw(18) << "OP_GET_GLOBAL_LONG" << " "
+                   << name_idx << " ('"
+                   << constants[name_idx].to_string() << "')\n";
+                return offset + 4;
+            }
             case OpCode::SetGlobal: {
                 uint8_t name_idx = code[offset + 1];
                 os << std::left << std::setw(18) << "OP_SET_GLOBAL" << " "
                    << static_cast<int>(name_idx) << " ('"
                    << constants[name_idx].to_string() << "')\n";
                 return offset + 2;
+            }
+            case OpCode::SetGlobalLong: {
+                uint32_t name_idx = (static_cast<uint32_t>(code[offset + 1]) << 16)
+                                  | (static_cast<uint32_t>(code[offset + 2]) << 8)
+                                  |  static_cast<uint32_t>(code[offset + 3]);
+                os << std::left << std::setw(18) << "OP_SET_GLOBAL_LONG" << " "
+                   << name_idx << " ('"
+                   << constants[name_idx].to_string() << "')\n";
+                return offset + 4;
             }
             case OpCode::GetLocal: {
                 uint8_t slot = code[offset + 1];

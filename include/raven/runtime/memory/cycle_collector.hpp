@@ -105,10 +105,22 @@ public:
                 }
                 const void* raw = sp.get();
                 if (reachable.count(raw) == 0) {
-                    // Only reachable through cycles — break the cycle.
-                    sp->clear();
-                    broken++;
-                    stats_.objects_freed++;
+                    // Safety check: verify that this object actually contains a cyclic reference
+                    // back to itself before clearing. This prevents data corruption of live
+                    // objects held by C++ shared_ptrs that are not registered in GC roots.
+                    std::unordered_set<const void*> visited;
+                    bool is_cyclic = false;
+                    for (const auto& elem : *sp) {
+                        if (contains_target(elem, raw, visited)) {
+                            is_cyclic = true;
+                            break;
+                        }
+                    }
+                    if (is_cyclic) {
+                        sp->clear();
+                        broken++;
+                        stats_.objects_freed++;
+                    }
                 }
             }
 
@@ -120,9 +132,19 @@ public:
                 }
                 const void* raw = sp.get();
                 if (reachable.count(raw) == 0) {
-                    sp->clear();
-                    broken++;
-                    stats_.objects_freed++;
+                    std::unordered_set<const void*> visited;
+                    bool is_cyclic = false;
+                    for (const auto& [k, v] : *sp) {
+                        if (contains_target(v, raw, visited)) {
+                            is_cyclic = true;
+                            break;
+                        }
+                    }
+                    if (is_cyclic) {
+                        sp->clear();
+                        broken++;
+                        stats_.objects_freed++;
+                    }
                 }
             }
         }
@@ -168,6 +190,28 @@ public:
 
 private:
     GCRegistry() = default;
+
+    // Checks if a Value contains an internal reference back to a target container (cycle detection)
+    static bool contains_target(const Value& val, const void* target, std::unordered_set<const void*>& visited) {
+        if (val.is_array()) {
+            const void* ptr = val.as_array().get();
+            if (ptr == target) return true;
+            if (visited.insert(ptr).second) {
+                for (const auto& elem : *val.as_array()) {
+                    if (contains_target(elem, target, visited)) return true;
+                }
+            }
+        } else if (val.is_map()) {
+            const void* ptr = val.as_map().get();
+            if (ptr == target) return true;
+            if (visited.insert(ptr).second) {
+                for (const auto& [k, v] : *val.as_map()) {
+                    if (contains_target(v, target, visited)) return true;
+                }
+            }
+        }
+        return false;
+    }
 
     // Recursively mark all arrays and maps reachable from a Value.
     void trace_value(const Value& val, std::unordered_set<const void*>& reachable) {

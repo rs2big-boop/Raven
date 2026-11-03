@@ -1,8 +1,11 @@
+#include <chrono>
 #include <gtest/gtest.h>
 #include <sstream>
 #include <string>
+#include <thread>
 
 #include "raven/compiler.hpp"
+#include "raven/concurrency/spawn_registry.hpp"
 #include "raven/interpreter.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -193,4 +196,44 @@ TEST(DifferentialTest, NestedLoops) {
         "}\n"
         "print(sum);\n";
     assert_differential_match(source);
+}
+
+TEST(DifferentialTest, LargeConstantPoolBeyond256) {
+    // Generates 300 distinct variables, exceeding the old 256 uint8_t limit
+    std::string source = "let sum = 0;\n";
+    for (int i = 0; i < 300; ++i) {
+        source += "let v" + std::to_string(i) + " = " + std::to_string(i) + ";\n";
+    }
+    source += "print(v0);\n";
+    source += "print(v255);\n";
+    source += "print(v256);\n";
+    source += "print(v299);\n";
+    assert_differential_match(source);
+}
+
+TEST(DifferentialTest, VMStackUnderflowSafety) {
+    // Manually craft a chunk with OpCode::Pop on an empty stack
+    raven::Chunk chunk;
+    chunk.write_op(raven::OpCode::Pop, 1);
+    chunk.write_op(raven::OpCode::Return, 1);
+
+    std::ostringstream out;
+    raven::VM vm(out);
+    auto res = vm.run(chunk);
+    // Must return RuntimeError and NOT crash or segfault
+    EXPECT_EQ(res, raven::InterpretResult::RuntimeError);
+    EXPECT_NE(out.str().find("underflow"), std::string::npos);
+}
+
+TEST(DifferentialTest, SpawnRegistryJoinTimeout) {
+    auto& reg = raven::concurrency::SpawnRegistry::instance();
+    auto start = std::chrono::steady_clock::now();
+    reg.add(std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    }));
+    // Join with 50ms timeout - should return in ~50ms, NOT wait 600ms!
+    reg.join_all(50);
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start).count();
+    EXPECT_LT(elapsed, 350);
 }

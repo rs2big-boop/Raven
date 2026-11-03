@@ -150,3 +150,22 @@ TEST(MemoryTest, GCRootProtection) {
     EXPECT_EQ(live_arr->size(), 1u);
     EXPECT_EQ((*live_arr)[0].as_number(), 42.0);
 }
+
+TEST(MemoryTest, GCNonCyclicSafety) {
+    // Verifies that a non-cyclic object held by C++ is NOT destroyed by collect()
+    // even if it was not explicitly registered as a GC root.
+    auto& gc = raven::gc::GCRegistry::instance();
+    gc.reset_stats();
+
+    auto safe_arr = std::make_shared<std::vector<raven::Value>>();
+    safe_arr->push_back(raven::Value(123.0));
+    safe_arr->push_back(raven::Value("hello"));
+    gc.track_array(safe_arr);
+
+    // Notice: NOT added to roots!
+    size_t broken = gc.collect();
+    EXPECT_EQ(broken, 0u);
+    EXPECT_EQ(safe_arr->size(), 2u);
+    EXPECT_EQ((*safe_arr)[0].as_number(), 123.0);
+    EXPECT_EQ((*safe_arr)[1].as_string(), "hello");
+}

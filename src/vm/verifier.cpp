@@ -28,6 +28,24 @@ VerificationResult verify_chunk_safety(const Chunk& chunk) {
                 return res;
             }
             i += 2;
+        } else if (op == OpCode::ConstantLong ||
+                   op == OpCode::DefineGlobalLong ||
+                   op == OpCode::GetGlobalLong ||
+                   op == OpCode::SetGlobalLong) {
+            if (i + 3 >= chunk.code.size()) {
+                res.ok = false;
+                res.error_message = "Truncated Long instruction";
+                return res;
+            }
+            uint32_t idx = (static_cast<uint32_t>(chunk.code[i + 1]) << 16)
+                         | (static_cast<uint32_t>(chunk.code[i + 2]) << 8)
+                         |  static_cast<uint32_t>(chunk.code[i + 3]);
+            if (idx >= chunk.constants.size()) {
+                res.ok = false;
+                res.error_message = "Constant index out of bounds: " + std::to_string(idx);
+                return res;
+            }
+            i += 4;
         } else if (op == OpCode::Jump || op == OpCode::JumpIfFalse || op == OpCode::JumpIfNotNil) {
             if (i + 2 >= chunk.code.size()) {
                 res.ok = false;

@@ -9,12 +9,18 @@ void VM::push(Value value) {
 }
 
 Value VM::pop() {
+    if (stack_.empty()) {
+        throw std::runtime_error("stack underflow");
+    }
     Value top = stack_.back();
     stack_.pop_back();
     return top;
 }
 
 Value VM::peek(int distance) const {
+    if (distance < 0 || static_cast<size_t>(distance) >= stack_.size()) {
+        throw std::runtime_error("stack peek out of bounds");
+    }
     return stack_[stack_.size() - 1 - distance];
 }
 
@@ -34,12 +40,25 @@ InterpretResult VM::run(const Chunk& chunk) {
         return chunk.constants[read_byte()];
     };
 
-    while (ip < chunk.code.size()) {
-        auto instruction = static_cast<OpCode>(read_byte());
+    auto read_constant_long = [&]() -> Value {
+        uint32_t b0 = read_byte();
+        uint32_t b1 = read_byte();
+        uint32_t b2 = read_byte();
+        uint32_t idx = (b0 << 16) | (b1 << 8) | b2;
+        return chunk.constants[idx];
+    };
 
-        switch (instruction) {
+    try {
+        while (ip < chunk.code.size()) {
+            auto instruction = static_cast<OpCode>(read_byte());
+
+            switch (instruction) {
             case OpCode::Constant: {
                 push(read_constant());
+                break;
+            }
+            case OpCode::ConstantLong: {
+                push(read_constant_long());
                 break;
             }
             case OpCode::Nil: push(Value()); break;
@@ -150,6 +169,11 @@ InterpretResult VM::run(const Chunk& chunk) {
                 globals_[name] = pop();
                 break;
             }
+            case OpCode::DefineGlobalLong: {
+                std::string name = read_constant_long().as_string();
+                globals_[name] = pop();
+                break;
+            }
             case OpCode::GetGlobal: {
                 std::string name = read_constant().as_string();
                 auto it = globals_.find(name);
@@ -160,8 +184,28 @@ InterpretResult VM::run(const Chunk& chunk) {
                 push(it->second);
                 break;
             }
+            case OpCode::GetGlobalLong: {
+                std::string name = read_constant_long().as_string();
+                auto it = globals_.find(name);
+                if (it == globals_.end()) {
+                    out_ << "Runtime error: undefined variable '" << name << "'.\n";
+                    return InterpretResult::RuntimeError;
+                }
+                push(it->second);
+                break;
+            }
             case OpCode::SetGlobal: {
                 std::string name = read_constant().as_string();
+                auto it = globals_.find(name);
+                if (it == globals_.end()) {
+                    out_ << "Runtime error: undefined variable '" << name << "'.\n";
+                    return InterpretResult::RuntimeError;
+                }
+                it->second = peek(0);
+                break;
+            }
+            case OpCode::SetGlobalLong: {
+                std::string name = read_constant_long().as_string();
                 auto it = globals_.find(name);
                 if (it == globals_.end()) {
                     out_ << "Runtime error: undefined variable '" << name << "'.\n";
@@ -496,6 +540,10 @@ InterpretResult VM::run(const Chunk& chunk) {
                 break;
             }
         }
+    }
+    } catch (const std::exception& e) {
+        out_ << "Runtime error: " << e.what() << "\n";
+        return InterpretResult::RuntimeError;
     }
 
     return InterpretResult::Ok;

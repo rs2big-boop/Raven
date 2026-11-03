@@ -1,2 +1,2 @@
 // examples/hello_world/main.rvn
-print("Hello, Raven World!");
+print("Hello, Raven World!")

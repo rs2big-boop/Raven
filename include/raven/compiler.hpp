@@ -68,7 +68,15 @@ private:
     int emit_jump(OpCode op, int line = 0);
     void patch_jump(int offset);
     void emit_loop(int loop_start, int line = 0);
-    uint8_t make_constant(Value value);
+    // emit_constant handles both Constant (index < 256) and ConstantLong (index >= 256).
+    // Prefer emit_constant over make_constant + manual emit_op/emit_byte.
+    void emit_constant(Value value, int line = 0);
+    void emit_define_global(uint32_t name_idx, int line = 0);
+    void emit_get_global(uint32_t name_idx, int line = 0);
+    void emit_set_global(uint32_t name_idx, int line = 0);
+    // make_constant adds to constant pool and returns the index; callers are
+    // responsible for emitting the appropriate opcode + operand bytes.
+    uint32_t make_constant(Value value);
 
     int resolve_local(const Token& name);
 

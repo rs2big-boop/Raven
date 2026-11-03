@@ -42,9 +42,61 @@ void Compiler::emit_loop(int loop_start, int line) {
     emit_byte(static_cast<uint8_t>(jump & 0xff), line);
 }
 
-uint8_t Compiler::make_constant(Value value) {
+uint32_t Compiler::make_constant(Value value) {
     int constant = chunk_.add_constant(std::move(value));
-    return static_cast<uint8_t>(constant);
+    return static_cast<uint32_t>(constant);
+}
+
+// emit_constant: encodes the constant-load instruction using the minimal
+// byte-width encoding.  Indices 0-255 use the 2-byte Constant opcode;
+// indices 256-16,777,215 use the 4-byte ConstantLong opcode (24-bit big-endian).
+void Compiler::emit_constant(Value value, int line) {
+    uint32_t idx = make_constant(std::move(value));
+    if (idx < 256) {
+        emit_op(OpCode::Constant, line);
+        emit_byte(static_cast<uint8_t>(idx), line);
+    } else {
+        emit_op(OpCode::ConstantLong, line);
+        emit_byte(static_cast<uint8_t>((idx >> 16) & 0xff), line);
+        emit_byte(static_cast<uint8_t>((idx >>  8) & 0xff), line);
+        emit_byte(static_cast<uint8_t>( idx        & 0xff), line);
+    }
+}
+
+void Compiler::emit_define_global(uint32_t name_idx, int line) {
+    if (name_idx < 256) {
+        emit_op(OpCode::DefineGlobal, line);
+        emit_byte(static_cast<uint8_t>(name_idx), line);
+    } else {
+        emit_op(OpCode::DefineGlobalLong, line);
+        emit_byte(static_cast<uint8_t>((name_idx >> 16) & 0xff), line);
+        emit_byte(static_cast<uint8_t>((name_idx >>  8) & 0xff), line);
+        emit_byte(static_cast<uint8_t>( name_idx        & 0xff), line);
+    }
+}
+
+void Compiler::emit_get_global(uint32_t name_idx, int line) {
+    if (name_idx < 256) {
+        emit_op(OpCode::GetGlobal, line);
+        emit_byte(static_cast<uint8_t>(name_idx), line);
+    } else {
+        emit_op(OpCode::GetGlobalLong, line);
+        emit_byte(static_cast<uint8_t>((name_idx >> 16) & 0xff), line);
+        emit_byte(static_cast<uint8_t>((name_idx >>  8) & 0xff), line);
+        emit_byte(static_cast<uint8_t>( name_idx        & 0xff), line);
+    }
+}
+
+void Compiler::emit_set_global(uint32_t name_idx, int line) {
+    if (name_idx < 256) {
+        emit_op(OpCode::SetGlobal, line);
+        emit_byte(static_cast<uint8_t>(name_idx), line);
+    } else {
+        emit_op(OpCode::SetGlobalLong, line);
+        emit_byte(static_cast<uint8_t>((name_idx >> 16) & 0xff), line);
+        emit_byte(static_cast<uint8_t>((name_idx >>  8) & 0xff), line);
+        emit_byte(static_cast<uint8_t>( name_idx        & 0xff), line);
+    }
 }
 
 void Compiler::visit(const BinaryExpr& expr) {
@@ -101,9 +153,7 @@ void Compiler::visit(const LiteralExpr& expr) {
     } else if (expr.value.is_bool()) {
         emit_op(expr.value.as_bool() ? OpCode::True : OpCode::False);
     } else {
-        uint8_t idx = make_constant(expr.value);
-        emit_op(OpCode::Constant);
-        emit_byte(idx);
+        emit_constant(expr.value);
     }
 }
 
@@ -132,9 +182,8 @@ void Compiler::visit(const VariableExpr& expr) {
         emit_op(OpCode::GetLocal, expr.name.line);
         emit_byte(static_cast<uint8_t>(arg), expr.name.line);
     } else {
-        uint8_t name = make_constant(Value(expr.name.lexeme));
-        emit_op(OpCode::GetGlobal, expr.name.line);
-        emit_byte(name, expr.name.line);
+        uint32_t name = make_constant(Value(expr.name.lexeme));
+        emit_get_global(name, expr.name.line);
     }
 }
 
@@ -145,9 +194,8 @@ void Compiler::visit(const AssignExpr& expr) {
         emit_op(OpCode::SetLocal, expr.name.line);
         emit_byte(static_cast<uint8_t>(arg), expr.name.line);
     } else {
-        uint8_t name = make_constant(Value(expr.name.lexeme));
-        emit_op(OpCode::SetGlobal, expr.name.line);
-        emit_byte(name, expr.name.line);
+        uint32_t name = make_constant(Value(expr.name.lexeme));
+        emit_set_global(name, expr.name.line);
     }
 }
 
@@ -278,17 +326,13 @@ void Compiler::visit(const IndexAssignExpr& expr) {
 
 void Compiler::visit(const PropertyExpr& expr) {
     expr.object->accept(*this);
-    uint8_t idx = make_constant(Value(expr.name.lexeme));
-    emit_op(OpCode::Constant);
-    emit_byte(idx);
+    emit_constant(Value(expr.name.lexeme));
     emit_op(OpCode::IndexGet);
 }
 
 void Compiler::visit(const PropertyAssignExpr& expr) {
     expr.object->accept(*this);
-    uint8_t idx = make_constant(Value(expr.name.lexeme));
-    emit_op(OpCode::Constant);
-    emit_byte(idx);
+    emit_constant(Value(expr.name.lexeme));
     expr.value->accept(*this);
     emit_op(OpCode::IndexSet);
 }
@@ -317,9 +361,7 @@ void Compiler::visit(const LambdaExpr& expr) {
     patch_jump(jump_over);
 
     auto fn_obj = std::make_shared<BytecodeFunction>("<lambda>", static_cast<int>(expr.params.size()), entry_ip);
-    uint8_t fn_const = make_constant(Value(fn_obj));
-    emit_op(OpCode::Constant);
-    emit_byte(fn_const);
+    emit_constant(Value(fn_obj));
 }
 
 void Compiler::visit(const PipelineExpr& expr) {
@@ -397,9 +439,8 @@ void Compiler::visit(const VarDeclStmt& stmt) {
     if (scope_depth_ > 0) {
         locals_.push_back(Local{stmt.name, scope_depth_});
     } else {
-        uint8_t name = make_constant(Value(stmt.name.lexeme));
-        emit_op(OpCode::DefineGlobal, stmt.name.line);
-        emit_byte(name, stmt.name.line);
+        uint32_t name = make_constant(Value(stmt.name.lexeme));
+        emit_define_global(name, stmt.name.line);
     }
 }
 
@@ -415,9 +456,8 @@ void Compiler::visit(const DestructureStmt& stmt) {
         if (scope_depth_ > 0) {
             locals_.push_back(Local{name, scope_depth_});
         } else {
-            uint8_t name_const = make_constant(Value(name.lexeme));
-            emit_op(OpCode::DefineGlobal, name.line);
-            emit_byte(name_const, name.line);
+            uint32_t name_const = make_constant(Value(name.lexeme));
+            emit_define_global(name_const, name.line);
         }
     }
 }
@@ -481,9 +521,7 @@ void Compiler::visit(const ForInStmt& stmt) {
     locals_.push_back(Local{iter_token, scope_depth_});
     uint8_t iter_slot = static_cast<uint8_t>(locals_.size() - 1);
 
-    uint8_t zero_idx = make_constant(Value(0.0));
-    emit_op(OpCode::Constant);
-    emit_byte(zero_idx);
+    emit_constant(Value(0.0));
     std::string idx_name = "__for_idx_" + std::to_string(chunk_.code.size());
     Token idx_token{TokenType::Identifier, idx_name, stmt.variable.line, 0};
     locals_.push_back(Local{idx_token, scope_depth_});
@@ -526,9 +564,7 @@ void Compiler::visit(const ForInStmt& stmt) {
 
     emit_op(OpCode::GetLocal);
     emit_byte(idx_slot);
-    uint8_t one_idx = make_constant(Value(1.0));
-    emit_op(OpCode::Constant);
-    emit_byte(one_idx);
+    emit_constant(Value(1.0));
     emit_op(OpCode::Add);
     emit_op(OpCode::SetLocal);
     emit_byte(idx_slot);
@@ -599,13 +635,10 @@ void Compiler::visit(const FunctionStmt& stmt) {
     patch_jump(jump_over);
 
     auto fn_obj = std::make_shared<BytecodeFunction>(stmt.name.lexeme, static_cast<int>(stmt.params.size()), entry_ip);
-    uint8_t fn_const = make_constant(Value(fn_obj));
-    emit_op(OpCode::Constant);
-    emit_byte(fn_const);
+    emit_constant(Value(fn_obj));
 
-    uint8_t name_const = make_constant(Value(stmt.name.lexeme));
-    emit_op(OpCode::DefineGlobal);
-    emit_byte(name_const);
+    uint32_t name_const = make_constant(Value(stmt.name.lexeme));
+    emit_define_global(name_const);
 }
 void Compiler::visit(const ReturnStmt& stmt) {
     if (stmt.value) {
