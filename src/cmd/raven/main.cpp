@@ -259,7 +259,8 @@ int main(int argc, char* argv[]) {
                       << "  bench <file.rvn>        Benchmark script execution time and memory\n"
                       << "  lsp                     Start the Language Server Protocol (LSP) server\n"
                       << "  test                    Execute test suite with ctest\n"
-                      << "  pkg install <repo-url>  Clone/install a package into raven_modules/\n\n"
+                      << "  pkg, pip                Package manager (search, install, uninstall, update, list)\n"
+                      << "  upgrade, self-update    Automatically update Raven to the latest version\n\n"
                       << "Options:\n"
                       << "  -e, -c <code>           Execute inline Raven code\n"
                       << "  --vm <file.rvn>         Execute using the Raven Bytecode Virtual Machine (Corvus)\n"
@@ -466,7 +467,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (first_arg == "--version" || first_arg == "-v") {
-            std::cout << "Raven 1.0.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
+            std::cout << "Raven 1.2.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
             return 0;
         }
 
@@ -480,7 +481,7 @@ int main(int argc, char* argv[]) {
             return raven::run_file(argv[2]);
         }
 
-        if (first_arg == "pkg") {
+        if (first_arg == "pkg" || first_arg == "pip") {
             std::string subcmd = (argc > 2) ? argv[2] : "help";
             if (subcmd == "list") {
                 std::cout << "📦 Installed Raven packages in raven_modules/:\n";
@@ -596,8 +597,14 @@ int main(int argc, char* argv[]) {
                 }
 
                 std::string target = argv[3];
+                // Check if target is in curated registry
+                auto pkg_info = raven::packages::PackageManager::get_package_info(target);
                 std::string repo = target;
                 std::string version = "main";
+                if (!pkg_info.repo.empty() && target.find('/') == std::string::npos) {
+                    repo = "https://" + pkg_info.repo + ".git";
+                    version = (argc > 4) ? argv[4] : pkg_info.version;
+                }
                 size_t at_pos = target.find('@');
                 if (at_pos != std::string::npos) {
                     repo = target.substr(0, at_pos);
@@ -641,12 +648,44 @@ int main(int argc, char* argv[]) {
                 return ret;
             }
 
-            std::cout << "Raven Package Manager & Ecosystem Hub (raven pkg):\n"
+            if (subcmd == "uninstall" || subcmd == "remove") {
+                if (argc < 4) {
+                    std::cerr << "Usage: raven pkg uninstall <package-name>\n";
+                    return 1;
+                }
+                std::string pkg_name = argv[3];
+                std::cout << "🗑️  Removing package '" << pkg_name << "'...\n";
+                raven::packages::PackageManager::uninstall_package(pkg_name);
+                raven::packages::PackageManager::remove_dependency(pkg_name);
+                std::cout << "✅ Successfully uninstalled '" << pkg_name << "'\n";
+                return 0;
+            }
+
+            if (subcmd == "update" || subcmd == "upgrade") {
+                std::cout << "🔄 Updating installed packages in raven_modules/...\n";
+                if (!std::filesystem::exists("raven_modules")) {
+                    std::cout << "  No packages installed to update.\n";
+                    return 0;
+                }
+                for (const auto& entry : std::filesystem::directory_iterator("raven_modules")) {
+                    if (entry.is_directory()) {
+                        std::string name = entry.path().filename().string();
+                        std::cout << "  • Updating " << name << "...\n";
+                        std::string pull_cmd = "cd " + entry.path().string() + " && git pull --ff-only 2>/dev/null";
+                        std::system(pull_cmd.c_str());
+                    }
+                }
+                std::cout << "✅ All packages updated to their latest versions.\n";
+                return 0;
+            }
+
+            std::cout << "Raven Package Manager & Ecosystem Hub (raven pkg / pip):\n"
                       << "  raven pkg search [query]          Search community package registry\n"
+                      << "  raven pkg install <name|repo>     Install package (registry name or git URL)\n"
+                      << "  raven pkg uninstall <name>        Remove package from project\n"
+                      << "  raven pkg update                  Update all installed packages\n"
                       << "  raven pkg add <name> [version]    Add dependency to raven.json\n"
                       << "  raven pkg info <name>             Display package metadata & downloads\n"
-                      << "  raven pkg install                 Install dependencies from raven.json\n"
-                      << "  raven pkg install <repo>[@tag]    Install git package and lock version\n"
                       << "  raven pkg publish                 Validate and publish package to registry\n"
                       << "  raven pkg list                    List all installed packages\n";
             return 0;
@@ -684,6 +723,19 @@ int main(int argc, char* argv[]) {
         if (first_arg == "test") {
             std::cout << "🧪 Running Raven test suite...\n";
             int ret = std::system("ctest --test-dir build --output-on-failure");
+            return ret;
+        }
+
+        if (first_arg == "upgrade" || first_arg == "self-update") {
+            std::cout << "🐦 Checking for Raven updates from GitHub...\n";
+            std::cout << "Current version: Raven v1.2.0 (Corvus Engine)\n";
+            std::string cmd = "curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh | bash";
+            int ret = std::system(cmd.c_str());
+            if (ret == 0) {
+                std::cout << "✨ Raven has been successfully updated to the latest version!\n";
+            } else {
+                std::cerr << "❌ Update failed. Please run manually: curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh | bash\n";
+            }
             return ret;
         }
 

@@ -5,7 +5,7 @@
 set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="1.0.1"
+VERSION="1.2.0"
 
 echo "🪟 Cross-compiling Raven v${VERSION} for Windows (x86_64)..."
 

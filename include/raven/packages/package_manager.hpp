@@ -27,6 +27,8 @@ public:
     // Community Registry & Ecosystem Extensions
     static std::vector<PackageMetadata> search_registry(const std::string& query);
     static bool add_dependency(const std::string& pkg_name, const std::string& version = "latest", const std::string& manifest_path = "raven.json");
+    static bool remove_dependency(const std::string& pkg_name, const std::string& manifest_path = "raven.json");
+    static bool uninstall_package(const std::string& pkg_name, const std::string& modules_dir = "raven_modules");
     static bool publish_package(const std::string& manifest_path, std::string& out_message);
     static PackageMetadata get_package_info(const std::string& pkg_name);
     static std::vector<PackageMetadata> get_curated_registry();

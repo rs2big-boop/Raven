@@ -1,6 +1,6 @@
-# Raven Architecture Specification v1.0.0
+# Raven Architecture Specification v1.2.0
 
-> **Document Version**: 1.0.0  
+> **Document Version**: 1.2.0  
 > **Status**: APPROVED & ACTIVE  
 > **Audience**: Core Engine Developers, Toolchain Contributors, Systems Architects  
 > **Repository**: [https://github.com/raven-lang/raven](file:///home/ran/Raven)
@@ -9,7 +9,7 @@
 
 ## Component Status Legend
 Throughout this document, every architectural component is categorized according to its maturity:
-- `[IMPLEMENTED]`: Fully implemented, verified by test suite (77/77 passing), and production ready.
+- `[IMPLEMENTED]`: Fully implemented, verified by test suite (169/169 passing), and production ready.
 - `[PARTIAL]`: Core functional implementation exists; advanced edge-case or performance optimizations ongoing.
 - `[PLANNED]`: Architectural design specified; scheduled on the development roadmap.
 - `[EXPERIMENTAL]`: Available for testing and evaluation; API subject to refinement before stabilization.
@@ -378,10 +378,22 @@ Undefined variable 'prnt'. Did you mean 'print'?
 
 ## 16. Module & Package System `[IMPLEMENTED]`
 
-### Package Tooling
+### Package Tooling (`raven pkg` / `raven pip`)
+Raven features an integrated package management hub designed with Python-pip/NPM-like ergonomics and Go-like simplicity:
 - `raven init [name]`: Scaffolds new projects with `raven.json`.
-- `raven pkg install <git-url>[@tag]`: Clones packages into `raven_modules/` and locks versions in `raven.lock`.
-- `raven pkg list`: Displays installed package versions.
+- `raven pkg search [query]` (alias `raven pip search`): Searches curated ecosystem packages across categories (web, auth, db, ui, concurrency, validation).
+- `raven pkg add <name> [version]`: Resolves package metadata and pins dependency to `raven.json`.
+- `raven pkg install`: Downloads and locks dependencies defined in `raven.json`.
+- `raven pkg install <name|git-url>[@tag]`: Directly fetches packages from the registry or any Git repository into `raven_modules/` and locks versions in `raven.lock`.
+- `raven pkg uninstall <name>` (alias `raven pip uninstall`): Completely uninstalls a dependency from `raven_modules/` and updates `raven.json` and `raven.lock`.
+- `raven pkg update` (alias `raven pip update`): Performs fast-forward updates on all installed packages.
+- `raven pkg list`: Displays all installed package versions.
+- `raven pkg publish`: Validates package metadata and signs package for the central community registry.
+
+---
+
+## 17. Self-Update & Continuous Delivery `[IMPLEMENTED]`
+- `raven upgrade` (alias `raven self-update`): Zero-friction auto-updater that queries the latest GitHub Releases, pulls the updated binary distribution for the current OS/architecture, and replaces the running installation seamlessly without manual rebuilds.
 
 ---
 
@@ -443,7 +455,7 @@ Structured in two layers:
 ## 23. Testing & Quality Assurance `[IMPLEMENTED]`
 
 ### Test Suite
-- **77 Automated Tests** covering all language features (100% pass rate).
+- **169 Automated Tests** covering all language features (100% pass rate).
 - **Differential Testing**: Comparing results of Tree-Walk Interpreter against Corvus VM.
 - Continuous verification script: `./all.bash`.
 
@@ -491,11 +503,18 @@ Structured in two layers:
 
 ---
 
-## 30. Future Architecture / Roadmap `[PLANNED]`
+## 30. Future Architecture / Roadmap `[ACTIVE]`
 
 ```
-v1.0.0 (Current)        v1.1.0                  v1.2.0                  v1.3.0
-Dual-Engine Core    ──> Async/Await Syntax  ──> Raven IR (RIR)      ──> Native C FFI
-Native CSP & 77 Tests   Cycle-Detecting GC      Register-Based VM       AOT LLVM Backend
-Full Toolchain Suite    Extended LSP Actions    WASM Compilation        Package Registry
+v1.0.0                  v1.2.0 (Current)        v1.3.0                  v2.0.0
+Dual-Engine Core    ──> Full OOP (extends)  ──> Native C FFI (dlopen)──> AOT LLVM Backend
+Native CSP Primitives   super() & static        Async/Await Native Syntax JIT Execution
+77 Core Tests           Package Manager (pip)   Central Package Registry Register Bytecode VM
+LSP & VS Code Ext       Autoupdater (upgrade)   Sandboxing Limits (RAM) WebAssembly Target
+                        169/169 Tests Passing
 ```
+
+### Next Major Milestones
+1. **v1.3.0**: Native C Dynamic FFI (`dlopen`/`dlsym`), `async`/`await` syntactic sugar desugaring directly into CSP goroutines, and global package registry hosting.
+2. **v1.4.0**: Configurable runtime sandbox boundaries (CPU limits, RAM budgets, permitted directory roots for security).
+3. **v2.0.0**: LLVM JIT/AOT code generation producing bare-metal native binaries directly from Raven IR (RIR).

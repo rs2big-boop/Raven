@@ -212,6 +212,70 @@ bool PackageManager::add_dependency(const std::string& pkg_name, const std::stri
     return true;
 }
 
+bool PackageManager::remove_dependency(const std::string& pkg_name, const std::string& manifest_path) {
+    if (!fs::exists(manifest_path)) return false;
+
+    std::ifstream in(manifest_path);
+    if (!in.is_open()) return false;
+    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    in.close();
+
+    size_t dep_pos = content.find("\"dependencies\"");
+    if (dep_pos == std::string::npos) return false;
+
+    size_t brace_open = content.find('{', dep_pos);
+    if (brace_open == std::string::npos) return false;
+
+    size_t brace_close = content.find('}', brace_open);
+    if (brace_close == std::string::npos) return false;
+
+    std::string target_key = "\"" + pkg_name + "\"";
+    size_t key_pos = content.find(target_key, brace_open);
+    if (key_pos == std::string::npos || key_pos > brace_close) {
+        return false; // not found
+    }
+
+    // Find line start/comma and value end
+    size_t line_start = content.rfind('\n', key_pos);
+    if (line_start == std::string::npos || line_start < brace_open) line_start = key_pos;
+
+    size_t val_end = content.find('\n', key_pos);
+    if (val_end == std::string::npos || val_end > brace_close) val_end = brace_close;
+
+    // Check if trailing comma before line_start or after val_end
+    std::string before = content.substr(0, line_start);
+    std::string after = content.substr(val_end);
+
+    // Clean up possible trailing commas if needed
+    if (!before.empty() && before.back() == ',') {
+        before.pop_back();
+    }
+
+    std::ofstream out(manifest_path);
+    if (!out.is_open()) return false;
+    out << before << after;
+    return true;
+}
+
+bool PackageManager::uninstall_package(const std::string& pkg_name, const std::string& modules_dir) {
+    std::string dest = modules_dir + "/" + pkg_name;
+    if (fs::exists(dest)) {
+        std::error_code ec;
+        fs::remove_all(dest, ec);
+    }
+
+    // Also remove from raven.lock
+    if (fs::exists("raven.lock")) {
+        auto locked = Lockfile::read("raven.lock");
+        std::vector<LockedPackage> updated;
+        for (const auto& p : locked) {
+            if (p.name != pkg_name) updated.push_back(p);
+        }
+        Lockfile::write("raven.lock", updated);
+    }
+    return true;
+}
+
 bool PackageManager::publish_package(const std::string& manifest_path, std::string& out_message) {
     if (!fs::exists(manifest_path)) {
         out_message = "Error: Manifest file '" + manifest_path + "' not found.";
