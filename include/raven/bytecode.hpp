@@ -10,18 +10,20 @@
 
 namespace raven {
 
+class Chunk;
+
 class BytecodeFunction : public Callable {
 public:
-    BytecodeFunction(std::string name, int arity, size_t entry_ip)
-        : name_(std::move(name)), arity_(arity), entry_ip_(entry_ip) {}
+    BytecodeFunction(std::string name, int arity, size_t entry_ip, const Chunk* chunk = nullptr)
+        : name_(std::move(name)), arity_(arity), entry_ip_(entry_ip), chunk_(chunk) {}
 
     int arity() const override { return arity_; }
     size_t entry_ip() const { return entry_ip_; }
     const std::string& name() const { return name_; }
+    const Chunk* chunk() const { return chunk_; }
+    void set_chunk(const Chunk* ch) { chunk_ = ch; }
 
-    Value call(Interpreter&, const std::vector<Value>&) override {
-        return Value();
-    }
+    Value call(Interpreter&, const std::vector<Value>&) override;
 
     std::string to_string() const override {
         return "<vm fn " + name_ + ">";
@@ -31,6 +33,7 @@ private:
     std::string name_;
     int arity_;
     size_t entry_ip_;
+    const Chunk* chunk_ = nullptr;
 };
 
 enum class OpCode : uint8_t {

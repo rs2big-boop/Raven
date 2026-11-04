@@ -7,8 +7,10 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-150%2F150%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-158%2F158%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
+> [![Release](https://img.shields.io/badge/GitHub-Releases-blue?logo=github)](https://github.com/rs2big-boop/Raven/releases)
+> [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#)
 > [![Native](https://img.shields.io/badge/native%20build-standalone%20ELF-orange)](#)
 > [![IDE](https://img.shields.io/badge/IDE-VS%20Code%20%26%20Cursor-purple)](#)
 > [![License](https://img.shields.io/badge/license-MIT-green)](#)
@@ -347,12 +349,32 @@ Raven ships with an extensive, batteries-included standard library:
 
 ---
 
-## Building, Installing and Testing
+## Quick Installation
 
-Raven includes a comprehensive test suite (**150 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Concurrency, Packages, and IR Optimization passes):
+Install the Raven toolchain with a single command on your operating system:
+
+### 🪟 Windows (PowerShell)
+Open PowerShell and run:
+```powershell
+irm https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.ps1 | iex
+```
+*Or download `raven-v1.0.0-windows-x86_64.zip` directly from [GitHub Releases](https://github.com/rs2big-boop/Raven/releases) and double-click `install.bat`.*
+
+### 🐧 Linux & 🍏 macOS
+Open terminal and run:
+```bash
+curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh | bash
+```
+*(No root or sudo required — automatically installs to `~/.local/bin` and updates your PATH!)*
+
+---
+
+## Building from Source and Testing
+
+Raven includes a comprehensive test suite (**158 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, and IR Optimization passes):
 
 ```bash
-# Fast build and test (Runs all 150 tests + stdlib tour)
+# Fast build and test (Runs all 158 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -360,8 +382,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 
-# System-wide Installation (optional)
-sudo ./install.sh
+# Local Installation
+./install.sh
 ```
 
 ## Real-World Reference Projects

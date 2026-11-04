@@ -360,7 +360,7 @@ void Compiler::visit(const LambdaExpr& expr) {
 
     patch_jump(jump_over);
 
-    auto fn_obj = std::make_shared<BytecodeFunction>("<lambda>", static_cast<int>(expr.params.size()), entry_ip);
+    auto fn_obj = std::make_shared<BytecodeFunction>("<lambda>", static_cast<int>(expr.params.size()), entry_ip, &chunk_);
     emit_constant(Value(fn_obj));
 }
 
@@ -634,7 +634,7 @@ void Compiler::visit(const FunctionStmt& stmt) {
 
     patch_jump(jump_over);
 
-    auto fn_obj = std::make_shared<BytecodeFunction>(stmt.name.lexeme, static_cast<int>(stmt.params.size()), entry_ip);
+    auto fn_obj = std::make_shared<BytecodeFunction>(stmt.name.lexeme, static_cast<int>(stmt.params.size()), entry_ip, &chunk_);
     emit_constant(Value(fn_obj));
 
     uint32_t name_const = make_constant(Value(stmt.name.lexeme));

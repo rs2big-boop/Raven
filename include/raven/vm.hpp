@@ -32,6 +32,7 @@ public:
     ~VM();  // Defined in vm.cpp where Interpreter is fully known
 
     InterpretResult run(const Chunk& chunk);
+    Value execute_function(const BytecodeFunction& fn, const std::vector<Value>& args);
 
     void push(Value value);
     Value pop();
@@ -40,6 +41,8 @@ public:
     std::unordered_map<std::string, Value>& globals() { return globals_; }
 
 private:
+    InterpretResult run_chunk(const Chunk& chunk, size_t initial_ip, size_t target_frame_depth);
+
     std::ostream& out_;
     std::vector<Value> stack_;
     std::unordered_map<std::string, Value> globals_;

@@ -237,3 +237,13 @@ TEST(DifferentialTest, SpawnRegistryJoinTimeout) {
         std::chrono::steady_clock::now() - start).count();
     EXPECT_LT(elapsed, 350);
 }
+
+TEST(DifferentialTest, HigherOrderBuiltinsFilterMapReduce) {
+    std::string source =
+        "let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n"
+        "let evens = filter(nums, fn(x) { return x % 2 == 0; });\n"
+        "let doubled = map(evens, fn(x) { return x * 2; });\n"
+        "let total = reduce(doubled, fn(acc, x) { return acc + x; }, 0);\n"
+        "print(total);\n";
+    assert_differential_match(source);
+}

@@ -29,6 +29,19 @@ Value VM::pop() {
     return top;
 }
 
+static thread_local VM* g_active_vm = nullptr;
+
+Value BytecodeFunction::call(Interpreter&, const std::vector<Value>& args) {
+    if (g_active_vm) {
+        return g_active_vm->execute_function(*this, args);
+    }
+    if (chunk_) {
+        VM vm;
+        return vm.execute_function(*this, args);
+    }
+    return Value();
+}
+
 Value VM::peek(int distance) const {
     if (distance < 0 || static_cast<size_t>(distance) >= stack_.size()) {
         throw std::runtime_error("stack peek out of bounds");
@@ -37,7 +50,43 @@ Value VM::peek(int distance) const {
 }
 
 InterpretResult VM::run(const Chunk& chunk) {
-    size_t ip = 0;
+    for (const auto& c : chunk.constants) {
+        if (c.is_callable()) {
+            if (auto* fn = dynamic_cast<BytecodeFunction*>(c.as_callable().get())) {
+                fn->set_chunk(&chunk);
+            }
+        }
+    }
+    VM* prev_vm = g_active_vm;
+    g_active_vm = this;
+    auto res = run_chunk(chunk, 0, 0);
+    g_active_vm = prev_vm;
+    return res;
+}
+
+Value VM::execute_function(const BytecodeFunction& fn, const std::vector<Value>& args) {
+    if (!fn.chunk()) return Value();
+    const Chunk& chunk = *fn.chunk();
+
+    push(Value()); // function slot
+    for (const auto& arg : args) {
+        push(arg);
+    }
+
+    size_t target_frame_depth = frames_.size();
+    CallFrame frame;
+    frame.return_ip = chunk.code.size();
+    frame.slots = stack_.size() - args.size();
+    frames_.push_back(frame);
+
+    run_chunk(chunk, fn.entry_ip(), target_frame_depth);
+
+    if (stack_.empty()) return Value();
+    return pop();
+}
+
+InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t target_frame_depth) {
+    size_t ip = initial_ip;
 
     auto read_byte = [&]() -> uint8_t {
         return chunk.code[ip++];
