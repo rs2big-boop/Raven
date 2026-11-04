@@ -1,0 +1,77 @@
+// stdlib/socket.rvn - Python-compatible socket interface
+import "stdlib/net/tcp"
+
+let AF_INET = 2
+let SOCK_STREAM = 1
+let SOCK_DGRAM = 2
+
+class Socket {
+    Socket(family, sock_type) {
+        this.family = family ?? AF_INET
+        this.sock_type = sock_type ?? SOCK_STREAM
+        this.conn = nil
+        this.server = nil
+    }
+
+    fn connect(address) {
+        // address is [host, port]
+        let host = address[0]
+        let port = address[1]
+        this.conn = tcp_dial(host, port, 5000)
+        return this.conn != nil
+    }
+
+    fn send(data) {
+        if (this.conn != nil) {
+            return this.conn.write(data)
+        }
+        return -1
+    }
+
+    fn sendall(data) {
+        return this.send(data)
+    }
+
+    fn recv(buffer_size) {
+        if (this.conn != nil) {
+            return this.conn.read(buffer_size ?? 4096)
+        }
+        return ""
+    }
+
+    fn bind(address) {
+        let host = address[0]
+        let port = address[1]
+        this.server = tcp_listen(host, port)
+        return this.server != nil
+    }
+
+    fn listen(backlog) {
+        // Already listening from tcp_listen
+        return true
+    }
+
+    fn accept() {
+        if (this.server != nil) {
+            let client_conn = this.server.accept()
+            if (client_conn == nil) { return nil }
+            let client_sock = Socket(this.family, this.sock_type)
+            client_sock.conn = client_conn
+            return [client_sock, ["client", client_conn.fd]]
+        }
+        return nil
+    }
+
+    fn close() {
+        if (this.conn != nil) {
+            this.conn.close()
+        }
+        if (this.server != nil) {
+            this.server.close()
+        }
+    }
+}
+
+fn socket(family, sock_type) {
+    return Socket(family, sock_type)
+}
