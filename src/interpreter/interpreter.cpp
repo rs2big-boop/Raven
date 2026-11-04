@@ -2436,6 +2436,106 @@ private:
     std::vector<std::string> fields_;
 };
 
+class ClassConstructor : public Callable {
+public:
+    ClassConstructor(std::string name,
+                     std::vector<std::string> fields,
+                     std::vector<std::shared_ptr<UserFunction>> constructors,
+                     std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods)
+        : name_(std::move(name)), fields_(std::move(fields)),
+          constructors_(std::move(constructors)), methods_(std::move(methods)) {}
+
+    int arity() const override { return -1; }
+
+    int min_arity() const override {
+        int required = 0;
+        bool any = false;
+        for (const auto& ctor : constructors_) {
+            int min_a = ctor->min_arity();
+            if (!any || min_a < required) {
+                required = min_a;
+                any = true;
+            }
+        }
+        return required;
+    }
+
+    Value call(Interpreter& interpreter, const std::vector<Value>& args) override {
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*map)["__type__"] = Value(name_);
+        for (const auto& field : fields_) {
+            (*map)[field] = Value();
+        }
+        for (const auto& [method_name, method] : methods_) {
+            (*map)[method_name] = Value(method);
+        }
+
+        Value receiver(map);
+        std::shared_ptr<UserFunction> chosen;
+        int best_min = -1;
+        for (const auto& ctor : constructors_) {
+            int min_a = ctor->min_arity();
+            int max_a = ctor->arity();
+            bool fits = max_a < 0
+                ? static_cast<int>(args.size()) >= min_a
+                : static_cast<int>(args.size()) >= min_a && static_cast<int>(args.size()) <= max_a;
+            if (!fits) continue;
+            if (!chosen || min_a > best_min) {
+                chosen = ctor;
+                best_min = min_a;
+            }
+        }
+        if (!chosen && !constructors_.empty()) {
+            throw RuntimeError(
+                Token{TokenType::Identifier, name_, 0, 0},
+                "No " + name_ + " constructor accepts " + std::to_string(args.size()) + " arguments.");
+        }
+        if (chosen) {
+            interpreter.push_this(receiver);
+            try {
+                chosen->call(interpreter, args);
+                interpreter.pop_this();
+            } catch (...) {
+                interpreter.pop_this();
+                throw;
+            }
+        }
+        return receiver;
+    }
+
+    std::string to_string() const override {
+        return "<class " + name_ + ">";
+    }
+
+private:
+    std::string name_;
+    std::vector<std::string> fields_;
+    std::vector<std::shared_ptr<UserFunction>> constructors_;
+    std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods_;
+};
+
+void Interpreter::visit(const ClassStmt& stmt) {
+    std::vector<std::string> fields;
+    for (const auto& field : stmt.fields) {
+        fields.push_back(field.lexeme);
+    }
+
+    std::vector<std::shared_ptr<UserFunction>> constructors;
+    std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods;
+    for (const auto& member : stmt.members) {
+        auto function = std::make_shared<UserFunction>(
+            member.name, member.params, member.body, environment_, member.defaults, member.is_variadic);
+        if (member.is_constructor) {
+            constructors.push_back(function);
+        } else {
+            methods.emplace_back(member.name.lexeme, function);
+        }
+    }
+
+    environment_->define(stmt.name.lexeme, Value(std::make_shared<ClassConstructor>(
+        stmt.name.lexeme, std::move(fields), std::move(constructors), std::move(methods))));
+}
+
 void Interpreter::visit(const StructStmt& stmt) {
     std::vector<std::string> field_names;
     for (const auto& f : stmt.fields) {

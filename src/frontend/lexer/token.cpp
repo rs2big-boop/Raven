@@ -53,6 +53,7 @@ std::string token_type_name(TokenType type) {
         case TokenType::Match: return "Match";
         case TokenType::Import: return "Import";
         case TokenType::Struct: return "Struct";
+        case TokenType::Class: return "Class";
         case TokenType::Break: return "Break";
         case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";

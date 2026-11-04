@@ -590,6 +590,7 @@ void Compiler::visit(const TryCatchStmt& /*stmt*/) {}
 void Compiler::visit(const ThrowStmt& /*stmt*/) {}
 void Compiler::visit(const ImportStmt& /*stmt*/) {}
 void Compiler::visit(const StructStmt& /*stmt*/) {}
+void Compiler::visit(const ClassStmt& /*stmt*/) {}
 void Compiler::visit(const BreakStmt& /*stmt*/) {
     if (loop_stack_.empty()) return;
     int pop_count = 0;

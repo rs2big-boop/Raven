@@ -16,6 +16,7 @@ std::string get_stmt_node_type(const Stmt* stmt) {
     if (dynamic_cast<const ThrowStmt*>(stmt)) return "ThrowStmt";
     if (dynamic_cast<const ImportStmt*>(stmt)) return "ImportStmt";
     if (dynamic_cast<const StructStmt*>(stmt)) return "StructStmt";
+    if (dynamic_cast<const ClassStmt*>(stmt)) return "ClassStmt";
     if (dynamic_cast<const BreakStmt*>(stmt)) return "BreakStmt";
     if (dynamic_cast<const ContinueStmt*>(stmt)) return "ContinueStmt";
     if (dynamic_cast<const FunctionStmt*>(stmt)) return "FunctionStmt";

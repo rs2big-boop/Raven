@@ -107,6 +107,19 @@ void Resolver::visit(const StructStmt& stmt) {
     scopes_.define(sym);
 }
 
+void Resolver::visit(const ClassStmt& stmt) {
+    Symbol sym(stmt.name.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
+    scopes_.define(sym);
+    for (const auto& member : stmt.members) {
+        for (const auto& body_stmt : member.body) {
+            if (body_stmt) resolve(*body_stmt);
+        }
+        for (const auto& def : member.defaults) {
+            if (def) resolve(*def);
+        }
+    }
+}
+
 void Resolver::visit(const BreakStmt& stmt) {
     if (loop_depth_ == 0) {
         error("Cannot use 'break' outside of a loop.", stmt.keyword.line);

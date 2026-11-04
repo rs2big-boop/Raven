@@ -45,6 +45,7 @@ public:
     void visit(const ThrowStmt& stmt) override;
     void visit(const ImportStmt& stmt) override;
     void visit(const StructStmt& stmt) override;
+    void visit(const ClassStmt& stmt) override;
     void visit(const BreakStmt& stmt) override;
     void visit(const ContinueStmt& stmt) override;
     void visit(const FunctionStmt& stmt) override;

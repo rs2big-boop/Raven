@@ -83,6 +83,36 @@ box.set(99);
 
 Quoted keys (`{ "content-type": "json" }`) still work when the name is not a valid identifier.
 
+### Classes
+Raven classes follow the Java shape without types or `public`:
+
+```raven
+class IntNode {
+    data
+    next
+
+    IntNode(data) {
+        this.data = data
+        this.next = nil
+    }
+
+    IntNode(data, next) {
+        this.data = data
+        this.next = next
+    }
+
+    getData() { return this.data }
+    setData(data) { this.data = data }
+    getNext() { return this.next }
+    setNext(next) { this.next = next }
+}
+
+let tail = IntNode(2)
+let head = IntNode(1, tail)
+print(head.getData())
+print(head is IntNode)
+```
+
 ---
 
 ## Control Flow

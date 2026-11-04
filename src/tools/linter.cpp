@@ -175,6 +175,14 @@ void Linter::visit(const ImportStmt&) {
 void Linter::visit(const StructStmt&) {
 }
 
+void Linter::visit(const ClassStmt& stmt) {
+    for (const auto& member : stmt.members) {
+        for (const auto& body_stmt : member.body) {
+            if (body_stmt) body_stmt->accept(*this);
+        }
+    }
+}
+
 void Linter::visit(const BreakStmt&) {
 }
 

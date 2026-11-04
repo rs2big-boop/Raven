@@ -77,6 +77,9 @@ std::shared_ptr<Stmt> Parser::declaration() {
     if (match({TokenType::Struct})) {
         return struct_declaration();
     }
+    if (match({TokenType::Class})) {
+        return class_declaration();
+    }
     return statement();
 }
 
@@ -194,6 +197,9 @@ std::shared_ptr<Stmt> Parser::statement() {
     }
     if (match({TokenType::Struct})) {
         return struct_declaration();
+    }
+    if (match({TokenType::Class})) {
+        return class_declaration();
     }
     if (match({TokenType::Break})) {
         return break_statement();
@@ -331,6 +337,63 @@ std::shared_ptr<Stmt> Parser::struct_declaration() {
     consume(TokenType::RightBrace, "Expected '}' after struct fields.");
     match({TokenType::Semicolon});
     return std::make_shared<StructStmt>(std::move(name), std::move(fields));
+}
+
+std::shared_ptr<Stmt> Parser::class_declaration() {
+    Token name = consume(TokenType::Identifier, "Expected class name.");
+    consume(TokenType::LeftBrace, "Expected '{' after class name.");
+
+    std::vector<Token> fields;
+    std::vector<ClassMember> members;
+
+    while (!check(TokenType::RightBrace) && !is_at_end()) {
+        if (match({TokenType::Fn})) {
+            // optional fn keyword before a method
+        }
+
+        bool is_method = check(TokenType::Identifier) && peek_next().type == TokenType::LeftParen;
+        if (!is_method) {
+            Token field = consume(TokenType::Identifier, "Expected field or method in class.");
+            fields.push_back(field);
+            while (match({TokenType::Comma})) {
+                fields.push_back(consume(TokenType::Identifier, "Expected field name."));
+            }
+            match({TokenType::Semicolon});
+            continue;
+        }
+
+        ClassMember member;
+        member.name = advance();
+        member.is_constructor = member.name.lexeme == name.lexeme;
+        consume(TokenType::LeftParen, "Expected '(' after method name.");
+        if (!check(TokenType::RightParen)) {
+            do {
+                if (match({TokenType::DotDotDot})) {
+                    member.is_variadic = true;
+                    member.params.push_back(consume(TokenType::Identifier, "Expected parameter name after '...'."));
+                    member.defaults.push_back(nullptr);
+                    break;
+                }
+                member.params.push_back(consume(TokenType::Identifier, "Expected parameter name."));
+                if (match({TokenType::Equal})) {
+                    member.defaults.push_back(expression());
+                } else {
+                    member.defaults.push_back(nullptr);
+                }
+            } while (match({TokenType::Comma}));
+        }
+        consume(TokenType::RightParen, "Expected ')' after parameters.");
+        consume(TokenType::LeftBrace, "Expected '{' before method body.");
+        while (!check(TokenType::RightBrace) && !is_at_end()) {
+            member.body.push_back(declaration());
+        }
+        consume(TokenType::RightBrace, "Expected '}' after method body.");
+        members.push_back(std::move(member));
+    }
+
+    consume(TokenType::RightBrace, "Expected '}' after class body.");
+    match({TokenType::Semicolon});
+    return std::make_shared<ClassStmt>(std::move(name), std::move(fields), std::move(members));
 }
 
 std::shared_ptr<Stmt> Parser::break_statement() {

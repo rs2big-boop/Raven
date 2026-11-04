@@ -1418,6 +1418,38 @@ TEST(InterpreterTest, ThisInObjectMethods) {
     EXPECT_EQ(run_code(source), "42\n99\n99\n");
 }
 
+TEST(InterpreterTest, JavaStyleClass) {
+    std::string source =
+        "class IntNode {\n"
+        "    data\n"
+        "    next\n"
+        "    IntNode(data) {\n"
+        "        this.data = data\n"
+        "        this.next = nil\n"
+        "    }\n"
+        "    IntNode(data, next) {\n"
+        "        this.data = data\n"
+        "        this.next = next\n"
+        "    }\n"
+        "    setNext(next) { this.next = next }\n"
+        "    getNext() { return this.next }\n"
+        "    getData() { return this.data }\n"
+        "    setData(data) { this.data = data }\n"
+        "    toString() {\n"
+        "        return \"Node{data=\" + str(this.data) + \", next=\" + str(this.next) + \"}\"\n"
+        "    }\n"
+        "}\n"
+        "let tail = IntNode(2)\n"
+        "let head = IntNode(1, tail)\n"
+        "print(head.getData())\n"
+        "print(head.getNext().getData())\n"
+        "head.setData(9)\n"
+        "print(head.getData())\n"
+        "print(head is IntNode)\n"
+        "print(head.toString())\n";
+    EXPECT_EQ(run_code(source), "1\n2\n9\ntrue\nNode{data=9, next=Node{data=2, next=nil}}\n");
+}
+
 TEST(InterpreterTest, ArrowFunctionsAndMethodShorthand) {
     std::string source =
         "let double = x => x * 2;\n"

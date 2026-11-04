@@ -313,6 +313,7 @@ class TryCatchStmt;
 class ThrowStmt;
 class ImportStmt;
 class StructStmt;
+class ClassStmt;
 class BreakStmt;
 class ContinueStmt;
 class FunctionStmt;
@@ -482,6 +483,27 @@ public:
 };
 
 class BreakStmt : public Stmt {
+struct ClassMember {
+    Token name;
+    std::vector<Token> params;
+    std::vector<std::shared_ptr<Expr>> defaults;
+    std::vector<std::shared_ptr<Stmt>> body;
+    bool is_constructor = false;
+    bool is_variadic = false;
+};
+
+class ClassStmt : public Stmt {
+public:
+    ClassStmt(Token name, std::vector<Token> fields, std::vector<ClassMember> members)
+        : name(std::move(name)), fields(std::move(fields)), members(std::move(members)) {}
+
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+
+    Token name;
+    std::vector<Token> fields;
+    std::vector<ClassMember> members;
+};
+
 public:
     explicit BreakStmt(Token keyword) : keyword(std::move(keyword)) {}
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }

@@ -114,6 +114,7 @@ Token Lexer::scan_identifier_or_keyword() {
         {"match", TokenType::Match},
         {"import", TokenType::Import},
         {"struct", TokenType::Struct},
+        {"class", TokenType::Class},
         {"break", TokenType::Break},
         {"continue", TokenType::Continue},
         {"print", TokenType::Print},
