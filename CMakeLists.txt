@@ -108,6 +108,17 @@ target_include_directories(raven_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# Windows: suppress min/max macros and enable Unicode
+if(WIN32)
+    target_compile_definitions(raven_core PUBLIC
+        NOMINMAX
+        WIN32_LEAN_AND_MEAN
+        _CRT_SECURE_NO_WARNINGS
+        UNICODE
+        _UNICODE
+    )
+endif()
+
 # CLI Binaries (like Go's cmd/)
 add_executable(raven src/cmd/raven/main.cpp)
 target_link_libraries(raven PRIVATE raven_core)
@@ -128,7 +139,14 @@ if(CMAKE_CROSSCOMPILING)
 endif()
 
 if(RAVEN_BUILD_TESTS)
-    find_package(GTest REQUIRED)
+    find_package(GTest QUIET)
+    if(NOT GTest_FOUND)
+        message(STATUS "GTest not found; skipping test targets.")
+        set(RAVEN_BUILD_TESTS OFF)
+    endif()
+endif()
+
+if(RAVEN_BUILD_TESTS)
     include(GoogleTest)
     enable_testing()
 
