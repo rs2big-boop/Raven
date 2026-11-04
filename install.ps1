@@ -11,86 +11,150 @@ $ErrorActionPreference = "Stop"
 $RavenVersion = "1.0.1"
 $RepoOwner    = "rs2big-boop"
 $RepoName     = "Raven"
-$InstallDir   = "$HOME\.raven"
-$BinDir       = "$InstallDir\bin"
-$StdlibDir    = "$InstallDir\stdlib"
+$InstallDir   = Join-Path $HOME ".raven"
+$BinDir       = Join-Path $InstallDir "bin"
+$StdlibDir    = Join-Path $InstallDir "stdlib"
+
+function Install-FromPackageRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$PackageRoot
+    )
+
+    $pkgBin = Join-Path $PackageRoot "bin"
+    $pkgStd = Join-Path $PackageRoot "stdlib"
+
+    if (Test-Path (Join-Path $pkgBin "raven.exe")) {
+        Copy-Item (Join-Path $pkgBin "*.exe") -Destination $BinDir -Force
+    } elseif (Test-Path (Join-Path $PackageRoot "raven.exe")) {
+        Copy-Item (Join-Path $PackageRoot "*.exe") -Destination $BinDir -Force
+    } else {
+        throw "Package root '$PackageRoot' does not contain Raven binaries."
+    }
+
+    if (Test-Path $pkgStd) {
+        Copy-Item (Join-Path $pkgStd "*") -Destination $StdlibDir -Recurse -Force
+    }
+}
+
+function Find-PackageRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$ExtractRoot
+    )
+
+    $direct = Join-Path $ExtractRoot "bin\raven.exe"
+    if (Test-Path $direct) {
+        return $ExtractRoot
+    }
+
+    $nested = Get-ChildItem -Path $ExtractRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName "bin\raven.exe") } |
+        Select-Object -First 1
+
+    if ($nested) {
+        return $nested.FullName
+    }
+
+    $looseExe = Get-ChildItem -Path $ExtractRoot -Filter "raven.exe" -Recurse -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($looseExe) {
+        return $looseExe.Directory.FullName
+    }
+
+    return $null
+}
 
 Write-Host "🐦 Installing Raven Programming Language v$RavenVersion for Windows..." -ForegroundColor Cyan
 
 # 1. Create target directories
-if (!(Test-Path $BinDir))    { New-Item -ItemType Directory -Path $BinDir -Force | Out-Null }
-if (!(Test-Path $StdlibDir)) { New-Item -ItemType Directory -Path $StdlibDir -Force | Out-Null }
+New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
+New-Item -ItemType Directory -Path $StdlibDir -Force | Out-Null
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-# 2. Check if local build/binaries exist (running from cloned repository)
+# Resolve script directory at top-level only.
+# Under `irm ... | iex`, there is no script path — leave $ScriptDir empty and download.
+$ScriptDir = $null
+if ($PSScriptRoot) {
+    $ScriptDir = $PSScriptRoot
+} elseif ($MyInvocation.MyCommand.Path) {
+    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
 $LocalBinFound = $false
-if ($ScriptDir -and (Test-Path "$ScriptDir\build\Release\raven.exe")) {
-    Write-Host "📦 Copying locally built binaries from $ScriptDir\build\Release..." -ForegroundColor Green
-    Copy-Item "$ScriptDir\build\Release\*.exe" -Destination $BinDir -Force
-    $LocalBinFound = $true
-} elseif ($ScriptDir -and (Test-Path "$ScriptDir\build\raven.exe")) {
-    Write-Host "📦 Copying locally built binaries from $ScriptDir\build..." -ForegroundColor Green
-    Copy-Item "$ScriptDir\build\*.exe" -Destination $BinDir -Force
-    $LocalBinFound = $true
-} elseif ($ScriptDir -and (Test-Path "$ScriptDir\bin\raven.exe")) {
-    Write-Host "📦 Copying binaries from release archive..." -ForegroundColor Green
-    Copy-Item "$ScriptDir\bin\*.exe" -Destination $BinDir -Force
-    $LocalBinFound = $true
+
+# 2. Prefer binaries next to this script (cloned repo or extracted release zip)
+if ($ScriptDir) {
+    $candidates = @(
+        (Join-Path $ScriptDir "build\Release"),
+        (Join-Path $ScriptDir "build"),
+        (Join-Path $ScriptDir "bin")
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path (Join-Path $candidate "raven.exe")) {
+            Write-Host "📦 Copying binaries from $candidate..." -ForegroundColor Green
+            Copy-Item (Join-Path $candidate "*.exe") -Destination $BinDir -Force
+            $LocalBinFound = $true
+            break
+        }
+    }
+
+    $localStdlib = Join-Path $ScriptDir "stdlib"
+    if ($LocalBinFound -and (Test-Path $localStdlib)) {
+        Copy-Item (Join-Path $localStdlib "*") -Destination $StdlibDir -Recurse -Force
+    }
 }
 
-# 3. If no local binaries, download pre-built release package from GitHub
-if (!$LocalBinFound) {
-    $ReleaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/download/v$RavenVersion/raven-v$RavenVersion-windows-x86_64.zip"
+# 3. If no local binaries, download the pre-built Windows release package
+if (-not $LocalBinFound) {
+    $ReleaseUrl  = "https://github.com/$RepoOwner/$RepoName/releases/download/v$RavenVersion/raven-v$RavenVersion-windows-x86_64.zip"
     $FallbackUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest/download/raven-v$RavenVersion-windows-x86_64.zip"
-    $ZipPath = "$env:TEMP\raven-windows.zip"
+    $ZipPath     = Join-Path $env:TEMP "raven-windows.zip"
+    $ExtractRoot = Join-Path $env:TEMP "raven_extract"
 
     Write-Host "🌐 Downloading pre-built Windows binaries from GitHub Releases..." -ForegroundColor Yellow
-    try {
-        Invoke-WebRequest -Uri $ReleaseUrl -OutFile $ZipPath -UseBasicParsing
-    } catch {
-        Write-Host "Trying fallback release URL..." -ForegroundColor Yellow
+    $downloaded = $false
+    foreach ($url in @($ReleaseUrl, $FallbackUrl)) {
         try {
-            Invoke-WebRequest -Uri $FallbackUrl -OutFile $ZipPath -UseBasicParsing
+            Invoke-WebRequest -Uri $url -OutFile $ZipPath -UseBasicParsing
+            $downloaded = $true
+            break
         } catch {
-            # If download fails (e.g. offline or repo just tagged), try compiling with CMake if available
-            if (Get-Command cmake -ErrorAction SilentlyContinue) {
-                Write-Host "⚙️  Building locally with CMake..." -ForegroundColor Yellow
-                cmake -B "$InstallDir\build" -DCMAKE_BUILD_TYPE=Release
-                cmake --build "$InstallDir\build" --config Release
-                Copy-Item "$InstallDir\build\Release\*.exe" -Destination $BinDir -Force
-                $LocalBinFound = $true
-            } else {
-                Write-Error "Could not download pre-built binaries and CMake is not installed. Please visit: https://github.com/$RepoOwner/$RepoName/releases"
-                exit 1
-            }
+            Write-Host "Download failed from $url" -ForegroundColor Yellow
         }
     }
 
-    if (Test-Path $ZipPath) {
-        Write-Host "📂 Extracting binaries..." -ForegroundColor Green
-        Expand-Archive -Path $ZipPath -DestinationPath "$env:TEMP\raven_extract" -Force
-        if (Test-Path "$env:TEMP\raven_extract\bin") {
-            Copy-Item "$env:TEMP\raven_extract\bin\*.exe" -Destination $BinDir -Force
-            if (Test-Path "$env:TEMP\raven_extract\stdlib") {
-                Copy-Item "$env:TEMP\raven_extract\stdlib\*" -Destination $StdlibDir -Recurse -Force
-            }
-        } else {
-            Copy-Item "$env:TEMP\raven_extract\*.exe" -Destination $BinDir -Force
-        }
-        Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
-        Remove-Item "$env:TEMP\raven_extract" -Recurse -Force -ErrorAction SilentlyContinue
+    if (-not $downloaded) {
+        Write-Error "Could not download pre-built binaries. Please visit: https://github.com/$RepoOwner/$RepoName/releases"
+        exit 1
     }
+
+    if (Test-Path $ExtractRoot) {
+        Remove-Item $ExtractRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Host "📂 Extracting binaries..." -ForegroundColor Green
+    Expand-Archive -Path $ZipPath -DestinationPath $ExtractRoot -Force
+
+    # Release zips contain a top-level folder: raven-vX.Y.Z-windows-x86_64/{bin,stdlib}
+    $PackageRoot = Find-PackageRoot -ExtractRoot $ExtractRoot
+    if (-not $PackageRoot) {
+        Write-Error "Downloaded archive did not contain Raven binaries. Please re-download from GitHub Releases."
+        exit 1
+    }
+
+    Install-FromPackageRoot -PackageRoot $PackageRoot
+
+    Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
+    Remove-Item $ExtractRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# 4. Copy standard library if local repository is present
-if ($ScriptDir -and (Test-Path "$ScriptDir\stdlib")) {
-    Copy-Item "$ScriptDir\stdlib\*" -Destination $StdlibDir -Recurse -Force
+# 4. Final verification — never report success with an empty install
+$RavenExe = Join-Path $BinDir "raven.exe"
+if (-not (Test-Path $RavenExe)) {
+    Write-Error "Installation failed: raven.exe was not installed to $BinDir"
+    exit 1
 }
 
 # 5. Add to User PATH Environment Variable
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($UserPath -notlike "*$BinDir*") {
+if ([string]::IsNullOrEmpty($UserPath) -or ($UserPath -notlike "*$BinDir*")) {
     Write-Host "🔧 Adding $BinDir to your User PATH..." -ForegroundColor Cyan
     $NewPath = if ($UserPath) { "$BinDir;$UserPath" } else { $BinDir }
     [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
@@ -99,7 +163,7 @@ if ($UserPath -notlike "*$BinDir*") {
     Write-Host "✓ $BinDir is already in your PATH" -ForegroundColor Green
 }
 
-# 6. Verify installation
+# 6. Success
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "  🐦 Raven Programming Language successfully installed!" -ForegroundColor Green
@@ -113,6 +177,6 @@ Write-Host "    ravenc <script.rvn>         # Compile to Corvus bytecode (.rvc)"
 Write-Host "    rvm <script.rvc>            # Execute Corvus bytecode VM"
 Write-Host "    raven --help                # View full toolchain commands"
 Write-Host ""
-Write-Host "Note: If running in a new terminal, restart PowerShell or run:" -ForegroundColor Gray
-Write-Host "  `$env:Path = `"$BinDir;`$env:Path`"" -ForegroundColor Gray
+Write-Host "Note: Restart PowerShell (or open a new terminal), then run:" -ForegroundColor Gray
+Write-Host "  raven --version" -ForegroundColor Gray
 Write-Host ""

@@ -3,11 +3,19 @@ setlocal
 title Raven Programming Language Installer
 
 echo ================================================================
-echo   🐦 Raven Programming Language — Windows Installer
+echo   Raven Programming Language — Windows Installer
 echo ================================================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
+if not exist "%~dp0install.ps1" (
+    echo [ERROR] install.ps1 not found next to install.bat
+    echo Extract the full release zip, then run install.bat again.
+    echo.
+    pause
+    exit /b 1
+)
+
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Installation encountered an issue.
