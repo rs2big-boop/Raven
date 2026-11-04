@@ -1008,7 +1008,11 @@ void Interpreter::register_builtins() {
         return Value(result);
     });
 
-    def("input", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+    def("input", -1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args.empty()) {
+            std::cout << args[0].to_string();
+            std::cout.flush();
+        }
         std::string line;
         if (std::getline(std::cin, line)) {
             return Value(line);
@@ -1488,6 +1492,17 @@ void Interpreter::register_builtins() {
 
     // Math additions
     def("int", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args[0].is_string()) {
+            try {
+                return Value(static_cast<double>(std::stoll(args[0].as_string())));
+            } catch (...) {
+                try {
+                    return Value(static_cast<double>(static_cast<int64_t>(std::stod(args[0].as_string()))));
+                } catch (...) {
+                    return Value(0.0);
+                }
+            }
+        }
         return Value(static_cast<double>(static_cast<int64_t>(args[0].as_number())));
     });
 

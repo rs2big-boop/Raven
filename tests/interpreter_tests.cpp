@@ -1549,13 +1549,13 @@ TEST(InterpreterTest, SuperMethodCall) {
     EXPECT_EQ(run_code(source), "A red shape (circle)\nred\n5\n");
 }
 
-
-
-
-
-
-
-
-
+TEST(InterpreterTest, InputPromptAndIntParsing) {
+    std::string source =
+        "let n = int(\"42\");\n"
+        "print(n * 2);\n"
+        "let f = int(\"123.45\");\n"
+        "print(f);\n";
+    EXPECT_EQ(run_code(source), "84\n123\n");
+}
 
 
