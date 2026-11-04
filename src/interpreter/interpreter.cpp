@@ -754,12 +754,20 @@ void Interpreter::register_builtins() {
         std::string cmd = args[0].as_string();
         std::array<char, 256> buffer;
         std::string result;
+#if defined(_WIN32) || defined(_WIN64)
+        FILE* pipe = _popen(cmd.c_str(), "r");
+#else
         FILE* pipe = popen(cmd.c_str(), "r");
+#endif
         if (!pipe) return Value();
         while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
             result += buffer.data();
         }
+#if defined(_WIN32) || defined(_WIN64)
+        _pclose(pipe);
+#else
         pclose(pipe);
+#endif
         return Value(result);
     });
 
@@ -2315,8 +2323,16 @@ void Interpreter::visit(const ImportStmt& stmt) {
 
     // Check executable path relative stdlib
     std::error_code ec_exe;
+#if defined(_WIN32) || defined(_WIN64)
+    char exe_buf[MAX_PATH] = {};
+    DWORD exe_len = GetModuleFileNameA(nullptr, exe_buf, MAX_PATH);
+    std::filesystem::path exe_path = (exe_len > 0) ? std::filesystem::path(exe_buf) : std::filesystem::path{};
+    bool exe_ok = (exe_len > 0);
+#else
     auto exe_path = std::filesystem::read_symlink("/proc/self/exe", ec_exe);
-    if (!ec_exe && !exe_path.empty()) {
+    bool exe_ok = (!ec_exe && !exe_path.empty());
+#endif
+    if (exe_ok && !exe_path.empty()) {
         auto exe_dir = exe_path.parent_path();
         candidates.push_back((exe_dir / "stdlib" / (rel_path + ".rvn")).string());
         candidates.push_back((exe_dir.parent_path() / "stdlib" / (rel_path + ".rvn")).string());

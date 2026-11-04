@@ -4,7 +4,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <sys/stat.h>
+#endif
 
 #include "raven/bytecode_serializer.hpp"
 #include "raven/compiler.hpp"
@@ -174,8 +176,10 @@ int main(int argc, char* argv[]) {
         out.write(reinterpret_cast<const char*>(&payload_size), sizeof(payload_size));
         out.close();
 
-        // 5. Set executable permissions (chmod +x)
+        // 5. Set executable permissions (chmod +x, POSIX only)
+#if !defined(_WIN32) && !defined(_WIN64)
         chmod(output_path.c_str(), 0755);
+#endif
 
         std::cout << "⚡ Successfully compiled standalone native binary: '" << output_path << "'\n"
                   << "   Binary size: " << fs::file_size(output_path) << " bytes\n"
