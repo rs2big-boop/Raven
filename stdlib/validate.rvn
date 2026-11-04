@@ -3,14 +3,14 @@
 fn validate_string(val, opts) {
     if (type(val) != "string") { return "expected string"; }
     if (opts == nil) { return nil; }
-    if (map_has_key(opts, "min_len") && len(val) < opts["min_len"]) {
-        return "string too short (min " + str(opts["min_len"]) + ")";
+    if (map_has_key(opts, "min_len") && len(val) < opts.min_len) {
+        return "string too short (min " + str(opts.min_len) + ")";
     }
-    if (map_has_key(opts, "max_len") && len(val) > opts["max_len"]) {
-        return "string too long (max " + str(opts["max_len"]) + ")";
+    if (map_has_key(opts, "max_len") && len(val) > opts.max_len) {
+        return "string too long (max " + str(opts.max_len) + ")";
     }
-    if (map_has_key(opts, "pattern") && !regex_match(val, opts["pattern"])) {
-        return "string does not match pattern " + opts["pattern"];
+    if (map_has_key(opts, "pattern") && !regex_match(val, opts.pattern)) {
+        return "string does not match pattern " + opts.pattern;
     }
     return nil;
 }
@@ -18,11 +18,11 @@ fn validate_string(val, opts) {
 fn validate_number(val, opts) {
     if (type(val) != "number") { return "expected number"; }
     if (opts == nil) { return nil; }
-    if (map_has_key(opts, "min") && val < opts["min"]) {
-        return "number too small (min " + str(opts["min"]) + ")";
+    if (map_has_key(opts, "min") && val < opts.min) {
+        return "number too small (min " + str(opts.min) + ")";
     }
-    if (map_has_key(opts, "max") && val > opts["max"]) {
-        return "number too large (max " + str(opts["max"]) + ")";
+    if (map_has_key(opts, "max") && val > opts.max) {
+        return "number too large (max " + str(opts.max) + ")";
     }
     return nil;
 }
@@ -35,13 +35,13 @@ fn validate_schema(data, schema) {
         let val = nil;
         if (map_has_key(data, field)) { val = data[field]; }
 
-        if (map_has_key(rule, "required") && rule["required"] && val == nil) {
+        if (map_has_key(rule, "required") && rule.required && val == nil) {
             push(errors, field + " is required");
         }
 
         if (val != nil) {
             if (map_has_key(rule, "type")) {
-                let exp_type = rule["type"];
+                let exp_type = rule.type;
                 if (type(val) != exp_type) {
                     push(errors, field + " must be " + exp_type);
                 }

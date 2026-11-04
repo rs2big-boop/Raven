@@ -4,7 +4,7 @@ fn create_min_heap() {
     let heap = [];
     let obj = {};
 
-    obj["push"] = fn(val) {
+    obj.push = fn(val) {
         push(heap, val);
         let idx = len(heap) - 1;
         while (idx > 0) {
@@ -20,7 +20,7 @@ fn create_min_heap() {
         }
     };
 
-    obj["pop"] = fn() {
+    obj.pop = fn() {
         if (len(heap) == 0) { return nil; }
         let root = heap[0];
         let last = pop(heap);
@@ -54,12 +54,12 @@ fn create_min_heap() {
         return root;
     };
 
-    obj["peek"] = fn() {
+    obj.peek = fn() {
         if (len(heap) == 0) { return nil; }
         return heap[0];
     };
 
-    obj["len"] = fn() {
+    obj.len = fn() {
         return len(heap);
     };
 

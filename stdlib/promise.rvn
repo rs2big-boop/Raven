@@ -22,7 +22,7 @@ fn create_promise(executor_fn) {
 
     let p = {};
 
-    p["then"] = fn(on_fulfill) {
+    p.then = fn(on_fulfill) {
         if (state == "fulfilled") {
             on_fulfill(value);
         } else if (state == "pending") {
@@ -31,7 +31,7 @@ fn create_promise(executor_fn) {
         return p;
     };
 
-    p["catch"] = fn(on_reject) {
+    p.catch = fn(on_reject) {
         if (state == "rejected") {
             on_reject(value);
         } else if (state == "pending") {
@@ -40,8 +40,8 @@ fn create_promise(executor_fn) {
         return p;
     };
 
-    p["state"] = fn() { return state; };
-    p["value"] = fn() { return value; };
+    p.state = fn() { return state; };
+    p.value = fn() { return value; };
 
     try {
         executor_fn(resolve, reject);

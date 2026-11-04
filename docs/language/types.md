@@ -13,7 +13,7 @@ Raven is dynamically typed with first-class runtime type inspection and structur
 | `String` | `"hello"`, `"""multi-line"""` | UTF-8 encoded string. |
 | `Bool` | `true`, `false` | Boolean truth values. |
 | `Array` | `[1, 2, "three"]` | Ordered, dynamically sized list. |
-| `Map` | `{"key": "value"}` | Hash map with string keys. |
+| `Map` | `{ key: "value" }`, `{ data, next }` | Hash map. Unquoted keys and JS-style shorthand are preferred. |
 | `Function` | `fn(x) { return x; }` | Callable closures and functions. |
 
 ---

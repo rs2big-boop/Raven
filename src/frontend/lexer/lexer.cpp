@@ -125,6 +125,7 @@ Token Lexer::scan_identifier_or_keyword() {
         {"null", TokenType::Nil},
         {"loop", TokenType::Loop},
         {"is", TokenType::Is},
+        {"this", TokenType::This},
     };
 
     int start_line = line_;

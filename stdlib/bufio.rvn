@@ -5,7 +5,7 @@ fn create_scanner(text) {
     let pos = 0;
     let obj = {};
 
-    obj["scan"] = fn() {
+    obj.scan = fn() {
         if (pos < len(lines)) {
             pos += 1;
             return true;
@@ -13,7 +13,7 @@ fn create_scanner(text) {
         return false;
     };
 
-    obj["text"] = fn() {
+    obj.text = fn() {
         if (pos > 0 && pos <= len(lines)) {
             return lines[pos - 1];
         }
@@ -38,7 +38,7 @@ fn create_word_scanner(text) {
     let pos = 0;
     let obj = {};
 
-    obj["scan"] = fn() {
+    obj.scan = fn() {
         if (pos < len(words)) {
             pos += 1;
             return true;
@@ -46,7 +46,7 @@ fn create_word_scanner(text) {
         return false;
     };
 
-    obj["text"] = fn() {
+    obj.text = fn() {
         if (pos > 0 && pos <= len(words)) {
             return words[pos - 1];
         }

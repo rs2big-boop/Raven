@@ -8,12 +8,12 @@ fn create_channel(capacity) {
     if (capacity == nil) { capacity = 0; }
     let id = chan_create(capacity);
     let ch = {};
-    ch["send"] = fn(val) { return chan_send(id, val); };
-    ch["recv"] = fn() { return chan_recv(id); };
-    ch["recv_timeout"] = fn(timeout_ms) { return chan_recv_timeout(id, timeout_ms); };
-    ch["close"] = fn() { return chan_close(id); };
-    ch["len"] = fn() { return chan_len(id); };
-    ch["id"] = id;
+    ch.send = fn(val) { return chan_send(id, val); };
+    ch.recv = fn() { return chan_recv(id); };
+    ch.recv_timeout = fn(timeout_ms) { return chan_recv_timeout(id, timeout_ms); };
+    ch.close = fn() { return chan_close(id); };
+    ch.len = fn() { return chan_len(id); };
+    ch.id = id;
     return ch;
 }
 
@@ -21,19 +21,19 @@ fn create_wait_group() {
     let id = wg_create();
     let obj = {};
 
-    obj["add"] = fn(delta) {
+    obj.add = fn(delta) {
         return wg_add(id, delta);
     };
 
-    obj["done"] = fn() {
+    obj.done = fn() {
         return wg_done(id);
     };
 
-    obj["wait"] = fn() {
+    obj.wait = fn() {
         return wg_wait(id);
     };
 
-    obj["id"] = id;
+    obj.id = id;
     return obj;
 }
 
@@ -41,15 +41,15 @@ fn create_mutex() {
     let id = mutex_create();
     let obj = {};
 
-    obj["lock"] = fn() {
+    obj.lock = fn() {
         return mutex_lock(id);
     };
 
-    obj["unlock"] = fn() {
+    obj.unlock = fn() {
         return mutex_unlock(id);
     };
 
-    obj["id"] = id;
+    obj.id = id;
     return obj;
 }
 
@@ -57,7 +57,7 @@ fn create_once() {
     let executed = false;
     let obj = {};
 
-    obj["do"] = fn(callback) {
+    obj.do = fn(callback) {
         if (!executed) {
             executed = true;
             callback();

@@ -90,6 +90,35 @@ struct CallStackGuard {
     }
 };
 
+class BoundMethod : public Callable {
+public:
+    BoundMethod(Value receiver, std::shared_ptr<Callable> method)
+        : receiver_(std::move(receiver)), method_(std::move(method)) {}
+
+    int arity() const override { return method_->arity(); }
+    int min_arity() const override { return method_->min_arity(); }
+
+    Value call(Interpreter& interpreter, const std::vector<Value>& arguments) override {
+        interpreter.push_this(receiver_);
+        try {
+            Value result = method_->call(interpreter, arguments);
+            interpreter.pop_this();
+            return result;
+        } catch (...) {
+            interpreter.pop_this();
+            throw;
+        }
+    }
+
+    std::string to_string() const override {
+        return method_->to_string();
+    }
+
+private:
+    Value receiver_;
+    std::shared_ptr<Callable> method_;
+};
+
 class UserFunction : public Callable {
 public:
     UserFunction(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body,
@@ -137,6 +166,10 @@ public:
                 rest->push_back(arguments[i]);
             }
             env->define(params_.back().lexeme, Value(rest));
+        }
+
+        if (interpreter.has_this()) {
+            env->define("this", interpreter.current_this());
         }
 
         try {
@@ -2053,7 +2086,7 @@ Value Interpreter::visit(const IndexExpr& expr) {
         auto& m = *obj.as_map();
         auto it = m.find(key);
         if (it == m.end()) return Value();
-        return it->second;
+        return bind_if_method(obj, it->second);
     }
 
     if (obj.is_string()) {
@@ -2112,7 +2145,7 @@ Value Interpreter::visit(const PropertyExpr& expr) {
         auto& m = *obj.as_map();
         auto it = m.find(expr.name.lexeme);
         if (it == m.end()) return Value();
-        return it->second;
+        return bind_if_method(obj, it->second);
     }
     if (expr.is_optional) {
         return Value();
@@ -2488,6 +2521,13 @@ void Interpreter::check_number_operand(const Token& op, const Value& operand) {
 void Interpreter::check_number_operands(const Token& op, const Value& left, const Value& right) {
     if (left.is_number() && right.is_number()) return;
     throw RuntimeError(op, "Operands must be numbers.");
+}
+
+Value bind_if_method(const Value& receiver, const Value& property) {
+    if (property.is_callable() && receiver.is_map()) {
+        return Value(std::make_shared<BoundMethod>(receiver, property.as_callable()));
+    }
+    return property;
 }
 
 } // namespace raven

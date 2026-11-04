@@ -4,12 +4,12 @@ fn create_router() {
     let routes = {};
     let r = {};
 
-    r["add"] = fn(method, path, handler) {
+    r.add = fn(method, path, handler) {
         let key = method + " " + path;
         routes[key] = handler;
     };
 
-    r["match"] = fn(method, path) {
+    r.match = fn(method, path) {
         let key = method + " " + path;
         if (contains(routes, key)) {
             return routes[key];

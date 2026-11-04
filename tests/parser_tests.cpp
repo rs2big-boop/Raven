@@ -63,7 +63,10 @@ public:
     std::string visit(const MapExpr& expr) override {
         std::string res = "{";
         for (size_t i = 0; i < expr.entries.size(); ++i) {
-            res += expr.entries[i].first->accept(*this) + ": " + expr.entries[i].second->accept(*this);
+            res += expr.entries[i].first->accept(*this);
+            if (expr.entries[i].second) {
+                res += ": " + expr.entries[i].second->accept(*this);
+            }
             if (i + 1 < expr.entries.size()) res += ", ";
         }
         res += "}";

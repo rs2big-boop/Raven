@@ -24,27 +24,27 @@ fn flag_parse(args_list) {
         }
         i += 1;
     }
-    return {"flags": flags, "args": positional};
+    return {flags: flags, args: positional};
 }
 
 fn flag_string(parsed, name, default_val) {
-    if (map_has_key(parsed["flags"], name)) {
-        return parsed["flags"][name];
+    if (map_has_key(parsed.flags, name)) {
+        return parsed.flags[name];
     }
     return default_val;
 }
 
 fn flag_bool(parsed, name, default_val) {
-    if (map_has_key(parsed["flags"], name)) {
-        let val = parsed["flags"][name];
+    if (map_has_key(parsed.flags, name)) {
+        let val = parsed.flags[name];
         return val == "true" || val == "1";
     }
     return default_val;
 }
 
 fn flag_int(parsed, name, default_val) {
-    if (map_has_key(parsed["flags"], name)) {
-        return int(num(parsed["flags"][name]));
+    if (map_has_key(parsed.flags, name)) {
+        return int(num(parsed.flags[name]));
     }
     return default_val;
 }

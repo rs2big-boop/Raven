@@ -54,6 +54,17 @@ public:
         }
     }
 
+    void push_this(const Value& receiver) { this_stack_.push_back(receiver); }
+    void pop_this() {
+        if (!this_stack_.empty()) {
+            this_stack_.pop_back();
+        }
+    }
+    bool has_this() const { return !this_stack_.empty(); }
+    Value current_this() const {
+        return this_stack_.empty() ? Value() : this_stack_.back();
+    }
+
     // ExprVisitor overrides
     Value visit(const BinaryExpr& expr) override;
     Value visit(const GroupingExpr& expr) override;
@@ -101,7 +112,10 @@ private:
     std::shared_ptr<Environment> environment_;
     std::unordered_set<std::string> imported_modules_;
     std::vector<StackFrame> call_stack_;
+    std::vector<Value> this_stack_;
     StepCallback step_callback_;
 };
+
+Value bind_if_method(const Value& receiver, const Value& property);
 
 } // namespace raven

@@ -4,23 +4,23 @@ fn create_string_builder() {
     let chunks = [];
     let sb = {};
 
-    sb["write"] = fn(s) {
+    sb.write = fn(s) {
         push(chunks, str(s));
     };
 
-    sb["write_line"] = fn(s) {
+    sb.write_line = fn(s) {
         push(chunks, str(s) + "\n");
     };
 
-    sb["to_string"] = fn() {
+    sb.to_string = fn() {
         return join(chunks, "");
     };
 
-    sb["clear"] = fn() {
+    sb.clear = fn() {
         chunks = [];
     };
 
-    sb["len"] = fn() {
+    sb.len = fn() {
         let total = 0;
         for (let c in chunks) {
             total += len(c);

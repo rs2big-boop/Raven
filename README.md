@@ -248,7 +248,7 @@ print("hypot(3, 4) = " + hypot(3, 4));       // 5
 print("mean([10, 20, 30]) = " + mean([10, 20, 30])); // 20
 
 // 4. Native JSON & File I/O
-let json_str = to_json({"language": "Raven", "score": 100});
+let json_str = to_json({ language: "Raven", score: 100 });
 let obj = parse_json(json_str);
 print(obj.language); // Raven
 ```

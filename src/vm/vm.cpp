@@ -349,7 +349,7 @@ InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t targ
                     std::string key = idx.to_string();
                     auto it = map.find(key);
                     if (it != map.end()) {
-                        push(it->second);
+                        push(bind_if_method(obj, it->second));
                     } else {
                         push(Value());
                     }

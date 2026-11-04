@@ -2,6 +2,11 @@
 
 All notable changes to the Raven programming language are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Cleaner object syntax**: unquoted map keys (`{ data: 1 }`), shorthand fields (`{ data, next }`), Java-style `this.data` in methods, and `obj.field` instead of `obj["field"]`.
+
 ## [1.0.1] — 2026-11-04
 
 ### Fixed

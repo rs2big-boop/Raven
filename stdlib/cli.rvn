@@ -6,17 +6,17 @@ fn create_cli(name, version, description) {
     let global_flags = {};
     let app = {};
 
-    app["command"] = fn(cmd_name, cmd_desc, handler) {
-        commands[cmd_name] = {"desc": cmd_desc, "handler": handler};
+    app.command = fn(cmd_name, cmd_desc, handler) {
+        commands[cmd_name] = {desc: cmd_desc, handler: handler};
         return app;
     };
 
-    app["flag"] = fn(flag_name, flag_desc, default_val) {
-        global_flags[flag_name] = {"desc": flag_desc, "default": default_val};
+    app.flag = fn(flag_name, flag_desc, default_val) {
+        global_flags[flag_name] = {desc: flag_desc, default: default_val};
         return app;
     };
 
-    app["run"] = fn(args) {
+    app.run = fn(args) {
         if (len(args) == 0 || args[0] == "--help" || args[0] == "-h") {
             print(name + " v" + version + " — " + description);
             print("");
@@ -26,7 +26,7 @@ fn create_cli(name, version, description) {
             print("Commands:");
             let cmd_names = keys(commands);
             for (let cn in cmd_names) {
-                print("  " + cn + "\t\t" + commands[cn]["desc"]);
+                print("  " + cn + "\t\t" + commands[cn].desc);
             }
             return nil;
         }
@@ -38,11 +38,11 @@ fn create_cli(name, version, description) {
         }
 
         let flags = flag_parse(args);
-        commands[cmd_name]["handler"](flags);
+        commands[cmd_name].handler(flags);
     };
 
-    app["version"] = fn() { return version; };
-    app["name"] = fn() { return name; };
+    app.version = fn() { return version; };
+    app.name = fn() { return name; };
 
     return app;
 }

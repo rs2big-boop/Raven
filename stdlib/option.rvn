@@ -5,38 +5,38 @@
 //   print(option_unwrap_or(val, "default"));
 
 fn Some(value) {
-    return {"__type__": "Option", "is_some": true, "value": value};
+    return {__type__: "Option", is_some: true, value: value};
 }
 
 fn None() {
-    return {"__type__": "Option", "is_some": false, "value": nil};
+    return {__type__: "Option", is_some: false, value: nil};
 }
 
 fn is_some(opt) {
-    return type(opt) == "map" && opt["__type__"] == "Option" && opt["is_some"] == true;
+    return type(opt) == "map" && opt.__type__ == "Option" && opt.is_some == true;
 }
 
 fn is_none(opt) {
-    return type(opt) == "map" && opt["__type__"] == "Option" && opt["is_some"] == false;
+    return type(opt) == "map" && opt.__type__ == "Option" && opt.is_some == false;
 }
 
 fn option_unwrap(opt) {
     if (is_some(opt)) {
-        return opt["value"];
+        return opt.value;
     }
     panic("Called unwrap() on a None Option.");
 }
 
 fn option_unwrap_or(opt, default_val) {
     if (is_some(opt)) {
-        return opt["value"];
+        return opt.value;
     }
     return default_val;
 }
 
 fn option_map(opt, transform_fn) {
     if (is_some(opt)) {
-        return Some(transform_fn(opt["value"]));
+        return Some(transform_fn(opt.value));
     }
     return opt;
 }

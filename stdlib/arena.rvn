@@ -5,7 +5,7 @@ fn create_arena() {
     let freed = false;
     let obj = {};
 
-    obj["allocate"] = fn(val) {
+    obj.allocate = fn(val) {
         if (freed) {
             panic("arena has already been freed");
         }
@@ -13,11 +13,11 @@ fn create_arena() {
         return val;
     };
 
-    obj["count"] = fn() {
+    obj.count = fn() {
         return len(pool);
     };
 
-    obj["free"] = fn() {
+    obj.free = fn() {
         pool = [];
         freed = true;
     };

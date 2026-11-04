@@ -30,6 +30,7 @@ enum class TokenType {
     Nil,
     Loop,
     Is,
+    This,
 
     // Literals & Identifiers
     Identifier,
@@ -118,6 +119,7 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Nil: return "Nil";
         case TokenType::Loop: return "Loop";
         case TokenType::Is: return "Is";
+        case TokenType::This: return "This";
 
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";

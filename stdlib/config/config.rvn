@@ -38,7 +38,7 @@ fn load_env_file(filepath) {
 fn create_config(opts) {
     let env_file = ".env";
     if (opts != nil && map_has_key(opts, "env_file")) {
-        env_file = opts["env_file"];
+        env_file = opts.env_file;
     }
 
     let values = {};
@@ -47,41 +47,41 @@ fn create_config(opts) {
     }
 
     let cfg = {};
-    cfg["values"] = values;
+    cfg.values = values;
 
-    cfg["get"] = fn(key, default_val) {
+    cfg.get = fn(key, default_val) {
         // Priority 1: OS environment variable
         let sys_val = env(key);
         if (sys_val != nil && len(sys_val) > 0) {
             return sys_val;
         }
         // Priority 2: .env file
-        if (map_has_key(cfg["values"], key)) {
-            return cfg["values"][key];
+        if (map_has_key(cfg.values, key)) {
+            return cfg.values[key];
         }
         // Priority 3: Fallback default
         return default_val;
     };
 
-    cfg["get_int"] = fn(key, default_val) {
+    cfg.get_int = fn(key, default_val) {
         let raw = cfg.get(key, nil);
         if (raw == nil) { return default_val; }
         return int(num(raw));
     };
 
-    cfg["get_bool"] = fn(key, default_val) {
+    cfg.get_bool = fn(key, default_val) {
         let raw = cfg.get(key, nil);
         if (raw == nil) { return default_val; }
         let l = to_lower(str(raw));
         return l == "true" || l == "1" || l == "yes";
     };
 
-    cfg["set"] = fn(key, val) {
-        cfg["values"][key] = str(val);
+    cfg.set = fn(key, val) {
+        cfg.values[key] = str(val);
     };
 
-    cfg["all"] = fn() {
-        return cfg["values"];
+    cfg.all = fn() {
+        return cfg.values;
     };
 
     return cfg;

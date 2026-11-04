@@ -4,13 +4,13 @@ fn create_priority_queue() {
     let heap = [];
     let pq = {};
 
-    pq["push"] = fn(item, priority) {
-        let entry = { "item": item, "priority": priority };
+    pq.push = fn(item, priority) {
+        let entry = { item: item, priority: priority };
         push(heap, entry);
         let idx = len(heap) - 1;
         while (idx > 0) {
             let parent = int((idx - 1) / 2);
-            if (heap[idx]["priority"] < heap[parent]["priority"]) {
+            if (heap[idx].priority < heap[parent].priority) {
                 let tmp = heap[idx];
                 heap[idx] = heap[parent];
                 heap[parent] = tmp;
@@ -21,9 +21,9 @@ fn create_priority_queue() {
         }
     };
 
-    pq["pop"] = fn() {
+    pq.pop = fn() {
         if (len(heap) == 0) { return nil; }
-        let root = heap[0]["item"];
+        let root = heap[0].item;
         let last = pop(heap);
         if (len(heap) == 0) { return root; }
         heap[0] = last;
@@ -35,10 +35,10 @@ fn create_priority_queue() {
             let right = 2 * idx + 2;
             let smallest = idx;
 
-            if (left < n && heap[left]["priority"] < heap[smallest]["priority"]) {
+            if (left < n && heap[left].priority < heap[smallest].priority) {
                 smallest = left;
             }
-            if (right < n && heap[right]["priority"] < heap[smallest]["priority"]) {
+            if (right < n && heap[right].priority < heap[smallest].priority) {
                 smallest = right;
             }
 
@@ -55,25 +55,25 @@ fn create_priority_queue() {
         return root;
     };
 
-    pq["peek"] = fn() {
+    pq.peek = fn() {
         if (len(heap) == 0) { return nil; }
-        return heap[0]["item"];
+        return heap[0].item;
     };
 
-    pq["peek_priority"] = fn() {
+    pq.peek_priority = fn() {
         if (len(heap) == 0) { return nil; }
-        return heap[0]["priority"];
+        return heap[0].priority;
     };
 
-    pq["size"] = fn() {
+    pq.size = fn() {
         return len(heap);
     };
 
-    pq["is_empty"] = fn() {
+    pq.is_empty = fn() {
         return len(heap) == 0;
     };
 
-    pq["clear"] = fn() {
+    pq.clear = fn() {
         heap = [];
     };
 

@@ -24,7 +24,7 @@ fn create_buffer() {
     let buf = [];
     let obj = {};
 
-    obj["write_string"] = fn(s) {
+    obj.write_string = fn(s) {
         let b = bytes_from_string(s);
         let i = 0;
         while (i < len(b)) {
@@ -33,23 +33,23 @@ fn create_buffer() {
         }
     };
 
-    obj["write_byte"] = fn(b) {
+    obj.write_byte = fn(b) {
         push(buf, b);
     };
 
-    obj["string"] = fn() {
+    obj.string = fn() {
         return bytes_to_string(buf);
     };
 
-    obj["bytes"] = fn() {
+    obj.bytes = fn() {
         return buf;
     };
 
-    obj["len"] = fn() {
+    obj.len = fn() {
         return len(buf);
     };
 
-    obj["reset"] = fn() {
+    obj.reset = fn() {
         buf = [];
     };
 

@@ -6,15 +6,15 @@ fn new_http_error(status_code, message) {
         message = status_text(status_code);
     }
     return {
-        "is_http_error": true,
-        "status": status_code,
-        "message": message
+        is_http_error: true,
+        status: status_code,
+        message: message
     };
 }
 
 fn is_http_error(val) {
     if (type(val) != "map") { return false; }
-    return map_has_key(val, "is_http_error") && val["is_http_error"] == true;
+    return map_has_key(val, "is_http_error") && val.is_http_error == true;
 }
 
 fn bad_request_error(msg) {

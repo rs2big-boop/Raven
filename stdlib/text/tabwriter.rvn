@@ -4,11 +4,11 @@ fn create_tabwriter(min_width, pad_char) {
     let lines = [];
     let obj = {};
 
-    obj["write_row"] = fn(columns) {
+    obj.write_row = fn(columns) {
         push(lines, columns);
     };
 
-    obj["render"] = fn() {
+    obj.render = fn() {
         if (len(lines) == 0) { return ""; }
 
         // Find max width for each column

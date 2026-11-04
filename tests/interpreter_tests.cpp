@@ -1386,6 +1386,47 @@ TEST(InterpreterTest, ResultAndOptionMonadTypes) {
     EXPECT_EQ(run_code(code), "true\ntrue\n100\n0\ntrue\ntrue\nRaven\nfallback\n");
 }
 
+TEST(InterpreterTest, UnquotedMapKeysAndShorthand) {
+    std::string source =
+        "let data = 1;\n"
+        "let next = 2;\n"
+        "let node = { data, next };\n"
+        "print(node.data);\n"
+        "print(node.next);\n"
+        "let named = { data: 10, next: 20 };\n"
+        "print(named.data);\n"
+        "print(named.next);\n"
+        "let quoted = { \"data\": 7 };\n"
+        "print(quoted.data);\n";
+    EXPECT_EQ(run_code(source), "1\n2\n10\n20\n7\n");
+}
+
+TEST(InterpreterTest, ThisInObjectMethods) {
+    std::string source =
+        "fn make_box(value) {\n"
+        "    return {\n"
+        "        data: value,\n"
+        "        get: fn() { return this.data; },\n"
+        "        set: fn(v) { this.data = v; }\n"
+        "    };\n"
+        "}\n"
+        "let box = make_box(42);\n"
+        "print(box.get());\n"
+        "box.set(99);\n"
+        "print(box.data);\n"
+        "print(box.get());\n";
+    EXPECT_EQ(run_code(source), "42\n99\n99\n");
+}
+
+TEST(InterpreterTest, DotAccessInsteadOfBrackets) {
+    std::string source =
+        "let node = { val: 5, left: nil, right: nil };\n"
+        "print(node.val);\n"
+        "node.val = 8;\n"
+        "print(node.val);\n";
+    EXPECT_EQ(run_code(source), "5\n8\n");
+}
+
 
 
 

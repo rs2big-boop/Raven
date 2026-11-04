@@ -1,24 +1,24 @@
 // stdlib/errors.rvn - Error manipulation (inspired by Go's errors package)
 
 fn new_error(msg) {
-    return {"message": str(msg), "is_error": true};
+    return {message: str(msg), is_error: true};
 }
 
 fn error_message(err) {
     if (type(err) == "map" && map_has_key(err, "message")) {
-        return err["message"];
+        return err.message;
     }
     return str(err);
 }
 
 fn is_error_val(err) {
     if (type(err) == "map" && map_has_key(err, "is_error")) {
-        return err["is_error"] == true;
+        return err.is_error == true;
     }
     return false;
 }
 
 fn wrap_error(err, prefix) {
     let old_msg = error_message(err);
-    return {"message": str(prefix) + ": " + old_msg, "is_error": true, "cause": err};
+    return {message: str(prefix) + ": " + old_msg, is_error: true, cause: err};
 }

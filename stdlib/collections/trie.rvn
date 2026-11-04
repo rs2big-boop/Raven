@@ -1,17 +1,17 @@
 // Raven Collections: Trie (Prefix Tree)
 
 fn _trie_create_node() {
-    return { "children": {}, "is_end": false };
+    return { children: {}, is_end: false };
 }
 
 fn _trie_collect_words(node, prefix, acc) {
     if (node == nil) { return; }
-    if (node["is_end"]) {
+    if (node.is_end) {
         push(acc, prefix);
     }
-    let child_keys = keys(node["children"]);
+    let child_keys = keys(node.children);
     for (let ch in child_keys) {
-        _trie_collect_words(node["children"][ch], prefix + ch, acc);
+        _trie_collect_words(node.children[ch], prefix + ch, acc);
     }
 }
 
@@ -20,64 +20,64 @@ fn create_trie() {
     let word_count = 0;
     let trie = {};
 
-    trie["insert"] = fn(word) {
+    trie.insert = fn(word) {
         let cur = root;
         let i = 0;
         let n = len(word);
         while (i < n) {
             let ch = word[i];
-            if (!contains(cur["children"], ch)) {
-                cur["children"][ch] = _trie_create_node();
+            if (!contains(cur.children, ch)) {
+                cur.children[ch] = _trie_create_node();
             }
-            cur = cur["children"][ch];
+            cur = cur.children[ch];
             i += 1;
         }
-        if (!cur["is_end"]) {
-            cur["is_end"] = true;
+        if (!cur.is_end) {
+            cur.is_end = true;
             word_count += 1;
         }
     };
 
-    trie["contains"] = fn(word) {
+    trie.contains = fn(word) {
         let cur = root;
         let i = 0;
         let n = len(word);
         while (i < n) {
             let ch = word[i];
-            if (!contains(cur["children"], ch)) {
+            if (!contains(cur.children, ch)) {
                 return false;
             }
-            cur = cur["children"][ch];
+            cur = cur.children[ch];
             i += 1;
         }
-        return cur["is_end"];
+        return cur.is_end;
     };
 
-    trie["starts_with"] = fn(prefix) {
+    trie.starts_with = fn(prefix) {
         let cur = root;
         let i = 0;
         let n = len(prefix);
         while (i < n) {
             let ch = prefix[i];
-            if (!contains(cur["children"], ch)) {
+            if (!contains(cur.children, ch)) {
                 return false;
             }
-            cur = cur["children"][ch];
+            cur = cur.children[ch];
             i += 1;
         }
         return true;
     };
 
-    trie["words_with_prefix"] = fn(prefix) {
+    trie.words_with_prefix = fn(prefix) {
         let cur = root;
         let i = 0;
         let n = len(prefix);
         while (i < n) {
             let ch = prefix[i];
-            if (!contains(cur["children"], ch)) {
+            if (!contains(cur.children, ch)) {
                 return [];
             }
-            cur = cur["children"][ch];
+            cur = cur.children[ch];
             i += 1;
         }
         let matches = [];
@@ -85,11 +85,11 @@ fn create_trie() {
         return matches;
     };
 
-    trie["size"] = fn() {
+    trie.size = fn() {
         return word_count;
     };
 
-    trie["is_empty"] = fn() {
+    trie.is_empty = fn() {
         return word_count == 0;
     };
 

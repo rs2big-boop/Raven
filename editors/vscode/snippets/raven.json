@@ -8,6 +8,22 @@
     ],
     "description": "Define a function"
   },
+  "Map Shorthand": {
+    "prefix": "map",
+    "body": [
+      "let ${1:node} = { ${2:data}, ${3:next} };"
+    ],
+    "description": "Object / map with shorthand fields"
+  },
+  "Method With This": {
+    "prefix": "this",
+    "body": [
+      "${1:get}: fn() {",
+      "    return this.${2:data};",
+      "}"
+    ],
+    "description": "Object method using this"
+  },
   "Struct Declaration": {
     "prefix": "struct",
     "body": [

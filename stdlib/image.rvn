@@ -10,17 +10,17 @@ fn create_image(width, height) {
     }
 
     let obj = {};
-    obj["width"] = width;
-    obj["height"] = height;
+    obj.width = width;
+    obj.height = height;
 
-    obj["set_rgb"] = fn(x, y, r, g, b) {
+    obj.set_rgb = fn(x, y, r, g, b) {
         if (x >= 0 && x < width && y >= 0 && y < height) {
             let idx = y * width + x;
             pixels[idx] = [int(r), int(g), int(b)];
         }
     };
 
-    obj["get_rgb"] = fn(x, y) {
+    obj.get_rgb = fn(x, y) {
         if (x >= 0 && x < width && y >= 0 && y < height) {
             let idx = y * width + x;
             return pixels[idx];
@@ -28,7 +28,7 @@ fn create_image(width, height) {
         return [0, 0, 0];
     };
 
-    obj["export_ppm"] = fn(filepath) {
+    obj.export_ppm = fn(filepath) {
         let content = "P3\n" + str(width) + " " + str(height) + "\n255\n";
         let p = 0;
         while (p < total) {

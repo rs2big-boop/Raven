@@ -5,7 +5,7 @@ fn create_test_suite(name) {
     let passed = 0;
     let failed = 0;
 
-    suite["test"] = fn(desc, test_fn) {
+    suite.test = fn(desc, test_fn) {
         try {
             test_fn();
             passed += 1;
@@ -15,7 +15,7 @@ fn create_test_suite(name) {
         }
     };
 
-    suite["summary"] = fn() {
+    suite.summary = fn() {
         print("Suite '" + name + "': " + str(passed) + " passed, " + str(failed) + " failed.");
         return failed == 0;
     };

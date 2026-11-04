@@ -9,25 +9,25 @@ fn create_logger(name, min_level) {
     let current_level = min_level ?? LOG_LEVEL_INFO;
     let logger = {};
 
-    logger["debug"] = fn(msg) {
+    logger.debug = fn(msg) {
         if (current_level <= LOG_LEVEL_DEBUG) {
             print("[DEBUG] [" + name + "] " + str(msg));
         }
     };
 
-    logger["info"] = fn(msg) {
+    logger.info = fn(msg) {
         if (current_level <= LOG_LEVEL_INFO) {
             print("[INFO] [" + name + "] " + str(msg));
         }
     };
 
-    logger["warn"] = fn(msg) {
+    logger.warn = fn(msg) {
         if (current_level <= LOG_LEVEL_WARN) {
             print("[WARN] [" + name + "] " + str(msg));
         }
     };
 
-    logger["error"] = fn(msg) {
+    logger.error = fn(msg) {
         if (current_level <= LOG_LEVEL_ERROR) {
             print_err("[ERROR] [" + name + "] " + str(msg));
         }

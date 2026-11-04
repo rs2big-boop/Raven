@@ -10,30 +10,30 @@ fn create_ring(n) {
     let cur = 0;
     let obj = {};
 
-    obj["value"] = fn() {
+    obj.value = fn() {
         if (len(items) == 0) { return nil; }
         return items[cur];
     };
 
-    obj["set_value"] = fn(v) {
+    obj.set_value = fn(v) {
         if (len(items) > 0) {
             items[cur] = v;
         }
     };
 
-    obj["next"] = fn() {
+    obj.next = fn() {
         if (len(items) > 0) {
             cur = (cur + 1) % len(items);
         }
     };
 
-    obj["prev"] = fn() {
+    obj.prev = fn() {
         if (len(items) > 0) {
             cur = (cur - 1 + len(items)) % len(items);
         }
     };
 
-    obj["len"] = fn() {
+    obj.len = fn() {
         return len(items);
     };
 

@@ -13,7 +13,7 @@ let default_client = create_client(nil);
 // Legacy string return for backward compatibility
 fn http_get_url(url) {
     let res = default_client.get(url, nil);
-    return res["body"];
+    return res.body;
 }
 
 // Full response object with status, headers, body, json() helper
@@ -27,13 +27,13 @@ fn http_fetch(req_or_url) {
 // Standard post request
 fn http_post(url, body) {
     let res = default_client.post(url, body, nil);
-    return res["body"];
+    return res.body;
 }
 
 // Standard JSON post request
 fn http_post_json(url, json_data) {
     let res = default_client.post_json(url, json_data, nil);
-    return res["body"];
+    return res.body;
 }
 
 // Custom client constructor with configured timeouts, headers

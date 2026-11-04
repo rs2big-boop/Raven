@@ -4,14 +4,14 @@ fn create_emitter() {
     let listeners = {};
     let em = {};
 
-    em["on"] = fn(event, callback) {
+    em.on = fn(event, callback) {
         if (!map_has_key(listeners, event)) {
             listeners[event] = [];
         }
         push(listeners[event], callback);
     };
 
-    em["emit"] = fn(event, data) {
+    em.emit = fn(event, data) {
         if (!map_has_key(listeners, event)) { return nil; }
         let cbs = listeners[event];
         for (let cb in cbs) {
@@ -19,13 +19,13 @@ fn create_emitter() {
         }
     };
 
-    em["off"] = fn(event) {
+    em.off = fn(event) {
         if (map_has_key(listeners, event)) {
             map_delete(listeners, event);
         }
     };
 
-    em["listener_count"] = fn(event) {
+    em.listener_count = fn(event) {
         if (!map_has_key(listeners, event)) { return 0; }
         return len(listeners[event]);
     };

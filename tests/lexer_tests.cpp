@@ -140,6 +140,17 @@ TEST(LexerTest, FullLetStatement) {
     EXPECT_EQ(tokens[5].type, TokenType::EndOfFile);
 }
 
+TEST(LexerTest, ThisKeyword) {
+    Lexer lexer("this data");
+    auto tokens = lexer.tokenize();
+
+    ASSERT_EQ(tokens.size(), 3);
+    EXPECT_EQ(tokens[0].type, TokenType::This);
+    EXPECT_EQ(tokens[0].lexeme, "this");
+    EXPECT_EQ(tokens[1].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[2].type, TokenType::EndOfFile);
+}
+
 TEST(LexerTest, InvalidCharacters) {
     Lexer lexer("@ # $");
     auto tokens = lexer.tokenize();

@@ -2,12 +2,12 @@
 
 fn sql_open(driver, dsn) {
     let db = {};
-    db["driver"] = driver;
-    db["dsn"] = dsn;
-    db["closed"] = false;
+    db.driver = driver;
+    db.dsn = dsn;
+    db.closed = false;
 
-    db["exec"] = fn(query) {
-        if (db["closed"]) {
+    db.exec = fn(query) {
+        if (db.closed) {
             panic("database is closed");
         }
         if (driver == "sqlite3" || driver == "sqlite") {
@@ -18,8 +18,8 @@ fn sql_open(driver, dsn) {
         return "";
     };
 
-    db["query"] = fn(query) {
-        if (db["closed"]) {
+    db.query = fn(query) {
+        if (db.closed) {
             panic("database is closed");
         }
         if (driver == "sqlite3" || driver == "sqlite") {
@@ -33,8 +33,8 @@ fn sql_open(driver, dsn) {
         return [];
     };
 
-    db["close"] = fn() {
-        db["closed"] = true;
+    db.close = fn() {
+        db.closed = true;
     };
 
     return db;

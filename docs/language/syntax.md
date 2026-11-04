@@ -49,9 +49,36 @@ Inlines arrays and maps:
 let base_nums = [1, 2, 3];
 let all_nums = [...base_nums, 4, 5];
 
-let base_map = {"a": 1, "b": 2};
-let merged_map = {...base_map, "c": 3};
+let base_map = { a: 1, b: 2 };
+let merged_map = { ...base_map, c: 3 };
 ```
+
+### Maps, shorthand, and `this`
+Prefer unquoted keys and Java-style field access:
+
+```raven
+fn make_node(data, next) {
+    return { data, next };
+}
+
+fn make_box(value) {
+    return {
+        data: value,
+        get: fn() { return this.data; },
+        set: fn(v) { this.data = v; }
+    };
+}
+
+let node = make_node(1, nil);
+print(node.data);
+node.data = 2;
+
+let box = make_box(42);
+print(box.get());
+box.set(99);
+```
+
+Quoted keys (`{ "content-type": "json" }`) still work when the name is not a valid identifier.
 
 ---
 

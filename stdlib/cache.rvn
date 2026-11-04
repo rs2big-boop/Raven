@@ -5,7 +5,7 @@ fn create_lru_cache(max_size) {
     let order = [];
     let c = {};
 
-    c["get"] = fn(key) {
+    c.get = fn(key) {
         if (!map_has_key(cache, key)) { return nil; }
         let new_order = [];
         for (let k in order) {
@@ -18,7 +18,7 @@ fn create_lru_cache(max_size) {
         return cache[key];
     };
 
-    c["set"] = fn(key, val) {
+    c.set = fn(key, val) {
         if (map_has_key(cache, key)) {
             let new_order = [];
             for (let k in order) {
@@ -42,11 +42,11 @@ fn create_lru_cache(max_size) {
         push(order, key);
     };
 
-    c["has"] = fn(key) {
+    c.has = fn(key) {
         return map_has_key(cache, key);
     };
 
-    c["delete"] = fn(key) {
+    c.delete = fn(key) {
         if (map_has_key(cache, key)) {
             map_delete(cache, key);
             let new_order = [];
@@ -59,9 +59,9 @@ fn create_lru_cache(max_size) {
         }
     };
 
-    c["size"] = fn() { return len(order); };
-    c["clear"] = fn() { cache = {}; order = []; };
-    c["keys"] = fn() { return order; };
+    c.size = fn() { return len(order); };
+    c.clear = fn() { cache = {}; order = []; };
+    c.keys = fn() { return order; };
 
     return c;
 }
@@ -71,12 +71,12 @@ fn create_ttl_cache(ttl_seconds) {
     let expiry = {};
     let c = {};
 
-    c["set"] = fn(key, val) {
+    c.set = fn(key, val) {
         cache[key] = val;
         expiry[key] = time() + ttl_seconds;
     };
 
-    c["get"] = fn(key) {
+    c.get = fn(key) {
         if (!map_has_key(cache, key)) { return nil; }
         if (time() > expiry[key]) {
             map_delete(cache, key);
@@ -86,7 +86,7 @@ fn create_ttl_cache(ttl_seconds) {
         return cache[key];
     };
 
-    c["has"] = fn(key) {
+    c.has = fn(key) {
         if (!map_has_key(cache, key)) { return false; }
         if (time() > expiry[key]) {
             map_delete(cache, key);
@@ -96,7 +96,7 @@ fn create_ttl_cache(ttl_seconds) {
         return true;
     };
 
-    c["clear"] = fn() { cache = {}; expiry = {}; };
+    c.clear = fn() { cache = {}; expiry = {}; };
 
     return c;
 }

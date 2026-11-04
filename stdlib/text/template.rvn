@@ -17,9 +17,9 @@ fn template_render(tmpl_str, data_map) {
 
 fn create_template(tmpl_str) {
     let obj = {};
-    obj["source"] = tmpl_str;
+    obj.source = tmpl_str;
 
-    obj["execute"] = fn(data_map) {
+    obj.execute = fn(data_map) {
         return template_render(tmpl_str, data_map);
     };
 

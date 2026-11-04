@@ -2,31 +2,31 @@
 
 fn Ok(value) {
     return {
-        "is_result": true,
-        "ok": true,
-        "value": value,
-        "error": nil,
-        "unwrap": fn() { return value; },
-        "unwrap_or": fn(def) { return value; },
-        "is_ok": fn() { return true; },
-        "is_err": fn() { return false; }
+        is_result: true,
+        ok: true,
+        value: value,
+        error: nil,
+        unwrap: fn() { return value; },
+        unwrap_or: fn(def) { return value; },
+        is_ok: fn() { return true; },
+        is_err: fn() { return false; }
     };
 }
 
 fn Err(error) {
     return {
-        "is_result": true,
-        "ok": false,
-        "value": nil,
-        "error": error,
-        "unwrap": fn() { panic("Called unwrap on Err: " + str(error)); },
-        "unwrap_or": fn(def) { return def; },
-        "is_ok": fn() { return false; },
-        "is_err": fn() { return true; }
+        is_result: true,
+        ok: false,
+        value: nil,
+        error: error,
+        unwrap: fn() { panic("Called unwrap on Err: " + str(error)); },
+        unwrap_or: fn(def) { return def; },
+        is_ok: fn() { return false; },
+        is_err: fn() { return true; }
     };
 }
 
 fn is_result(v) {
     if (type(v) != "map") { return false; }
-    return map_has_key(v, "is_result") && v["is_result"] == true;
+    return map_has_key(v, "is_result") && v.is_result == true;
 }

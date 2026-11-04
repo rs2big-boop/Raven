@@ -56,7 +56,7 @@
       "patterns": [
         {
           "name": "keyword.control.raven",
-          "match": "\\b(let|fn|if|else|while|loop|for|in|return|try|catch|throw|import|match|struct|break|continue|is)\\b"
+          "match": "\\b(let|fn|if|else|while|loop|for|in|return|try|catch|throw|import|match|struct|break|continue|is|this)\\b"
         },
         {
           "name": "constant.language.raven",

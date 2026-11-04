@@ -6,25 +6,25 @@ fn create_context() {
     let store = {};
     let obj = {};
 
-    obj["cancel"] = fn() {
+    obj.cancel = fn() {
         cancelled = true;
     };
 
-    obj["is_done"] = fn() {
+    obj.is_done = fn() {
         if (cancelled) { return true; }
         if (deadline > 0 && time() >= deadline) { return true; }
         return false;
     };
 
-    obj["set_deadline_ms"] = fn(ms) {
+    obj.set_deadline_ms = fn(ms) {
         deadline = time() + ms;
     };
 
-    obj["set_value"] = fn(k, v) {
+    obj.set_value = fn(k, v) {
         store[str(k)] = v;
     };
 
-    obj["get_value"] = fn(k) {
+    obj.get_value = fn(k) {
         if (map_has_key(store, str(k))) {
             return store[str(k)];
         }

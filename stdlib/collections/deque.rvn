@@ -4,11 +4,11 @@ fn create_deque() {
     let items = [];
     let d = {};
 
-    d["push_back"] = fn(val) {
+    d.push_back = fn(val) {
         push(items, val);
     };
 
-    d["push_front"] = fn(val) {
+    d.push_front = fn(val) {
         let new_items = [val];
         let i = 0;
         while (i < len(items)) {
@@ -18,12 +18,12 @@ fn create_deque() {
         items = new_items;
     };
 
-    d["pop_back"] = fn() {
+    d.pop_back = fn() {
         if (len(items) == 0) { return nil; }
         return pop(items);
     };
 
-    d["pop_front"] = fn() {
+    d.pop_front = fn() {
         if (len(items) == 0) { return nil; }
         let front = items[0];
         let new_items = [];
@@ -36,29 +36,29 @@ fn create_deque() {
         return front;
     };
 
-    d["peek_back"] = fn() {
+    d.peek_back = fn() {
         if (len(items) == 0) { return nil; }
         return items[len(items) - 1];
     };
 
-    d["peek_front"] = fn() {
+    d.peek_front = fn() {
         if (len(items) == 0) { return nil; }
         return items[0];
     };
 
-    d["size"] = fn() {
+    d.size = fn() {
         return len(items);
     };
 
-    d["is_empty"] = fn() {
+    d.is_empty = fn() {
         return len(items) == 0;
     };
 
-    d["clear"] = fn() {
+    d.clear = fn() {
         items = [];
     };
 
-    d["to_array"] = fn() {
+    d.to_array = fn() {
         let copy = [];
         for (let item in items) {
             push(copy, item);

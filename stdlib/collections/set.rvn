@@ -5,7 +5,7 @@ fn new_set() {
     let count = 0;
     let s = {};
 
-    s["add"] = fn(val) {
+    s.add = fn(val) {
         let k = str(val);
         if (!map_has_key(items, k)) {
             items[k] = val;
@@ -13,11 +13,11 @@ fn new_set() {
         }
     };
 
-    s["has"] = fn(val) {
+    s.has = fn(val) {
         return map_has_key(items, str(val));
     };
 
-    s["remove"] = fn(val) {
+    s.remove = fn(val) {
         let k = str(val);
         if (map_has_key(items, k)) {
             map_delete(items, k);
@@ -25,15 +25,15 @@ fn new_set() {
         }
     };
 
-    s["size"] = fn() {
+    s.size = fn() {
         return count;
     };
 
-    s["to_array"] = fn() {
+    s.to_array = fn() {
         return values(items);
     };
 
-    s["clear"] = fn() {
+    s.clear = fn() {
         items = {};
         count = 0;
     };

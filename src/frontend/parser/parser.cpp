@@ -2,6 +2,42 @@
 
 namespace raven {
 
+namespace {
+
+std::unique_ptr<Expr> clone_expr(const Expr* expr) {
+    if (!expr) {
+        return nullptr;
+    }
+    if (auto* var_expr = dynamic_cast<const VariableExpr*>(expr)) {
+        return std::make_unique<VariableExpr>(var_expr->name);
+    }
+    if (auto* literal = dynamic_cast<const LiteralExpr*>(expr)) {
+        return std::make_unique<LiteralExpr>(literal->value);
+    }
+    if (auto* prop = dynamic_cast<const PropertyExpr*>(expr)) {
+        auto object = clone_expr(prop->object.get());
+        if (!object) {
+            return nullptr;
+        }
+        return std::make_unique<PropertyExpr>(std::move(object), prop->name, prop->is_optional);
+    }
+    if (auto* index = dynamic_cast<const IndexExpr*>(expr)) {
+        if (index->is_slice) {
+            return nullptr;
+        }
+        auto object = clone_expr(index->object.get());
+        auto idx = clone_expr(index->index.get());
+        if (!object || !idx) {
+            return nullptr;
+        }
+        return std::make_unique<IndexExpr>(std::move(object), index->bracket, std::move(idx), index->is_optional);
+    }
+    return nullptr;
+}
+
+} // namespace
+
+
 Parser::Parser(std::vector<Token> tokens)
     : tokens_(std::move(tokens)) {}
 
@@ -346,21 +382,25 @@ std::unique_ptr<Expr> Parser::assignment() {
         Token equals = previous();
         auto value = assignment();
 
+        TokenType bin_op = TokenType::Plus;
+        std::string op_lexeme = "+";
+        if (equals.type == TokenType::PlusEqual) { bin_op = TokenType::Plus; op_lexeme = "+"; }
+        else if (equals.type == TokenType::MinusEqual) { bin_op = TokenType::Minus; op_lexeme = "-"; }
+        else if (equals.type == TokenType::StarEqual) { bin_op = TokenType::Star; op_lexeme = "*"; }
+        else if (equals.type == TokenType::SlashEqual) { bin_op = TokenType::Slash; op_lexeme = "/"; }
+        else if (equals.type == TokenType::PercentEqual) { bin_op = TokenType::Percent; op_lexeme = "%"; }
+
+        if (equals.type != TokenType::Equal) {
+            auto left = clone_expr(expr.get());
+            if (!left) {
+                throw error(equals, "Compound assignment is not supported for this target.");
+            }
+            Token bin_token{bin_op, op_lexeme, equals.line, equals.column};
+            value = std::make_unique<BinaryExpr>(std::move(left), bin_token, std::move(value));
+        }
+
         if (auto* var_expr = dynamic_cast<VariableExpr*>(expr.get())) {
             Token name = var_expr->name;
-            if (equals.type != TokenType::Equal) {
-                TokenType bin_op;
-                std::string op_lexeme;
-                if (equals.type == TokenType::PlusEqual) { bin_op = TokenType::Plus; op_lexeme = "+"; }
-                else if (equals.type == TokenType::MinusEqual) { bin_op = TokenType::Minus; op_lexeme = "-"; }
-                else if (equals.type == TokenType::StarEqual) { bin_op = TokenType::Star; op_lexeme = "*"; }
-                else if (equals.type == TokenType::SlashEqual) { bin_op = TokenType::Slash; op_lexeme = "/"; }
-                else { bin_op = TokenType::Percent; op_lexeme = "%"; }
-
-                auto left = std::make_unique<VariableExpr>(name);
-                Token bin_token{bin_op, op_lexeme, equals.line, equals.column};
-                value = std::make_unique<BinaryExpr>(std::move(left), bin_token, std::move(value));
-            }
             return std::make_unique<AssignExpr>(std::move(name), std::move(value));
         }
 
@@ -595,7 +635,7 @@ std::unique_ptr<Expr> Parser::primary() {
     if (match({TokenType::String})) {
         return std::make_unique<LiteralExpr>(Value(previous().lexeme));
     }
-    if (match({TokenType::Identifier})) {
+    if (match({TokenType::Identifier}) || match({TokenType::This})) {
         return std::make_unique<VariableExpr>(previous());
     }
 
@@ -617,7 +657,7 @@ std::unique_ptr<Expr> Parser::primary() {
         return std::make_unique<ArrayExpr>(std::move(elements));
     }
 
-    // Map literal: { key: value, ... }
+    // Map literal: { key: value, shorthand, "quoted": value, ... }
     if (match({TokenType::LeftBrace})) {
         std::vector<std::pair<std::unique_ptr<Expr>, std::unique_ptr<Expr>>> entries;
         if (!check(TokenType::RightBrace)) {
@@ -626,6 +666,20 @@ std::unique_ptr<Expr> Parser::primary() {
                     Token dot_tok = previous();
                     auto spread_map = expression();
                     entries.emplace_back(std::make_unique<UnaryExpr>(dot_tok, std::move(spread_map)), nullptr);
+                } else if (check(TokenType::Identifier) &&
+                           (peek_next().type == TokenType::Colon ||
+                            peek_next().type == TokenType::Comma ||
+                            peek_next().type == TokenType::RightBrace)) {
+                    Token key_tok = advance();
+                    auto key = std::make_unique<LiteralExpr>(Value(key_tok.lexeme));
+                    if (match({TokenType::Colon})) {
+                        entries.emplace_back(std::move(key), expression());
+                    } else {
+                        // { data }  =>  { "data": data }
+                        entries.emplace_back(
+                            std::move(key),
+                            std::make_unique<VariableExpr>(key_tok));
+                    }
                 } else {
                     auto key = expression();
                     consume(TokenType::Colon, "Expected ':' after map key.");

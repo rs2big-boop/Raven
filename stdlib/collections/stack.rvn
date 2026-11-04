@@ -4,29 +4,29 @@ fn new_stack() {
     let items = [];
     let s = {};
 
-    s["push"] = fn(val) {
+    s.push = fn(val) {
         push(items, val);
     };
 
-    s["pop"] = fn() {
+    s.pop = fn() {
         if (len(items) == 0) { return nil; }
         return pop(items);
     };
 
-    s["peek"] = fn() {
+    s.peek = fn() {
         if (len(items) == 0) { return nil; }
         return items[len(items) - 1];
     };
 
-    s["size"] = fn() {
+    s.size = fn() {
         return len(items);
     };
 
-    s["is_empty"] = fn() {
+    s.is_empty = fn() {
         return len(items) == 0;
     };
 
-    s["clear"] = fn() {
+    s.clear = fn() {
         items = [];
     };
 

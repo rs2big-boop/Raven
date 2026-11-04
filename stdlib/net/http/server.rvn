@@ -74,55 +74,55 @@ fn parse_http_request(raw_data) {
     }
 
     return {
-        "method": method,
-        "url": full_url,
-        "path": path,
-        "query": query_string,
-        "headers": req_headers,
-        "body": body_part,
-        "cookies": cookies,
-        "json": parsed_json
+        method: method,
+        url: full_url,
+        path: path,
+        query: query_string,
+        headers: req_headers,
+        body: body_part,
+        cookies: cookies,
+        json: parsed_json
     };
 }
 
 fn create_http_response_builder(conn) {
     let res = {};
-    res["conn"] = conn;
-    res["status_code"] = STATUS_OK;
-    res["headers"] = new_headers();
-    res["sent"] = false;
+    res.conn = conn;
+    res.status_code = STATUS_OK;
+    res.headers = new_headers();
+    res.sent = false;
 
-    header_set(res["headers"], "Connection", "close");
+    header_set(res.headers, "Connection", "close");
 
-    res["status"] = fn(code) {
-        res["status_code"] = code;
+    res.status = fn(code) {
+        res.status_code = code;
         return res;
     };
 
-    res["set_header"] = fn(name, value) {
-        header_set(res["headers"], name, value);
+    res.set_header = fn(name, value) {
+        header_set(res.headers, name, value);
         return res;
     };
 
-    res["send"] = fn(body) {
-        if (res["sent"]) { return -1; }
-        res["sent"] = true;
+    res.send = fn(body) {
+        if (res.sent) { return -1; }
+        res.sent = true;
 
         let b = str(body);
-        let s_code = res["status_code"];
+        let s_code = res.status_code;
         let s_text = status_text(s_code);
 
-        header_set(res["headers"], "Content-Length", str(len(b)));
-        if (!header_has(res["headers"], "content-type")) {
-            header_set(res["headers"], "Content-Type", "text/plain; charset=utf-8");
+        header_set(res.headers, "Content-Length", str(len(b)));
+        if (!header_has(res.headers, "content-type")) {
+            header_set(res.headers, "Content-Type", "text/plain; charset=utf-8");
         }
 
         let resp_str = "HTTP/1.1 " + str(s_code) + " " + s_text + "\r\n";
-        let h_keys = keys(res["headers"]);
+        let h_keys = keys(res.headers);
         let i = 0;
         while (i < len(h_keys)) {
             let k = h_keys[i];
-            resp_str = resp_str + k + ": " + str(res["headers"][k]) + "\r\n";
+            resp_str = resp_str + k + ": " + str(res.headers[k]) + "\r\n";
             i = i + 1;
         }
         resp_str = resp_str + "\r\n" + b;
@@ -130,12 +130,12 @@ fn create_http_response_builder(conn) {
         return conn.write(resp_str);
     };
 
-    res["json"] = fn(data) {
+    res.json = fn(data) {
         res.set_header("Content-Type", "application/json; charset=utf-8");
         return res.send(to_json(data));
     };
 
-    res["html"] = fn(html_content) {
+    res.html = fn(html_content) {
         res.set_header("Content-Type", "text/html; charset=utf-8");
         return res.send(html_content);
     };
@@ -145,38 +145,38 @@ fn create_http_response_builder(conn) {
 
 fn create_http_server() {
     let srv = {};
-    srv["routes"] = {}; // method:path -> handler
-    srv["middlewares"] = [];
-    srv["tcp_server"] = nil;
+    srv.routes = {}; // method:path -> handler
+    srv.middlewares = [];
+    srv.tcp_server = nil;
 
-    srv["use"] = fn(middleware_fn) {
-        push(srv["middlewares"], middleware_fn);
+    srv.use = fn(middleware_fn) {
+        push(srv.middlewares, middleware_fn);
         return srv;
     };
 
-    srv["route"] = fn(method, path, handler) {
+    srv.route = fn(method, path, handler) {
         let key = to_upper(method) + ":" + path;
-        srv["routes"][key] = handler;
+        srv.routes[key] = handler;
         return srv;
     };
 
-    srv["get"] = fn(path, handler) {
+    srv.get = fn(path, handler) {
         return srv.route("GET", path, handler);
     };
 
-    srv["post"] = fn(path, handler) {
+    srv.post = fn(path, handler) {
         return srv.route("POST", path, handler);
     };
 
-    srv["put"] = fn(path, handler) {
+    srv.put = fn(path, handler) {
         return srv.route("PUT", path, handler);
     };
 
-    srv["delete"] = fn(path, handler) {
+    srv.delete = fn(path, handler) {
         return srv.route("DELETE", path, handler);
     };
 
-    srv["handle_conn"] = fn(conn) {
+    srv.handle_conn = fn(conn) {
         let raw = conn.read(65536);
         let req = parse_http_request(raw);
         let res = create_http_response_builder(conn);
@@ -190,20 +190,20 @@ fn create_http_server() {
         // Run middlewares
         let i = 0;
         let halted = false;
-        while (i < len(srv["middlewares"])) {
-            let mw = srv["middlewares"][i];
+        while (i < len(srv.middlewares)) {
+            let mw = srv.middlewares[i];
             let should_continue = mw(req, res);
-            if (should_continue == false || res["sent"]) {
+            if (should_continue == false || res.sent) {
                 halted = true;
                 break;
             }
             i = i + 1;
         }
 
-        if (!halted && !res["sent"]) {
-            let key = req["method"] + ":" + req["path"];
-            if (map_has_key(srv["routes"], key)) {
-                let handler = srv["routes"][key];
+        if (!halted && !res.sent) {
+            let key = req.method + ":" + req.path;
+            if (map_has_key(srv.routes, key)) {
+                let handler = srv.routes[key];
                 handler(req, res);
             } else {
                 res.status(STATUS_NOT_FOUND).send("Not Found");
@@ -213,23 +213,23 @@ fn create_http_server() {
         conn.close();
     };
 
-    srv["listen"] = fn(host, port) {
-        srv["tcp_server"] = tcp_listen(host, port);
-        return srv["tcp_server"] != nil;
+    srv.listen = fn(host, port) {
+        srv.tcp_server = tcp_listen(host, port);
+        return srv.tcp_server != nil;
     };
 
-    srv["accept_one"] = fn() {
-        if (srv["tcp_server"] == nil) { return false; }
-        let conn = srv["tcp_server"].accept();
+    srv.accept_one = fn() {
+        if (srv.tcp_server == nil) { return false; }
+        let conn = srv.tcp_server.accept();
         if (conn == nil) { return false; }
         srv.handle_conn(conn);
         return true;
     };
 
-    srv["close"] = fn() {
-        if (srv["tcp_server"] != nil) {
-            srv["tcp_server"].close();
-            srv["tcp_server"] = nil;
+    srv.close = fn() {
+        if (srv.tcp_server != nil) {
+            srv.tcp_server.close();
+            srv.tcp_server = nil;
         }
     };
 
