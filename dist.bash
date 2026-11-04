@@ -54,7 +54,7 @@ if [ -n "${WIN_BIN_DIR}" ]; then
     PKG_NAME_WIN="raven-v${VERSION}-windows-x86_64"
     TARGET_DIR_WIN="${DIST_DIR}/${PKG_NAME_WIN}"
     rm -rf "${TARGET_DIR_WIN}"
-    mkdir -p "${TARGET_DIR_WIN}/bin"
+    mkdir -p "${TARGET_DIR_WIN}/bin" "${TARGET_DIR_WIN}/stdlib"
     cp "${WIN_BIN_DIR}/raven.exe" "${TARGET_DIR_WIN}/bin/"
     cp "${WIN_BIN_DIR}/ravenc.exe" "${TARGET_DIR_WIN}/bin/"
     cp "${WIN_BIN_DIR}/rvm.exe" "${TARGET_DIR_WIN}/bin/"
