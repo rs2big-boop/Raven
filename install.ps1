@@ -163,13 +163,86 @@ if ([string]::IsNullOrEmpty($UserPath) -or ($UserPath -notlike "*$BinDir*")) {
     Write-Host "✓ $BinDir is already in your PATH" -ForegroundColor Green
 }
 
-# 6. Success
+# 6. Install VS Code / Cursor extension (cpptools-style IntelliSense)
+function Install-RavenEditorExtension {
+    param([string]$SourceDir)
+
+    if (-not $SourceDir -or -not (Test-Path (Join-Path $SourceDir "package.json"))) {
+        return $false
+    }
+    if (-not (Test-Path (Join-Path $SourceDir "out\extension.js"))) {
+        return $false
+    }
+
+    $targets = @(
+        (Join-Path $HOME ".vscode\extensions\raven-lang"),
+        (Join-Path $HOME ".cursor\extensions\raven-lang"),
+        (Join-Path $HOME ".vscode-insiders\extensions\raven-lang")
+    )
+
+    $count = 0
+    foreach ($target in $targets) {
+        $parent = Split-Path -Parent $target
+        if (-not (Test-Path $parent)) { continue }
+
+        if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+        New-Item -ItemType Directory -Path $target -Force | Out-Null
+        Copy-Item (Join-Path $SourceDir "package.json") $target -Force
+        Copy-Item (Join-Path $SourceDir "language-configuration.json") $target -Force
+        Copy-Item (Join-Path $SourceDir "LICENSE") $target -Force -ErrorAction SilentlyContinue
+        Copy-Item (Join-Path $SourceDir "README.md") $target -Force -ErrorAction SilentlyContinue
+        Copy-Item (Join-Path $SourceDir "out") $target -Recurse -Force
+        Copy-Item (Join-Path $SourceDir "snippets") $target -Recurse -Force
+        Copy-Item (Join-Path $SourceDir "syntaxes") $target -Recurse -Force
+        if (Test-Path (Join-Path $SourceDir "media")) {
+            Copy-Item (Join-Path $SourceDir "media") $target -Recurse -Force
+        }
+        $count++
+    }
+    return $count -gt 0
+}
+
+$ExtInstalled = $false
+$LocalExt = $null
+if ($ScriptDir -and (Test-Path (Join-Path $ScriptDir "editors\vscode\package.json"))) {
+    $LocalExt = Join-Path $ScriptDir "editors\vscode"
+} elseif ($ScriptDir -and (Test-Path (Join-Path $ScriptDir "package.json")) -and (Test-Path (Join-Path $ScriptDir "out\extension.js"))) {
+    $LocalExt = $ScriptDir
+}
+
+if ($LocalExt) {
+    Write-Host "🧩 Installing Raven editor extension..." -ForegroundColor Cyan
+    $ExtInstalled = Install-RavenEditorExtension -SourceDir $LocalExt
+}
+
+if (-not $ExtInstalled) {
+    try {
+        Write-Host "🧩 Downloading Raven editor extension from GitHub..." -ForegroundColor Cyan
+        $ExtZip = Join-Path $env:TEMP "raven-main-ext.zip"
+        $ExtExtract = Join-Path $env:TEMP "raven-main-ext"
+        Invoke-WebRequest -Uri "https://codeload.github.com/$RepoOwner/$RepoName/zip/refs/heads/main" -OutFile $ExtZip -UseBasicParsing
+        if (Test-Path $ExtExtract) { Remove-Item $ExtExtract -Recurse -Force }
+        Expand-Archive -Path $ExtZip -DestinationPath $ExtExtract -Force
+        $ExtSrc = Get-ChildItem $ExtExtract -Directory | Select-Object -First 1
+        $ExtPath = Join-Path $ExtSrc.FullName "editors\vscode"
+        $ExtInstalled = Install-RavenEditorExtension -SourceDir $ExtPath
+        Remove-Item $ExtZip -Force -ErrorAction SilentlyContinue
+        Remove-Item $ExtExtract -Recurse -Force -ErrorAction SilentlyContinue
+    } catch {
+        Write-Host "Editor extension install skipped: $_" -ForegroundColor Yellow
+    }
+}
+
+# 7. Success
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "  🐦 Raven Programming Language successfully installed!" -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "  Location : $BinDir"
 Write-Host "  Standard Library : $StdlibDir"
+if ($ExtInstalled) {
+    Write-Host "  Editor Extension : VS Code / Cursor (reload window)"
+}
 Write-Host ""
 Write-Host "  Quick Start Commands:" -ForegroundColor Yellow
 Write-Host "    raven run <script.rvn>      # Run with tree-walk interpreter"

@@ -28,6 +28,12 @@ jobs:
       - name: Run Tests
         run: ctest --test-dir build --output-on-failure
 
+      - name: Build VS Code Extension
+        run: |
+          cd editors/vscode
+          npm install --no-fund --no-audit
+          npm run compile
+
       - name: Package Linux Release
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -38,6 +44,14 @@ jobs:
           cp -r stdlib/* "dist/${PKG_NAME}/stdlib/"
           cp README.md install.sh install.ps1 install.bat "dist/${PKG_NAME}/"
           cp LICENSE "dist/${PKG_NAME}/" 2>/dev/null || true
+          mkdir -p "dist/${PKG_NAME}/scripts" "dist/${PKG_NAME}/editors"
+          cp scripts/install_vscode_ext.sh "dist/${PKG_NAME}/scripts/" 2>/dev/null || true
+          if [ -f editors/vscode/out/extension.js ]; then
+            cp -r editors/vscode "dist/${PKG_NAME}/editors/"
+            rm -rf "dist/${PKG_NAME}/editors/vscode/node_modules" \
+                   "dist/${PKG_NAME}/editors/vscode/src" \
+                   "dist/${PKG_NAME}/editors/vscode/"*.vsix
+          fi
           cd dist
           tar -czf "${PKG_NAME}.tar.gz" "${PKG_NAME}"
           sha256sum "${PKG_NAME}.tar.gz" > "${PKG_NAME}.tar.gz.sha256"
@@ -61,6 +75,14 @@ jobs:
       - name: Build Raven Toolchain (MSVC)
         run: cmake --build build --config Release -j
 
+      - name: Build VS Code Extension
+        shell: pwsh
+        run: |
+          Push-Location editors/vscode
+          npm install --no-fund --no-audit
+          npm run compile
+          Pop-Location
+
       - name: Package Windows Release
         shell: pwsh
         run: |
@@ -80,6 +102,17 @@ jobs:
           Copy-Item "stdlib\*" "$TargetDir\stdlib\" -Recurse -Force
           Copy-Item "README.md", "install.ps1", "install.bat" "$TargetDir\" -Force
           if (Test-Path "LICENSE") { Copy-Item "LICENSE" "$TargetDir\" -Force }
+          New-Item -ItemType Directory -Path "$TargetDir\scripts" -Force | Out-Null
+          if (Test-Path "scripts\install_vscode_ext.ps1") {
+              Copy-Item "scripts\install_vscode_ext.ps1" "$TargetDir\scripts\" -Force
+          }
+          if (Test-Path "editors\vscode\out\extension.js") {
+              New-Item -ItemType Directory -Path "$TargetDir\editors" -Force | Out-Null
+              Copy-Item "editors\vscode" "$TargetDir\editors\vscode" -Recurse -Force
+              Remove-Item "$TargetDir\editors\vscode\node_modules" -Recurse -Force -ErrorAction SilentlyContinue
+              Remove-Item "$TargetDir\editors\vscode\src" -Recurse -Force -ErrorAction SilentlyContinue
+              Get-ChildItem "$TargetDir\editors\vscode\*.vsix" -ErrorAction SilentlyContinue | Remove-Item -Force
+          }
 
           New-Item -ItemType Directory -Path "dist" -Force | Out-Null
           Compress-Archive -Path "$TargetDir" -DestinationPath "dist\$PkgName.zip" -Force

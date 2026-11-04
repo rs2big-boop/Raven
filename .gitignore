@@ -24,3 +24,8 @@ raven.lock
 site/node_modules/
 site/dist/
 site/.vite/
+
+# VS Code extension
+editors/vscode/node_modules/
+editors/vscode/*.vsix
+editors/vscode/out/**/*.map

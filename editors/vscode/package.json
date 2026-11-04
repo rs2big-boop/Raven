@@ -1,38 +1,60 @@
 {
   "name": "raven-lang",
   "displayName": "Raven Language",
-  "description": "Rich language support, LSP, formatter, linter, and runtime tools for the Raven Programming Language (.rvn)",
-  "version": "1.0.0",
+  "description": "IntelliSense, debugging, formatting, linting, and toolchain integration for the Raven Programming Language (.rvn)",
+  "version": "1.1.0",
   "publisher": "raven-lang",
   "repository": {
     "type": "git",
-    "url": "https://github.com/raven-lang/raven"
+    "url": "https://github.com/rs2big-boop/Raven"
   },
+  "bugs": {
+    "url": "https://github.com/rs2big-boop/Raven/issues"
+  },
+  "homepage": "https://github.com/rs2big-boop/Raven#readme",
   "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
   },
-  "main": "./extension.js",
   "categories": [
     "Programming Languages",
+    "Debuggers",
     "Formatters",
     "Linters",
     "Snippets"
   ],
-  "activationEvents": [
-    "onLanguage:raven",
-    "onCommand:raven.run",
-    "onCommand:raven.debug",
-    "onCommand:raven.fmt",
-    "onCommand:raven.vet"
+  "keywords": [
+    "raven",
+    "rvn",
+    "corvus",
+    "intellisense",
+    "lsp"
   ],
+  "activationEvents": [
+    "onLanguage:raven"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.4.5"
+  },
   "contributes": {
     "languages": [
       {
         "id": "raven",
         "aliases": ["Raven", "raven"],
         "extensions": [".rvn"],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/raven-light.svg",
+          "dark": "./media/raven-dark.svg"
+        }
       }
     ],
     "snippets": [
@@ -51,34 +73,75 @@
     "commands": [
       {
         "command": "raven.run",
-        "title": "Raven: Run Current File",
+        "title": "Run File",
         "icon": "$(play)",
         "category": "Raven"
       },
       {
         "command": "raven.debug",
-        "title": "Raven: Debug Current File (Interactive rvndb)",
+        "title": "Debug File",
         "icon": "$(debug-alt)",
         "category": "Raven"
       },
       {
+        "command": "raven.buildAndRun",
+        "title": "Build and Run File",
+        "icon": "$(run-all)",
+        "category": "Raven"
+      },
+      {
         "command": "raven.fmt",
-        "title": "Raven: Format Current File (gofmt style)",
+        "title": "Format Document",
         "category": "Raven"
       },
       {
         "command": "raven.vet",
-        "title": "Raven: Lint / Vet Current File (go vet style)",
+        "title": "Run Code Analysis on Active File",
         "category": "Raven"
       },
       {
         "command": "raven.doc",
-        "title": "Raven: Generate API Documentation (godoc style)",
+        "title": "Generate API Documentation",
         "category": "Raven"
       },
       {
         "command": "raven.bench",
-        "title": "Raven: Benchmark Current File",
+        "title": "Benchmark Current File",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.restartLanguageServer",
+        "title": "Restart IntelliSense for Active File",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.rescanWorkspace",
+        "title": "Rescan Workspace",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.selectExecutable",
+        "title": "Select Raven Executable",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.editConfigurations",
+        "title": "Edit Configurations (UI)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.enableErrorSquiggles",
+        "title": "Enable Error Squiggles",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.disableErrorSquiggles",
+        "title": "Disable Error Squiggles",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.logDiagnostics",
+        "title": "Log Diagnostics",
         "category": "Raven"
       }
     ],
@@ -93,6 +156,11 @@
           "command": "raven.debug",
           "when": "resourceLangId == raven",
           "group": "navigation@2"
+        },
+        {
+          "command": "raven.buildAndRun",
+          "when": "resourceLangId == raven",
+          "group": "navigation@3"
         }
       ],
       "editor/title/run": [
@@ -105,6 +173,11 @@
           "command": "raven.debug",
           "when": "resourceLangId == raven",
           "group": "navigation@2"
+        },
+        {
+          "command": "raven.buildAndRun",
+          "when": "resourceLangId == raven",
+          "group": "navigation@3"
         }
       ],
       "editor/context": [
@@ -128,8 +201,57 @@
           "when": "resourceLangId == raven",
           "group": "1_modification@2"
         }
+      ],
+      "commandPalette": [
+        {
+          "command": "raven.run",
+          "when": "editorLangId == raven"
+        },
+        {
+          "command": "raven.debug",
+          "when": "editorLangId == raven"
+        }
       ]
     },
+    "configurationDefaults": {
+      "[raven]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.semanticHighlighting.enabled": true,
+        "editor.suggest.insertMode": "replace"
+      }
+    },
+    "problemMatchers": [
+      {
+        "name": "raven",
+        "owner": "raven",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "raven",
+        "required": ["task"],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Raven task name (run, vet, build)"
+          },
+          "file": {
+            "type": "string",
+            "description": "Target .rvn file"
+          }
+        }
+      }
+    ],
     "debuggers": [
       {
         "type": "raven",
@@ -181,13 +303,47 @@
     "keybindings": [
       {
         "command": "raven.run",
-        "key": "shift+f5",
+        "key": "ctrl+shift+f5",
+        "mac": "cmd+shift+f5",
         "when": "editorLangId == raven"
       },
       {
         "command": "raven.debug",
         "key": "f5",
+        "when": "editorLangId == raven && debuggersAvailable"
+      },
+      {
+        "command": "raven.buildAndRun",
+        "key": "ctrl+f5",
+        "mac": "cmd+f5",
         "when": "editorLangId == raven"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "raven.getStarted",
+        "title": "Get Started with Raven",
+        "description": "Install the toolchain, open a .rvn file, and run IntelliSense like C/C++ Tools.",
+        "steps": [
+          {
+            "id": "raven.installToolchain",
+            "title": "Install the Raven toolchain",
+            "description": "Make sure ``raven`` is on your PATH, or pick the binary with **Raven: Select Raven Executable**.\n[Select Executable](command:raven.selectExecutable)",
+            "completionEvents": ["onCommand:raven.selectExecutable"]
+          },
+          {
+            "id": "raven.openFile",
+            "title": "Open a .rvn file",
+            "description": "Open any Raven source file to activate IntelliSense, squiggles, and the status bar.",
+            "completionEvents": ["onLanguage:raven"]
+          },
+          {
+            "id": "raven.runFile",
+            "title": "Run or debug",
+            "description": "Use the editor title **Run** / **Debug** buttons, or press ``F5``.\n[Run File](command:raven.run)",
+            "completionEvents": ["onCommand:raven.run"]
+          }
+        ]
       }
     ],
     "configuration": {
@@ -195,13 +351,38 @@
       "properties": {
         "raven.executablePath": {
           "type": "string",
-          "default": "/home/ran/Raven/build/raven",
-          "description": "Path to the raven CLI executable"
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Path to the raven CLI executable. Leave empty to auto-detect (~/.raven/bin, PATH, workspace build/)."
+        },
+        "raven.stdlibPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Optional path to the Raven standard library. Auto-detected when empty."
+        },
+        "raven.intelliSenseEngine": {
+          "type": "string",
+          "enum": ["Default", "Disabled"],
+          "default": "Default",
+          "description": "Controls the Raven language server / IntelliSense engine."
+        },
+        "raven.errorSquiggles": {
+          "type": "string",
+          "enum": ["enabled", "disabled"],
+          "default": "enabled",
+          "description": "Enable/disable error squiggles from the Raven language server."
         },
         "raven.formatOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically format Raven files on save"
+          "description": "Format Raven files on save using the language server formatter."
+        },
+        "raven.loggingLevel": {
+          "type": "string",
+          "enum": ["None", "Error", "Warning", "Information", "Debug"],
+          "default": "Warning",
+          "description": "Logging verbosity written to the Raven output channel."
         }
       }
     }

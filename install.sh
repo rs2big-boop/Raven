@@ -114,12 +114,29 @@ case ":${PATH}:" in
         ;;
 esac
 
+# 7. Install VS Code / Cursor extension when possible
+EXT_INSTALLED=false
+if [ -n "${SCRIPT_DIR}" ] && [ -f "${SCRIPT_DIR}/scripts/install_vscode_ext.sh" ]; then
+    echo "🧩 Installing Raven editor extension..."
+    if bash "${SCRIPT_DIR}/scripts/install_vscode_ext.sh"; then
+        EXT_INSTALLED=true
+    fi
+elif [ -f "${SCRIPT_DIR}/editors/vscode/out/extension.js" ]; then
+    echo "🧩 Installing Raven editor extension..."
+    if bash "${SCRIPT_DIR}/scripts/install_vscode_ext.sh" 2>/dev/null; then
+        EXT_INSTALLED=true
+    fi
+fi
+
 echo ""
 echo "================================================================"
 echo "  🐦 Raven Programming Language successfully installed!"
 echo "================================================================"
 echo "  Binaries : ${BIN_DIR}"
 echo "  Stdlib   : ${STDLIB_DIR}"
+if [ "${EXT_INSTALLED}" = true ]; then
+    echo "  Editor   : VS Code / Cursor extension installed (reload window)"
+fi
 echo ""
 echo "  Tools installed:"
 echo "    • raven   - Driver, REPL, Package Manager & Toolchain"
