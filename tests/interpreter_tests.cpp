@@ -1418,6 +1418,26 @@ TEST(InterpreterTest, ThisInObjectMethods) {
     EXPECT_EQ(run_code(source), "42\n99\n99\n");
 }
 
+TEST(InterpreterTest, ArrowFunctionsAndMethodShorthand) {
+    std::string source =
+        "let double = x => x * 2;\n"
+        "print(double(21));\n"
+        "let add = (a, b) => a + b;\n"
+        "print(add(2, 3));\n"
+        "let box = {\n"
+        "    data: 1,\n"
+        "    get() { return this.data; },\n"
+        "    set(v) { this.data = v; }\n"
+        "};\n"
+        "print(box.get());\n"
+        "box.set(9);\n"
+        "print(box.get());\n"
+        "let evens = filter([1, 2, 3, 4], x => x % 2 == 0);\n"
+        "print(evens[0]);\n"
+        "print(evens[1]);\n";
+    EXPECT_EQ(run_code(source), "42\n5\n1\n9\n2\n4\n");
+}
+
 TEST(InterpreterTest, DotAccessInsteadOfBrackets) {
     std::string source =
         "let node = { val: 5, left: nil, right: nil };\n"

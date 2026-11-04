@@ -16,13 +16,20 @@
     "description": "Object / map with shorthand fields"
   },
   "Method With This": {
-    "prefix": "this",
+    "prefix": "meth",
     "body": [
-      "${1:get}: fn() {",
+      "${1:get}() {",
       "    return this.${2:data};",
       "}"
     ],
     "description": "Object method using this"
+  },
+  "Arrow Function": {
+    "prefix": "=>",
+    "body": [
+      "${1:x} => ${2:x}"
+    ],
+    "description": "Arrow function"
   },
   "Struct Declaration": {
     "prefix": "struct",

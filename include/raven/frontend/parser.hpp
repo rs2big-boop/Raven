@@ -66,6 +66,9 @@ private:
     std::unique_ptr<Expr> call_or_index();
     std::unique_ptr<Expr> finish_call(std::unique_ptr<Expr> callee);
     std::unique_ptr<Expr> primary();
+    std::unique_ptr<Expr> parse_arrow_function();
+    std::unique_ptr<Expr> parse_lambda_from_paren();
+    bool starts_arrow_function() const;
 
     // Helper methods
     bool match(const std::vector<TokenType>& types);
@@ -83,6 +86,7 @@ private:
     std::vector<Token> tokens_;
     std::size_t current_ = 0;
     std::vector<std::string> errors_;
+    bool allow_arrow_ = true;
 };
 
 } // namespace raven

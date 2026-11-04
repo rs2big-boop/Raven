@@ -62,7 +62,7 @@ Raven's runtime includes built-in higher-order functions:
 let numbers = [1, 2, 3, 4, 5, 6];
 
 // map
-let squared = map(numbers, fn(x) { return x * x; });
+let squared = map(numbers, x => x * x);
 
 // filter
 let evens = filter(numbers, fn(x) { return x % 2 == 0; });

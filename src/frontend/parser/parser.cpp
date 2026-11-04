@@ -635,6 +635,10 @@ std::unique_ptr<Expr> Parser::primary() {
     if (match({TokenType::String})) {
         return std::make_unique<LiteralExpr>(Value(previous().lexeme));
     }
+    // Arrow function must win over a bare identifier: x => x * 2
+    if (allow_arrow_ && starts_arrow_function()) {
+        return parse_arrow_function();
+    }
     if (match({TokenType::Identifier}) || match({TokenType::This})) {
         return std::make_unique<VariableExpr>(previous());
     }
@@ -666,6 +670,11 @@ std::unique_ptr<Expr> Parser::primary() {
                     Token dot_tok = previous();
                     auto spread_map = expression();
                     entries.emplace_back(std::make_unique<UnaryExpr>(dot_tok, std::move(spread_map)), nullptr);
+                } else if (check(TokenType::Identifier) && peek_next().type == TokenType::LeftParen) {
+                    // Method shorthand: { get() { return this.data; } }
+                    Token name = advance();
+                    auto method = parse_lambda_from_paren();
+                    entries.emplace_back(std::make_unique<LiteralExpr>(Value(name.lexeme)), std::move(method));
                 } else if (check(TokenType::Identifier) &&
                            (peek_next().type == TokenType::Colon ||
                             peek_next().type == TokenType::Comma ||
@@ -694,34 +703,7 @@ std::unique_ptr<Expr> Parser::primary() {
 
     // Anonymous lambda: fn(a, b = 2, ...rest) { ... }
     if (match({TokenType::Fn})) {
-        consume(TokenType::LeftParen, "Expected '(' after 'fn'.");
-        std::vector<Token> parameters;
-        std::vector<std::shared_ptr<Expr>> param_defaults;
-        bool is_variadic = false;
-        if (!check(TokenType::RightParen)) {
-            do {
-                if (match({TokenType::DotDotDot})) {
-                    is_variadic = true;
-                    parameters.push_back(consume(TokenType::Identifier, "Expected parameter name after '...'."));
-                    param_defaults.push_back(nullptr);
-                    break;
-                }
-                parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
-                if (match({TokenType::Equal})) {
-                    param_defaults.push_back(expression());
-                } else {
-                    param_defaults.push_back(nullptr);
-                }
-            } while (match({TokenType::Comma}));
-        }
-        consume(TokenType::RightParen, "Expected ')' after parameters.");
-        consume(TokenType::LeftBrace, "Expected '{' before function body.");
-        std::vector<std::shared_ptr<Stmt>> body;
-        while (!check(TokenType::RightBrace) && !is_at_end()) {
-            body.push_back(declaration());
-        }
-        consume(TokenType::RightBrace, "Expected '}' after function body.");
-        return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body), std::move(param_defaults), is_variadic);
+        return parse_lambda_from_paren();
     }
 
     // Match expression: match (expr) { pattern => body, _ => default }
@@ -742,7 +724,10 @@ std::unique_ptr<Expr> Parser::primary() {
                 advance();
                 arm.is_wildcard = true;
             } else {
+                bool previous = allow_arrow_;
+                allow_arrow_ = false;
                 arm.pattern = expression();
+                allow_arrow_ = previous;
             }
             consume(TokenType::Arrow, "Expected '=>' after match pattern.");
             arm.body = expression();
@@ -761,6 +746,147 @@ std::unique_ptr<Expr> Parser::primary() {
     }
 
     throw error(peek(), "Expected expression.");
+}
+
+std::unique_ptr<Expr> Parser::parse_lambda_from_paren() {
+    consume(TokenType::LeftParen, "Expected '(' after 'fn'.");
+    std::vector<Token> parameters;
+    std::vector<std::shared_ptr<Expr>> param_defaults;
+    bool is_variadic = false;
+    if (!check(TokenType::RightParen)) {
+        do {
+            if (match({TokenType::DotDotDot})) {
+                is_variadic = true;
+                parameters.push_back(consume(TokenType::Identifier, "Expected parameter name after '...'."));
+                param_defaults.push_back(nullptr);
+                break;
+            }
+            parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
+            if (match({TokenType::Equal})) {
+                param_defaults.push_back(expression());
+            } else {
+                param_defaults.push_back(nullptr);
+            }
+        } while (match({TokenType::Comma}));
+    }
+    consume(TokenType::RightParen, "Expected ')' after parameters.");
+    consume(TokenType::LeftBrace, "Expected '{' before function body.");
+    std::vector<std::shared_ptr<Stmt>> body;
+    while (!check(TokenType::RightBrace) && !is_at_end()) {
+        body.push_back(declaration());
+    }
+    consume(TokenType::RightBrace, "Expected '}' after function body.");
+    return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body), std::move(param_defaults), is_variadic);
+}
+
+bool Parser::starts_arrow_function() const {
+    if (!allow_arrow_) {
+        return false;
+    }
+    if (check(TokenType::Identifier) && peek_next().type == TokenType::Arrow) {
+        return true;
+    }
+    if (!check(TokenType::LeftParen)) {
+        return false;
+    }
+
+    std::size_t i = current_ + 1;
+    if (i >= tokens_.size()) {
+        return false;
+    }
+    if (tokens_[i].type == TokenType::RightParen) {
+        return i + 1 < tokens_.size() && tokens_[i + 1].type == TokenType::Arrow;
+    }
+
+    bool expect_param = true;
+    while (i < tokens_.size()) {
+        TokenType type = tokens_[i].type;
+        if (type == TokenType::RightParen) {
+            return i + 1 < tokens_.size() && tokens_[i + 1].type == TokenType::Arrow;
+        }
+        if (expect_param) {
+            if (type == TokenType::DotDotDot) {
+                if (i + 1 >= tokens_.size() || tokens_[i + 1].type != TokenType::Identifier) {
+                    return false;
+                }
+                i += 2;
+                continue;
+            }
+            if (type != TokenType::Identifier) {
+                return false;
+            }
+            i++;
+            if (i < tokens_.size() && tokens_[i].type == TokenType::Equal) {
+                i++;
+                int depth = 0;
+                while (i < tokens_.size()) {
+                    TokenType nested = tokens_[i].type;
+                    if (nested == TokenType::LeftParen || nested == TokenType::LeftBrace || nested == TokenType::LeftBracket) {
+                        depth++;
+                    } else if (nested == TokenType::RightParen || nested == TokenType::RightBrace || nested == TokenType::RightBracket) {
+                        if (depth == 0) {
+                            break;
+                        }
+                        depth--;
+                    } else if (depth == 0 && nested == TokenType::Comma) {
+                        break;
+                    }
+                    i++;
+                }
+            }
+            expect_param = false;
+        } else {
+            if (type != TokenType::Comma) {
+                return false;
+            }
+            i++;
+            expect_param = true;
+        }
+    }
+    return false;
+}
+
+std::unique_ptr<Expr> Parser::parse_arrow_function() {
+    std::vector<Token> parameters;
+    std::vector<std::shared_ptr<Expr>> param_defaults;
+    bool is_variadic = false;
+
+    if (check(TokenType::Identifier)) {
+        parameters.push_back(advance());
+        param_defaults.push_back(nullptr);
+    } else {
+        consume(TokenType::LeftParen, "Expected '(' before arrow parameters.");
+        if (!check(TokenType::RightParen)) {
+            do {
+                if (match({TokenType::DotDotDot})) {
+                    is_variadic = true;
+                    parameters.push_back(consume(TokenType::Identifier, "Expected parameter name after '...'."));
+                    param_defaults.push_back(nullptr);
+                    break;
+                }
+                parameters.push_back(consume(TokenType::Identifier, "Expected parameter name."));
+                if (match({TokenType::Equal})) {
+                    param_defaults.push_back(expression());
+                } else {
+                    param_defaults.push_back(nullptr);
+                }
+            } while (match({TokenType::Comma}));
+        }
+        consume(TokenType::RightParen, "Expected ')' after arrow parameters.");
+    }
+
+    Token arrow = consume(TokenType::Arrow, "Expected '=>' in arrow function.");
+    std::vector<std::shared_ptr<Stmt>> body;
+    if (match({TokenType::LeftBrace})) {
+        while (!check(TokenType::RightBrace) && !is_at_end()) {
+            body.push_back(declaration());
+        }
+        consume(TokenType::RightBrace, "Expected '}' after arrow function body.");
+    } else {
+        auto value = assignment();
+        body.push_back(std::make_shared<ReturnStmt>(arrow, std::move(value)));
+    }
+    return std::make_unique<LambdaExpr>(std::move(parameters), std::move(body), std::move(param_defaults), is_variadic);
 }
 
 bool Parser::match(const std::vector<TokenType>& types) {

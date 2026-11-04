@@ -4,24 +4,24 @@
 fn create_stack() {
     return {
         items: [],
-        push: fn(val) { push(this.items, val); },
-        pop: fn() { return pop(this.items); },
-        peek: fn() {
+        push(val) { push(this.items, val); },
+        pop() { return pop(this.items); },
+        peek() {
             if (len(this.items) == 0) { return nil; }
             return this.items[len(this.items) - 1];
         },
-        size: fn() { return len(this.items); },
-        is_empty: fn() { return len(this.items) == 0; },
-        to_array: fn() { return this.items; },
-        clear: fn() { this.items = []; }
+        size() { return len(this.items); },
+        is_empty() { return len(this.items) == 0; },
+        to_array() { return this.items; },
+        clear() { this.items = []; }
     };
 }
 
 fn create_queue() {
     return {
         items: [],
-        enqueue: fn(val) { push(this.items, val); },
-        dequeue: fn() {
+        enqueue(val) { push(this.items, val); },
+        dequeue() {
             if (len(this.items) == 0) { return nil; }
             let front = this.items[0];
             let new_items = [];
@@ -33,46 +33,46 @@ fn create_queue() {
             this.items = new_items;
             return front;
         },
-        peek: fn() {
+        peek() {
             if (len(this.items) == 0) { return nil; }
             return this.items[0];
         },
-        size: fn() { return len(this.items); },
-        is_empty: fn() { return len(this.items) == 0; },
-        to_array: fn() { return this.items; },
-        clear: fn() { this.items = []; }
+        size() { return len(this.items); },
+        is_empty() { return len(this.items) == 0; },
+        to_array() { return this.items; },
+        clear() { this.items = []; }
     };
 }
 
 fn create_set() {
     return {
         data: {},
-        add: fn(val) { this.data[str(val)] = true; },
-        has: fn(val) { return contains(this.data, str(val)); },
-        remove: fn(val) { this.data[str(val)] = nil; },
-        size: fn() {
+        add(val) { this.data[str(val)] = true; },
+        has(val) { return contains(this.data, str(val)); },
+        remove(val) { this.data[str(val)] = nil; },
+        size() {
             let count = 0;
             for (let k in keys(this.data)) {
                 if (this.data[k]) { count += 1; }
             }
             return count;
         },
-        to_array: fn() {
+        to_array() {
             let res = [];
             for (let k in keys(this.data)) {
                 if (this.data[k]) { push(res, k); }
             }
             return res;
         },
-        clear: fn() { this.data = {}; }
+        clear() { this.data = {}; }
     };
 }
 
 fn create_deque() {
     return {
         items: [],
-        push_back: fn(val) { push(this.items, val); },
-        push_front: fn(val) {
+        push_back(val) { push(this.items, val); },
+        push_front(val) {
             let new_items = [val];
             let i = 0;
             while (i < len(this.items)) {
@@ -81,11 +81,11 @@ fn create_deque() {
             }
             this.items = new_items;
         },
-        pop_back: fn() {
+        pop_back() {
             if (len(this.items) == 0) { return nil; }
             return pop(this.items);
         },
-        pop_front: fn() {
+        pop_front() {
             if (len(this.items) == 0) { return nil; }
             let front = this.items[0];
             let new_items = [];
@@ -97,18 +97,18 @@ fn create_deque() {
             this.items = new_items;
             return front;
         },
-        peek_back: fn() {
+        peek_back() {
             if (len(this.items) == 0) { return nil; }
             return this.items[len(this.items) - 1];
         },
-        peek_front: fn() {
+        peek_front() {
             if (len(this.items) == 0) { return nil; }
             return this.items[0];
         },
-        size: fn() { return len(this.items); },
-        is_empty: fn() { return len(this.items) == 0; },
-        clear: fn() { this.items = []; },
-        to_array: fn() {
+        size() { return len(this.items); },
+        is_empty() { return len(this.items) == 0; },
+        clear() { this.items = []; },
+        to_array() {
             let copy = [];
             for (let it in this.items) { push(copy, it); }
             return copy;
@@ -119,7 +119,7 @@ fn create_deque() {
 fn create_priority_queue() {
     return {
         heap: [],
-        push: fn(item, priority) {
+        push(item, priority) {
             let entry = { item, priority };
             push(this.heap, entry);
             let idx = len(this.heap) - 1;
@@ -135,7 +135,7 @@ fn create_priority_queue() {
                 }
             }
         },
-        pop: fn() {
+        pop() {
             if (len(this.heap) == 0) { return nil; }
             let root = this.heap[0].item;
             let last = pop(this.heap);
@@ -167,17 +167,17 @@ fn create_priority_queue() {
             }
             return root;
         },
-        peek: fn() {
+        peek() {
             if (len(this.heap) == 0) { return nil; }
             return this.heap[0].item;
         },
-        peek_priority: fn() {
+        peek_priority() {
             if (len(this.heap) == 0) { return nil; }
             return this.heap[0].priority;
         },
-        size: fn() { return len(this.heap); },
-        is_empty: fn() { return len(this.heap) == 0; },
-        clear: fn() { this.heap = []; }
+        size() { return len(this.heap); },
+        is_empty() { return len(this.heap) == 0; },
+        clear() { this.heap = []; }
     };
 }
 
@@ -186,7 +186,7 @@ fn create_linked_list() {
         head: nil,
         tail: nil,
         count: 0,
-        push_back: fn(val) {
+        push_back(val) {
             let node = { value: val, prev: this.tail, next: nil };
             if (this.tail != nil) {
                 this.tail.next = node;
@@ -196,7 +196,7 @@ fn create_linked_list() {
             this.tail = node;
             this.count += 1;
         },
-        push_front: fn(val) {
+        push_front(val) {
             let node = { value: val, prev: nil, next: this.head };
             if (this.head != nil) {
                 this.head.prev = node;
@@ -206,7 +206,7 @@ fn create_linked_list() {
             this.head = node;
             this.count += 1;
         },
-        pop_back: fn() {
+        pop_back() {
             if (this.tail == nil) { return nil; }
             let val = this.tail.value;
             this.tail = this.tail.prev;
@@ -218,7 +218,7 @@ fn create_linked_list() {
             this.count -= 1;
             return val;
         },
-        pop_front: fn() {
+        pop_front() {
             if (this.head == nil) { return nil; }
             let val = this.head.value;
             this.head = this.head.next;
@@ -230,15 +230,15 @@ fn create_linked_list() {
             this.count -= 1;
             return val;
         },
-        peek_front: fn() {
+        peek_front() {
             if (this.head == nil) { return nil; }
             return this.head.value;
         },
-        peek_back: fn() {
+        peek_back() {
             if (this.tail == nil) { return nil; }
             return this.tail.value;
         },
-        get: fn(index) {
+        get(index) {
             if (index < 0 || index >= this.count) { return nil; }
             let cur = this.head;
             let i = 0;
@@ -249,9 +249,9 @@ fn create_linked_list() {
             if (cur != nil) { return cur.value; }
             return nil;
         },
-        size: fn() { return this.count; },
-        is_empty: fn() { return this.count == 0; },
-        to_array: fn() {
+        size() { return this.count; },
+        is_empty() { return this.count == 0; },
+        to_array() {
             let res = [];
             let cur = this.head;
             while (cur != nil) {
@@ -260,7 +260,7 @@ fn create_linked_list() {
             }
             return res;
         },
-        clear: fn() {
+        clear() {
             this.head = nil;
             this.tail = nil;
             this.count = 0;
@@ -291,11 +291,11 @@ fn create_bst() {
     return {
         root: nil,
         count: 0,
-        insert: fn(val) {
+        insert(val) {
             if (!this.contains(val)) { this.count += 1; }
             this.root = _bst_insert_node(this.root, val);
         },
-        contains: fn(val) {
+        contains(val) {
             let cur = this.root;
             while (cur != nil) {
                 if (val == cur.val) { return true; }
@@ -307,31 +307,31 @@ fn create_bst() {
             }
             return false;
         },
-        to_array: fn() {
+        to_array() {
             let acc = [];
             _bst_in_order(this.root, acc);
             return acc;
         },
-        in_order: fn() {
+        in_order() {
             let res = [];
             _bst_in_order(this.root, res);
             return res;
         },
-        min: fn() {
+        min() {
             if (this.root == nil) { return nil; }
             let cur = this.root;
             while (cur.left != nil) { cur = cur.left; }
             return cur.val;
         },
-        max: fn() {
+        max() {
             if (this.root == nil) { return nil; }
             let cur = this.root;
             while (cur.right != nil) { cur = cur.right; }
             return cur.val;
         },
-        size: fn() { return this.count; },
-        is_empty: fn() { return this.count == 0; },
-        clear: fn() { this.root = nil; this.count = 0; }
+        size() { return this.count; },
+        is_empty() { return this.count == 0; },
+        clear() { this.root = nil; this.count = 0; }
     };
 }
 
@@ -352,7 +352,7 @@ fn create_trie() {
     return {
         root: _trie_create_node(),
         word_count: 0,
-        insert: fn(word) {
+        insert(word) {
             let cur = this.root;
             let i = 0;
             let n = len(word);
@@ -369,7 +369,7 @@ fn create_trie() {
                 this.word_count += 1;
             }
         },
-        contains: fn(word) {
+        contains(word) {
             let cur = this.root;
             let i = 0;
             let n = len(word);
@@ -381,7 +381,7 @@ fn create_trie() {
             }
             return cur.is_end;
         },
-        starts_with: fn(prefix) {
+        starts_with(prefix) {
             let cur = this.root;
             let i = 0;
             let n = len(prefix);
@@ -393,7 +393,7 @@ fn create_trie() {
             }
             return true;
         },
-        words_with_prefix: fn(prefix) {
+        words_with_prefix(prefix) {
             let cur = this.root;
             let i = 0;
             let n = len(prefix);
@@ -407,8 +407,8 @@ fn create_trie() {
             _trie_collect_words(cur, prefix, matches);
             return matches;
         },
-        size: fn() { return this.word_count; },
-        is_empty: fn() { return this.word_count == 0; }
+        size() { return this.word_count; },
+        is_empty() { return this.word_count == 0; }
     };
 }
 
@@ -426,7 +426,7 @@ fn create_ring_buffer(cap) {
         head: 0,
         tail: 0,
         count: 0,
-        push: fn(val) {
+        push(val) {
             if (this.count == this.cap) {
                 this.buffer[this.head] = val;
                 this.head = (this.head + 1) % this.cap;
@@ -438,7 +438,7 @@ fn create_ring_buffer(cap) {
             this.count += 1;
             return true;
         },
-        pop: fn() {
+        pop() {
             if (this.count == 0) { return nil; }
             let val = this.buffer[this.head];
             this.buffer[this.head] = nil;
@@ -446,15 +446,15 @@ fn create_ring_buffer(cap) {
             this.count -= 1;
             return val;
         },
-        peek: fn() {
+        peek() {
             if (this.count == 0) { return nil; }
             return this.buffer[this.head];
         },
-        size: fn() { return this.count; },
-        capacity: fn() { return this.cap; },
-        is_full: fn() { return this.count == this.cap; },
-        is_empty: fn() { return this.count == 0; },
-        to_array: fn() {
+        size() { return this.count; },
+        capacity() { return this.cap; },
+        is_full() { return this.count == this.cap; },
+        is_empty() { return this.count == 0; },
+        to_array() {
             let res = [];
             let cur = this.head;
             let c = 0;
@@ -465,7 +465,7 @@ fn create_ring_buffer(cap) {
             }
             return res;
         },
-        clear: fn() {
+        clear() {
             this.head = 0;
             this.tail = 0;
             this.count = 0;

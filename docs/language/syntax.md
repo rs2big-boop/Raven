@@ -64,10 +64,13 @@ fn make_node(data, next) {
 fn make_box(value) {
     return {
         data: value,
-        get: fn() { return this.data; },
-        set: fn(v) { this.data = v; }
+        get() { return this.data; },
+        set(v) { this.data = v; }
     };
 }
+
+let double = x => x * 2;
+let add = (a, b) => a + b;
 
 let node = make_node(1, nil);
 print(node.data);
