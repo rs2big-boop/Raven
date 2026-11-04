@@ -2307,34 +2307,22 @@ void Interpreter::visit(const ImportStmt& stmt) {
         "stdlib/" + rel_path + "/" + base + ".rvn",
         "../stdlib/" + rel_path + ".rvn",
         "../stdlib/" + rel_path + "/" + base + ".rvn",
-        "/home/ran/Raven/stdlib/" + rel_path + ".rvn",
-        "/home/ran/Raven/stdlib/" + rel_path + "/" + base + ".rvn",
-        "/home/ran/MiniLang/stdlib/" + rel_path + ".rvn",
-        "/home/ran/MiniLang/stdlib/" + rel_path + "/" + base + ".rvn",
-        "/usr/local/share/raven/stdlib/" + rel_path + ".rvn",
-        "/usr/local/share/raven/stdlib/" + rel_path + "/" + base + ".rvn",
         "raven_modules/" + path + ".rvn",
         path,
-        "stdlib/" + rel_path,
-        "/home/ran/Raven/stdlib/" + rel_path,
-        "/home/ran/MiniLang/stdlib/" + rel_path,
-        "/usr/local/share/raven/stdlib/" + rel_path
+        "stdlib/" + rel_path
     };
 
-    // Check executable path relative stdlib
-    std::error_code ec_exe;
-#if defined(_WIN32) || defined(_WIN64)
-    char exe_buf[MAX_PATH] = {};
-    DWORD exe_len = GetModuleFileNameA(nullptr, exe_buf, MAX_PATH);
-    std::filesystem::path exe_path = (exe_len > 0) ? std::filesystem::path(exe_buf) : std::filesystem::path{};
-    bool exe_ok = (exe_len > 0);
-#else
-    auto exe_path = std::filesystem::read_symlink("/proc/self/exe", ec_exe);
-    bool exe_ok = (!ec_exe && !exe_path.empty());
-#endif
-    if (exe_ok && !exe_path.empty()) {
-        auto exe_dir = exe_path.parent_path();
+    std::filesystem::path cwd = std::filesystem::current_path();
+    candidates.push_back((cwd / "stdlib" / (rel_path + ".rvn")).string());
+    candidates.push_back((cwd / "stdlib" / rel_path).string());
+    candidates.push_back((cwd / "raven_modules" / (path + ".rvn")).string());
+
+    std::string exe_path = raven::platform::fs_executable_path();
+    if (!exe_path.empty()) {
+        std::filesystem::path exe(exe_path);
+        auto exe_dir = exe.parent_path();
         candidates.push_back((exe_dir / "stdlib" / (rel_path + ".rvn")).string());
+        candidates.push_back((exe_dir / "stdlib" / rel_path).string());
         candidates.push_back((exe_dir.parent_path() / "stdlib" / (rel_path + ".rvn")).string());
         candidates.push_back((exe_dir.parent_path() / "share" / "raven" / "stdlib" / (rel_path + ".rvn")).string());
     }

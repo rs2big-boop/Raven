@@ -2,6 +2,13 @@
 
 All notable changes to the Raven programming language are documented in this file.
 
+## [1.0.1] — 2026-11-04
+
+### Fixed
+- **Windows portability fix**: removed Linux-only executable and stdlib path assumptions that caused broken behavior on Windows installs and runtime resolution.
+- **Release packaging cleanup**: hardened the release workflow and install scripts so they resolve binaries and standard libraries from the actual execution environment rather than hardcoded machine paths.
+- **Cross-platform CLI stability**: replaced shell-only directory creation and Linux-specific path probing with portable `std::filesystem` logic across the CLI toolchain.
+
 ## [1.0.0] — 2026-11-02
 
 ### Added

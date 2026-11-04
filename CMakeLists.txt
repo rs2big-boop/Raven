@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Raven VERSION 1.0.0 LANGUAGES CXX)
+project(Raven VERSION 1.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -173,6 +173,10 @@ if(RAVEN_BUILD_TESTS)
     add_executable(package_tests tests/packages/package_tests.cpp)
     target_link_libraries(package_tests PRIVATE raven_core GTest::gtest_main)
     gtest_discover_tests(package_tests)
+
+    add_executable(platform_tests tests/platform_tests.cpp)
+    target_link_libraries(platform_tests PRIVATE raven_core GTest::gtest_main)
+    gtest_discover_tests(platform_tests)
 
     add_executable(ir_tests tests/ir/ir_tests.cpp)
     target_link_libraries(ir_tests PRIVATE raven_core GTest::gtest_main)

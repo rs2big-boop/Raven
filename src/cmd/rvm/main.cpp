@@ -10,6 +10,7 @@
 #include "raven/compiler.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
+#include "raven/platform/filesystem.hpp"
 #include "raven/vm.hpp"
 
 using namespace raven;
@@ -17,7 +18,7 @@ using namespace raven;
 static const char RAVEN_NATIVE_MAGIC[16] = "RAVEN_NATIVE_V1";
 
 static bool check_and_run_embedded_native(int argc, char* argv[]) {
-    std::string exe_path = "/proc/self/exe";
+    std::string exe_path = raven::platform::fs_executable_path();
     std::ifstream file(exe_path, std::ios::binary | std::ios::ate);
     if (!file.is_open() && argc > 0 && argv[0] != nullptr) {
         exe_path = argv[0];

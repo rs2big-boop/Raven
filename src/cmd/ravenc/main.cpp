@@ -13,6 +13,7 @@
 #include "raven/lexer.hpp"
 #include "raven/optimizer.hpp"
 #include "raven/parser.hpp"
+#include "raven/platform/filesystem.hpp"
 
 namespace fs = std::filesystem;
 using namespace raven;
@@ -31,25 +32,24 @@ void print_usage() {
 }
 
 static std::string find_rvm_runtime() {
-    std::vector<std::string> candidates = {
-        "/proc/self/exe",
-        "/home/ran/MiniLang/build/rvm",
-        "/home/ran/Raven/build/rvm",
-        "./rvm",
-        "./build/rvm",
-        "/usr/local/bin/rvm",
-        "/usr/bin/rvm"
+    std::vector<fs::path> candidates = {
+        fs::current_path() / "rvm",
+        fs::current_path() / "build" / "rvm",
+        fs::current_path() / "build" / "Release" / "rvm",
+        fs::current_path() / "bin" / "rvm"
     };
 
-    try {
-        auto self_dir = fs::canonical("/proc/self/exe").parent_path();
-        candidates.insert(candidates.begin(), (self_dir / "rvm").string());
-    } catch (...) {}
+    std::string exe_dir = raven::platform::fs_executable_dir();
+    if (!exe_dir.empty()) {
+        fs::path exe_root(exe_dir);
+        candidates.push_back(exe_root / "rvm");
+        candidates.push_back(exe_root / "build" / "rvm");
+        candidates.push_back(exe_root / "build" / "Release" / "rvm");
+    }
 
     for (const auto& path : candidates) {
-        if (path == "/proc/self/exe") continue;
         if (fs::exists(path) && !fs::is_directory(path)) {
-            return path;
+            return path.string();
         }
     }
     return "";

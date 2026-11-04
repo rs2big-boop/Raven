@@ -1,4 +1,4 @@
-# Raven Programming Language v1.0.0
+# Raven Programming Language v1.0.1
 
 <p align="center">
   <img src="logo.png" alt="Raven Programming Language" width="450" />
@@ -8,7 +8,7 @@
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
 > [![Tests](https://img.shields.io/badge/tests-158%2F158%20passing-brightgreen)](#)
-> [![Version](https://img.shields.io/badge/version-1.0.0-blue)](#)
+> [![Version](https://img.shields.io/badge/version-1.0.1-blue)](#)
 > [![Release](https://img.shields.io/badge/GitHub-Releases-blue?logo=github)](https://github.com/rs2big-boop/Raven/releases)
 > [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#)
 > [![Native](https://img.shields.io/badge/native%20build-standalone%20ELF-orange)](#)
@@ -358,7 +358,7 @@ Open PowerShell and run:
 ```powershell
 irm https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.ps1 | iex
 ```
-*Or download `raven-v1.0.0-windows-x86_64.zip` directly from [GitHub Releases](https://github.com/rs2big-boop/Raven/releases) and double-click `install.bat`.*
+*Or download `raven-v1.0.1-windows-x86_64.zip` directly from [GitHub Releases](https://github.com/rs2big-boop/Raven/releases) and double-click `install.bat`.*
 
 ### 🐧 Linux & 🍏 macOS
 Open terminal and run:

@@ -8,7 +8,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$RavenVersion = "1.0.0"
+$RavenVersion = "1.0.1"
 $RepoOwner    = "rs2big-boop"
 $RepoName     = "Raven"
 $InstallDir   = "$HOME\.raven"

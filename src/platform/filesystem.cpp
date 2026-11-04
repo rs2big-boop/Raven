@@ -1,6 +1,10 @@
 #include "raven/platform/filesystem.hpp"
 #include <filesystem>
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#endif
+
 namespace raven::platform {
 
 namespace fs = std::filesystem;
@@ -38,6 +42,35 @@ std::vector<std::string> fs_list_dir(const std::string& path) {
 uint64_t fs_file_size(const std::string& path) {
     std::error_code ec;
     return fs::file_size(path, ec);
+}
+
+std::string fs_executable_path() {
+#if defined(_WIN32) || defined(_WIN64)
+    char buffer[MAX_PATH] = {};
+    DWORD len = GetModuleFileNameA(nullptr, buffer, MAX_PATH);
+    if (len > 0 && len < MAX_PATH) {
+        return std::string(buffer);
+    }
+    return {};
+#else
+    std::error_code ec;
+    fs::path exe = "/proc/self/exe";
+    if (fs::exists(exe, ec)) {
+        fs::path resolved = fs::canonical(exe, ec);
+        if (!ec) {
+            return resolved.string();
+        }
+    }
+    return {};
+#endif
+}
+
+std::string fs_executable_dir() {
+    std::string exe = fs_executable_path();
+    if (exe.empty()) {
+        return {};
+    }
+    return fs::path(exe).parent_path().string();
 }
 
 } // namespace raven::platform

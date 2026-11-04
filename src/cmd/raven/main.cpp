@@ -16,6 +16,7 @@
 #include "raven/lsp.hpp"
 #include "raven/debugger.hpp"
 #include "raven/packages/package_manager.hpp"
+#include "raven/platform/filesystem.hpp"
 
 namespace raven {
 
@@ -297,14 +298,25 @@ int main(int argc, char* argv[]) {
             }
 
             std::string ravenc_bin = "ravenc";
-            try {
-                auto self_dir = std::filesystem::canonical("/proc/self/exe").parent_path();
-                if (std::filesystem::exists(self_dir / "ravenc")) {
-                    ravenc_bin = (self_dir / "ravenc").string();
-                } else if (std::filesystem::exists("/home/ran/MiniLang/build/ravenc")) {
-                    ravenc_bin = "/home/ran/MiniLang/build/ravenc";
+            std::vector<std::filesystem::path> candidates = {
+                std::filesystem::current_path() / "ravenc",
+                std::filesystem::current_path() / "build" / "ravenc",
+                std::filesystem::current_path() / "build" / "Release" / "ravenc"
+            };
+
+            std::string self_dir = raven::platform::fs_executable_dir();
+            if (!self_dir.empty()) {
+                candidates.push_back(std::filesystem::path(self_dir) / "ravenc");
+                candidates.push_back(std::filesystem::path(self_dir) / "build" / "ravenc");
+                candidates.push_back(std::filesystem::path(self_dir) / "build" / "Release" / "ravenc");
+            }
+
+            for (const auto& candidate : candidates) {
+                if (std::filesystem::exists(candidate) && !std::filesystem::is_directory(candidate)) {
+                    ravenc_bin = candidate.string();
+                    break;
                 }
-            } catch (...) {}
+            }
 
             std::string cmd = "\"" + ravenc_bin + "\" " + (native ? "--native " : "") + input_file + " -o " + output_file;
             return std::system(cmd.c_str()) == 0 ? 0 : 1;
@@ -320,9 +332,9 @@ int main(int argc, char* argv[]) {
             std::string prefix = (argc > 2) ? (proj_name + "/") : "";
 
             if (!prefix.empty()) {
-                std::system(("mkdir -p " + proj_name + "/src").c_str());
+                std::filesystem::create_directories(proj_name + "/src");
             } else {
-                std::system("mkdir -p src");
+                std::filesystem::create_directories("src");
             }
 
             // Write raven.json
@@ -603,7 +615,7 @@ int main(int argc, char* argv[]) {
 
                 std::cout << "📦 Installing package '" << pkg_name << "' from " << repo << " (version: " << version << ")...\n";
                 std::string dest = "raven_modules/" + pkg_name;
-                std::system("mkdir -p raven_modules");
+                std::filesystem::create_directories("raven_modules");
                 std::string clone_cmd = "git clone " + repo + " " + dest + " 2>/dev/null || (cd " + dest + " && git pull 2>/dev/null)";
                 int ret = std::system(clone_cmd.c_str());
                 if (ret == 0) {
