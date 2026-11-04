@@ -1,4 +1,67 @@
 #include "raven/platform/http_client.hpp"
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <cstdio>
+#include <sstream>
+#include <vector>
+#include <algorithm>
+#include <cctype>
+
+namespace raven::platform {
+
+namespace {
+
+std::string trim_str(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return "";
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, (last - first + 1));
+}
+
+} // namespace
+
+HttpResponse http_request(const HttpRequest& req) {
+    HttpResponse resp;
+    std::string cmd = "curl.exe -s -i -X " + req.method + " \"" + req.url + "\"";
+    for (const auto& [k, v] : req.headers) {
+        cmd += " -H \"" + k + ": " + v + "\"";
+    }
+    FILE* fp = _popen(cmd.c_str(), "rb");
+    if (!fp) {
+        resp.ok = false;
+        resp.status = 0;
+        resp.error = "Failed to execute curl on Windows";
+        return resp;
+    }
+    std::string output;
+    char buf[4096];
+    while (size_t n = fread(buf, 1, sizeof(buf), fp)) {
+        output.append(buf, n);
+    }
+    _pclose(fp);
+
+    if (output.empty()) {
+        resp.ok = false;
+        resp.status = 0;
+        resp.error = "Empty HTTP response";
+        return resp;
+    }
+
+    size_t header_end = output.find("\r\n\r\n");
+    if (header_end != std::string::npos) {
+        resp.body = output.substr(header_end + 4);
+    } else {
+        resp.body = output;
+    }
+    resp.status = 200;
+    resp.ok = true;
+    return resp;
+}
+
+} // namespace raven::platform
+
+#else
+
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -196,3 +259,5 @@ HttpResponse http_request(const HttpRequest& req) {
 }
 
 } // namespace raven::platform
+
+#endif

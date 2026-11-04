@@ -19,7 +19,11 @@
 #include <set>
 #include <sstream>
 #include <thread>
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #include "raven/gc.hpp"
 #include "raven/concurrency/channel.hpp"
@@ -1457,6 +1461,17 @@ void Interpreter::register_builtins() {
             path = args[0].to_string();
         }
         void* handle = nullptr;
+#if defined(_WIN32) || defined(_WIN64)
+        if (path.empty()) {
+            handle = reinterpret_cast<void*>(GetModuleHandle(NULL));
+        } else {
+            handle = reinterpret_cast<void*>(LoadLibraryA(path.c_str()));
+        }
+        if (!handle) {
+            throw RuntimeError(Token{TokenType::Identifier, "ffi_open", 0, 0},
+                               "ffi_open failed: could not load module '" + path + "'");
+        }
+#else
         if (path.empty()) {
             handle = dlopen(nullptr, RTLD_LAZY | RTLD_GLOBAL);
         } else {
@@ -1467,6 +1482,7 @@ void Interpreter::register_builtins() {
             throw RuntimeError(Token{TokenType::Identifier, "ffi_open", 0, 0},
                                "ffi_open failed: " + std::string(err ? err : "unknown error"));
         }
+#endif
         std::lock_guard<std::mutex> lk(g_ffi_mutex);
         int64_t id = g_next_ffi_id++;
         g_ffi_handles[id] = handle;
@@ -1478,7 +1494,11 @@ void Interpreter::register_builtins() {
         std::lock_guard<std::mutex> lk(g_ffi_mutex);
         auto it = g_ffi_handles.find(id);
         if (it != g_ffi_handles.end()) {
+#if defined(_WIN32) || defined(_WIN64)
+            FreeLibrary(reinterpret_cast<HMODULE>(it->second));
+#else
             dlclose(it->second);
+#endif
             g_ffi_handles.erase(it);
             return Value(true);
         }
@@ -1507,6 +1527,13 @@ void Interpreter::register_builtins() {
             handle = it->second;
         }
 
+#if defined(_WIN32) || defined(_WIN64)
+        void* sym = reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<HMODULE>(handle), fn_name.c_str()));
+        if (sym == nullptr) {
+            throw RuntimeError(Token{TokenType::Identifier, "ffi_call", 0, 0},
+                               "GetProcAddress failed for '" + fn_name + "'");
+        }
+#else
         // Clear existing errors
         dlerror();
         void* sym = dlsym(handle, fn_name.c_str());
@@ -1515,6 +1542,7 @@ void Interpreter::register_builtins() {
             throw RuntimeError(Token{TokenType::Identifier, "ffi_call", 0, 0},
                                "dlsym failed for '" + fn_name + "': " + (dlsym_err ? dlsym_err : "symbol not found"));
         }
+#endif
 
         size_t argc = arg_vals.size();
 

@@ -32,10 +32,12 @@ fi
 
 # 2. Configure and build
 BUILD_DIR="${REPO_ROOT}/build-win"
+rm -rf "${BUILD_DIR}"
 echo "⚙️  Configuring CMake with MinGW toolchain..."
 cmake -B "${BUILD_DIR}" \
       -DCMAKE_TOOLCHAIN_FILE="${REPO_ROOT}/cmake/mingw-w64.cmake" \
       -DCMAKE_BUILD_TYPE=Release \
+      -DRAVEN_BUILD_TESTS=OFF \
       "${REPO_ROOT}"
 
 echo "🔨 Compiling Windows executables (raven.exe, ravenc.exe, rvm.exe)..."

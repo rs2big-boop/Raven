@@ -1,4 +1,26 @@
 #include "raven/platform/sockets.hpp"
+
+#if defined(_WIN32) || defined(_WIN64)
+
+namespace raven::platform {
+
+int tcp_connect(const std::string&, int, int) { return -1; }
+int tcp_listen(const std::string&, int, int) { return -1; }
+int tcp_accept(int) { return -1; }
+int tcp_send(int, const std::string&) { return -1; }
+std::string tcp_recv(int, size_t) { return ""; }
+bool tcp_poll_read(int, int) { return false; }
+void tcp_close(int) {}
+
+int udp_bind(const std::string&, int) { return -1; }
+int udp_send_to(int, const std::string&, int, const std::string&) { return -1; }
+UdpPacket udp_recv_from(int, size_t) { return {}; }
+void udp_close(int) {}
+
+} // namespace raven::platform
+
+#else
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -183,3 +205,5 @@ void udp_close(int fd) {
 }
 
 } // namespace raven::platform
+
+#endif
