@@ -1558,4 +1558,20 @@ TEST(InterpreterTest, InputPromptAndIntParsing) {
     EXPECT_EQ(run_code(source), "84\n123\n");
 }
 
+TEST(InterpreterTest, TypeConversionsPythonStyle) {
+    std::string source =
+        "let f = float(\"3.14\");\n"
+        "print(f);\n"
+        "let b1 = bool(\"true\");\n"
+        "let b2 = bool(\"false\");\n"
+        "print(b1);\n"
+        "print(b2);\n"
+        "let a = array(\"cat\");\n"
+        "print(len(a));\n"
+        "print(a[0]);\n"
+        "let d = dict([[\"x\", 10], [\"y\", 20]]);\n"
+        "print(d.x + d.y);\n";
+    EXPECT_EQ(run_code(source), "3.14\ntrue\nfalse\n3\nc\n30\n");
+}
+
 

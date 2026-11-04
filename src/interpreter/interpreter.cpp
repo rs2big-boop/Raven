@@ -1506,8 +1506,63 @@ void Interpreter::register_builtins() {
         return Value(static_cast<double>(static_cast<int64_t>(args[0].as_number())));
     });
 
+    def("float", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args[0].is_number()) return args[0];
+        if (args[0].is_string()) {
+            try {
+                return Value(std::stod(args[0].as_string()));
+            } catch (...) {
+                return Value(0.0);
+            }
+        }
+        return Value(0.0);
+    });
+
     def("bool", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args[0].is_string()) {
+            std::string s = args[0].as_string();
+            std::string lower_s = s;
+            for (char& c : lower_s) c = std::tolower(static_cast<unsigned char>(c));
+            if (lower_s == "true" || lower_s == "1" || lower_s == "yes") return Value(true);
+            if (lower_s == "false" || lower_s == "0" || lower_s == "no" || lower_s == "") return Value(false);
+        }
         return Value(args[0].is_truthy());
+    });
+
+    auto array_fn = [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args[0].is_array()) return args[0];
+        auto res = std::make_shared<std::vector<Value>>();
+        if (args[0].is_string()) {
+            for (char c : args[0].as_string()) {
+                res->push_back(Value(std::string(1, c)));
+            }
+        } else if (args[0].is_map()) {
+            for (const auto& [k, v] : *args[0].as_map()) {
+                auto pair = std::make_shared<std::vector<Value>>();
+                pair->push_back(Value(k));
+                pair->push_back(v);
+                res->push_back(Value(pair));
+            }
+        } else {
+            res->push_back(args[0]);
+        }
+        return Value(res);
+    };
+
+    def("array", 1, array_fn);
+    def("list", 1, array_fn);
+
+    def("dict", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args[0].is_map()) return args[0];
+        auto m = std::make_shared<std::unordered_map<std::string, Value>>();
+        if (args[0].is_array()) {
+            for (const auto& item : *args[0].as_array()) {
+                if (item.is_array() && item.as_array()->size() >= 2) {
+                    (*m)[(*item.as_array())[0].to_string()] = (*item.as_array())[1];
+                }
+            }
+        }
+        return Value(m);
     });
 
     def("clamp", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
