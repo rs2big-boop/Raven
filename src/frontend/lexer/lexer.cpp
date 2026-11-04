@@ -130,6 +130,8 @@ Token Lexer::scan_identifier_or_keyword() {
         {"extends", TokenType::Extends},
         {"super", TokenType::Super},
         {"static", TokenType::Static},
+        {"async", TokenType::Async},
+        {"await", TokenType::Await},
     };
 
     int start_line = line_;

@@ -65,8 +65,14 @@ std::unique_ptr<Expr> Parser::parse_expression() {
 }
 
 std::shared_ptr<Stmt> Parser::declaration() {
+    if (match({TokenType::Async})) {
+        if (match({TokenType::Fn}) && check(TokenType::Identifier)) {
+            return function_declaration(true);
+        }
+        throw error(peek(), "Expected 'fn' after 'async'.");
+    }
     if (match({TokenType::Fn}) && check(TokenType::Identifier)) {
-        return function_declaration();
+        return function_declaration(false);
     }
     if (match({TokenType::Let})) {
         return var_declaration();
@@ -83,7 +89,7 @@ std::shared_ptr<Stmt> Parser::declaration() {
     return statement();
 }
 
-std::shared_ptr<Stmt> Parser::function_declaration() {
+std::shared_ptr<Stmt> Parser::function_declaration(bool is_async) {
     Token name = consume(TokenType::Identifier, "Expected function name.");
     consume(TokenType::LeftParen, "Expected '(' after function name.");
 
@@ -122,7 +128,7 @@ std::shared_ptr<Stmt> Parser::function_declaration() {
     }
     consume(TokenType::RightBrace, "Expected '}' after function body.");
 
-    return std::make_shared<FunctionStmt>(std::move(name), std::move(parameters), std::move(body), std::move(param_defaults), is_variadic);
+    return std::make_shared<FunctionStmt>(std::move(name), std::move(parameters), std::move(body), std::move(param_defaults), is_variadic, is_async);
 }
 
 std::shared_ptr<Stmt> Parser::var_declaration() {
@@ -597,7 +603,7 @@ std::unique_ptr<Expr> Parser::factor() {
 }
 
 std::unique_ptr<Expr> Parser::unary() {
-    if (match({TokenType::Bang, TokenType::Minus})) {
+    if (match({TokenType::Bang, TokenType::Minus, TokenType::Await})) {
         Token op = previous();
         auto right = unary();
         return std::make_unique<UnaryExpr>(std::move(op), std::move(right));

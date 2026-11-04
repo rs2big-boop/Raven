@@ -2,7 +2,7 @@
   "name": "raven-lang",
   "displayName": "Raven Language",
   "description": "IntelliSense, debugging, formatting, linting, and toolchain integration for the Raven Programming Language (.rvn)",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "publisher": "raven-lang",
   "repository": {
     "type": "git",

@@ -357,6 +357,22 @@ Resolution order: CWD → stdlib/ → raven_modules/ → executable-relative.
 
 ## Concurrency
 
+### Async / Await
+
+Raven natively supports `async fn` and `await`:
+
+```raven
+async fn compute(x) {
+    return x * 2;
+}
+
+let future = compute(21);
+let result = await future;
+print(result); // 42
+```
+
+### Channels & Goroutines
+
 ```raven
 import "stdlib/sync";
 

@@ -527,9 +527,10 @@ class FunctionStmt : public Stmt {
 public:
     FunctionStmt(Token name, std::vector<Token> params, std::vector<std::shared_ptr<Stmt>> body,
                  std::vector<std::shared_ptr<Expr>> param_defaults = {},
-                 bool is_variadic = false)
+                 bool is_variadic = false,
+                 bool is_async = false)
         : name(std::move(name)), params(std::move(params)), body(std::move(body)),
-          param_defaults(std::move(param_defaults)), is_variadic(is_variadic) {}
+          param_defaults(std::move(param_defaults)), is_variadic(is_variadic), is_async(is_async) {}
 
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
@@ -538,6 +539,7 @@ public:
     std::vector<std::shared_ptr<Stmt>> body;
     std::vector<std::shared_ptr<Expr>> param_defaults;
     bool is_variadic = false;
+    bool is_async = false;
 };
 
 class ReturnStmt : public Stmt {

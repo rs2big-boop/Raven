@@ -1,6 +1,6 @@
-# Raven Architecture Specification v1.2.0
+# Raven Architecture Specification v1.3.0
 
-> **Document Version**: 1.2.0  
+> **Document Version**: 1.3.0  
 > **Status**: APPROVED & ACTIVE  
 > **Audience**: Core Engine Developers, Toolchain Contributors, Systems Architects  
 > **Repository**: [https://github.com/raven-lang/raven](file:///home/ran/Raven)
@@ -9,7 +9,7 @@
 
 ## Component Status Legend
 Throughout this document, every architectural component is categorized according to its maturity:
-- `[IMPLEMENTED]`: Fully implemented, verified by test suite (169/169 passing), and production ready.
+- `[IMPLEMENTED]`: Fully implemented, verified by test suite (174/174 passing), and production ready.
 - `[PARTIAL]`: Core functional implementation exists; advanced edge-case or performance optimizations ongoing.
 - `[PLANNED]`: Architectural design specified; scheduled on the development roadmap.
 - `[EXPERIMENTAL]`: Available for testing and evaluation; API subject to refinement before stabilization.
@@ -354,11 +354,11 @@ Value (std::variant)
 
 ---
 
-## 14. Async / Await / Promise / Future `[IMPLEMENTED / PLANNED]`
+## 14. Async / Await / Promise / Future `[IMPLEMENTED]`
 
+- **Native `async`/`await` Syntax `[IMPLEMENTED]`**: First-class language keywords (`async fn`, `await expr`). Asynchronous functions automatically execute via concurrent CSP worker threads and return a channel ID. `await` blocks on the channel or resolves immediately for standard values.
 - **Promise Abstraction (`stdlib/promise.rvn`) `[IMPLEMENTED]`**: Composable `.then()`, `.catch()`, `resolve()`, and `reject()` constructs.
 - **Context Management (`stdlib/context.rvn`) `[IMPLEMENTED]`**: Deadline, timeout, and cancellation propagation.
-- **Native `async`/`await` Desugaring `[PLANNED for v1.1.0]`**: Syntactic sugar transforming `async fn` into CSP thread tasks returning a promise future.
 
 ---
 
@@ -423,8 +423,9 @@ Structured in two layers:
 
 ---
 
-## 19. Foreign Function Interface (FFI) `[PLANNED for v1.3.0]`
-- Direct C ABI dynamic library loading (`dlopen`/`dlsym`).
+## 19. Foreign Function Interface (FFI) `[IMPLEMENTED]`
+- Direct C ABI dynamic library loading (`dlopen`/`dlsym`) via `ffi_open`, `ffi_close`, and `ffi_call`.
+- High-level stdlib wrapper (`stdlib/ffi.rvn`) providing `open_lib()`, `ffi_library()`, `lib.call()`, and type constants (`FFI_VOID`, `FFI_INT`, `FFI_DOUBLE`, `FFI_STRING`, `FFI_PTR`).
 - Native type marshalling for integer, float, string, and raw pointer types.
 
 ---
@@ -436,12 +437,15 @@ Structured in two layers:
 ---
 
 ## 21. Developer Toolchain `[IMPLEMENTED]`
+- `raven build <file> [-o bin] [--standalone]`: Direct compilation to standalone native executables with embedded bytecode.
 - `raven run <file>`: Direct AST script execution.
 - `raven fmt [-w] <file>`: Canonical source code formatting.
 - `raven vet <file>`: Static analysis and linting.
 - `raven doc <file>`: Automated Markdown documentation generation.
 - `raven bench <file>`: Microsecond execution benchmark runner.
 - `raven lsp`: Language Server Protocol server.
+- `raven pkg`, `raven pip`: Pip-style package manager.
+- `raven upgrade`, `raven self-update`: One-command GitHub updater.
 
 ---
 
@@ -455,7 +459,7 @@ Structured in two layers:
 ## 23. Testing & Quality Assurance `[IMPLEMENTED]`
 
 ### Test Suite
-- **169 Automated Tests** covering all language features (100% pass rate).
+- **174 Automated Tests** covering all language features (100% pass rate).
 - **Differential Testing**: Comparing results of Tree-Walk Interpreter against Corvus VM.
 - Continuous verification script: `./all.bash`.
 
@@ -470,7 +474,7 @@ Structured in two layers:
 ## 25. Build System & Distribution `[IMPLEMENTED]`
 - **CMake Build**: Multi-target CMake build generating `raven`, `ravenc`, `rvm`, and test binaries.
 - **Go-Style Root Scripts**: `make.bash`, `all.bash`, `run.bash`, `clean.bash`.
-- **Distribution Script (`dist.bash`)**: Compiles, runs tests, packages self-contained `raven-v1.0.0-linux-x86_64.tar.gz` and calculates SHA-256 checksums.
+- **Distribution Script (`dist.bash`)**: Compiles, runs tests, packages self-contained `raven-v1.3.0-linux-x86_64.tar.gz` and calculates SHA-256 checksums.
 
 ---
 
@@ -482,7 +486,7 @@ Structured in two layers:
 ---
 
 ## 27. Compatibility & Versioning `[IMPLEMENTED]`
-- **Semantic Versioning 2.0.0**: Strict SemVer guarantees for v1.0.0.
+- **Semantic Versioning 2.0.0**: Strict SemVer guarantees for v1.x.
 - **Stability Guarantee**: Syntax and standard library APIs documented in `docs/language-spec.md` remain backward-compatible across all v1.x releases.
 
 ---
@@ -496,7 +500,7 @@ Structured in two layers:
 
 ## 29. Documentation Architecture `[IMPLEMENTED]`
 - `README.md`: Ecosystem overview and quickstart with official logo.
-- `docs/language-spec.md`: Complete v1.0.0 syntax and standard library specification.
+- `docs/language-spec.md`: Complete v1.3.0 syntax and standard library specification.
 - `docs/architecture.md`: Comprehensive 30-section engineering specification.
 - `docs/architecture/decisions/`: Architecture Decision Records (ADRs 0001–0006).
 - `CHANGELOG.md`: Chronological release history.
@@ -506,15 +510,15 @@ Structured in two layers:
 ## 30. Future Architecture / Roadmap `[ACTIVE]`
 
 ```
-v1.0.0                  v1.2.0 (Current)        v1.3.0                  v2.0.0
-Dual-Engine Core    ──> Full OOP (extends)  ──> Native C FFI (dlopen)──> AOT LLVM Backend
-Native CSP Primitives   super() & static        Async/Await Native Syntax JIT Execution
-77 Core Tests           Package Manager (pip)   Central Package Registry Register Bytecode VM
-LSP & VS Code Ext       Autoupdater (upgrade)   Sandboxing Limits (RAM) WebAssembly Target
-                        169/169 Tests Passing
+v1.0.0                  v1.2.0                  v1.3.0 (Current)        v2.0.0
+Dual-Engine Core    ──> Full OOP (extends)  ──> Async/Await Syntax  ──> AOT LLVM Backend
+Native CSP Primitives   super() & static        Native C FFI Wrapper    JIT Execution
+77 Core Tests           Package Manager (pip)   Standalone Executables  Register Bytecode VM
+LSP & VS Code Ext       Autoupdater (upgrade)   Web Framework           WebAssembly Target
+                        169 Tests Passing       174/174 Tests Passing
 ```
 
 ### Next Major Milestones
-1. **v1.3.0**: Native C Dynamic FFI (`dlopen`/`dlsym`), `async`/`await` syntactic sugar desugaring directly into CSP goroutines, and global package registry hosting.
-2. **v1.4.0**: Configurable runtime sandbox boundaries (CPU limits, RAM budgets, permitted directory roots for security).
+1. **v1.4.0**: Configurable runtime sandbox boundaries (CPU limits, RAM budgets, permitted directory roots for security).
+2. **v1.5.0**: Central package registry client & repository index.
 3. **v2.0.0**: LLVM JIT/AOT code generation producing bare-metal native binaries directly from Raven IR (RIR).

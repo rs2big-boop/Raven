@@ -2176,6 +2176,29 @@ Value Interpreter::visit(const UnaryExpr& expr) {
         case TokenType::Minus:
             check_number_operand(expr.op, right);
             return Value(-right.as_number());
+        case TokenType::Await: {
+            // await resolves a channel ID returned by an async fn
+            if (right.is_number()) {
+                int64_t id = static_cast<int64_t>(right.as_number());
+                auto ch = ChannelManager::instance().get_channel(id);
+                if (ch) {
+                    std::unique_lock<std::mutex> lk(ch->mtx);
+                    ch->cv_recv.wait(lk, [&]() { return !ch->queue.empty() || ch->closed; });
+                    if (ch->queue.empty() && ch->closed) {
+                        return Value();
+                    }
+                    Value val = ch->queue.front();
+                    ch->queue.pop_front();
+                    ch->closed = true;
+                    if (ch->capacity > 0) {
+                        ch->cv_send.notify_one();
+                    }
+                    return val;
+                }
+            }
+            // If not a channel, just return the value as-is
+            return right;
+        }
         default:
             break;
     }
@@ -2810,7 +2833,56 @@ void Interpreter::visit(const FunctionStmt& stmt) {
         stmt.param_defaults,
         stmt.is_variadic
     );
-    environment_->define(stmt.name.lexeme, Value(function));
+
+    if (stmt.is_async) {
+        // Wrap in an async function that spawns a thread and returns a channel
+        auto globals = this->globals_;
+        int param_count = stmt.is_variadic ? -1 : static_cast<int>(stmt.params.size());
+        auto async_wrapper = std::make_shared<BuiltinFunction>(
+            stmt.name.lexeme, param_count,
+            [function, globals](Interpreter& interp, const std::vector<Value>& args) -> Value {
+                // Create a buffered channel of size 1
+                int64_t chan_id = ChannelManager::instance().create_channel(1);
+
+                // Spawn a thread that runs the function and sends the result
+                auto fn_copy = function;
+                std::thread t([fn_copy, globals, args, chan_id]() {
+                    try {
+                        Interpreter thread_interp(globals, std::cout);
+                        Value result = fn_copy->call(thread_interp, args);
+                        // Send result to channel
+                        auto ch = ChannelManager::instance().get_channel(chan_id);
+                        if (ch) {
+                            std::unique_lock<std::mutex> lk(ch->mtx);
+                            ch->queue.push_back(result);
+                            ch->cv_recv.notify_one();
+                        }
+                    } catch (const ReturnException& ret) {
+                        auto ch = ChannelManager::instance().get_channel(chan_id);
+                        if (ch) {
+                            std::unique_lock<std::mutex> lk(ch->mtx);
+                            ch->queue.push_back(ret.value);
+                            ch->cv_recv.notify_one();
+                        }
+                    } catch (...) {
+                        // On error, send nil
+                        auto ch = ChannelManager::instance().get_channel(chan_id);
+                        if (ch) {
+                            std::unique_lock<std::mutex> lk(ch->mtx);
+                            ch->queue.push_back(Value());
+                            ch->cv_recv.notify_one();
+                        }
+                    }
+                });
+                SpawnRegistry::instance().add(std::move(t));
+
+                return Value(static_cast<double>(chan_id));
+            }
+        );
+        environment_->define(stmt.name.lexeme, Value(async_wrapper));
+    } else {
+        environment_->define(stmt.name.lexeme, Value(function));
+    }
 }
 
 void Interpreter::visit(const DestructureStmt& stmt) {

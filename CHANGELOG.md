@@ -2,12 +2,24 @@
 
 All notable changes to the Raven programming language are documented in this file.
 
-## [Unreleased]
+## [1.3.0] — 2026-11-04
 
 ### Added
-- **Cleaner object syntax**: unquoted map keys (`{ data: 1 }`), shorthand fields (`{ data, next }`), Java-style `this.data` in methods, and `obj.field` instead of `obj["field"]`.
-- **Method shorthand and arrow functions**: `{ get() { return this.data; } }` and `x => x * 2`.
-- **Classes**: Java-style `class` with fields, overloaded constructors, and `this` methods.
+- **Native `async` and `await` syntax**:
+  - `async fn name(args) { ... }` natively defines an asynchronous function executing concurrently in background worker threads.
+  - `await expr` prefix operator resolves the background channel promise and yields the result seamlessly, or returns existing synchronous values as-is.
+- **Foreign Function Interface (FFI) stdlib wrapper (`stdlib/ffi.rvn`)**:
+  - `open_lib()`, `ffi_library()`, `ffi_load()`, with type constants (`FFI_VOID`, `FFI_INT`, `FFI_DOUBLE`, `FFI_STRING`, `FFI_PTR`).
+  - Safe error handling and dynamic shared library access.
+- **Top-level Web Framework import (`stdlib/web.rvn`)**:
+  - Exposes `web_app()` and full web framework suite (`stdlib/web/web`, `stdlib/web/app`, `stdlib/web/html`, `stdlib/web/template`).
+- **Python-compatible Socket Library (`stdlib/socket.rvn`)**:
+  - TCP client and server abstractions modeled directly after Python's `socket` library.
+- **Extended type conversion builtins**:
+  - `float()`, `bool(str)`, `array()`/`list()`, `dict()`, and prompt support in `input(prompt)`.
+- **Standalone Native Binary Flag (`raven build --standalone`)**:
+  - Convenient alias for `raven build --native` to produce single-file standalone native executables.
+- **Test suite expansion**: 174 automated unit, semantic, and differential tests passing (100%).
 
 ## [1.0.1] — 2026-11-04
 

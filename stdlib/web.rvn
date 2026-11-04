@@ -1,0 +1,9 @@
+// stdlib/web.rvn - Top-level import for Raven Web Framework
+import "stdlib/web/web";
+import "stdlib/web/app";
+import "stdlib/web/html";
+import "stdlib/web/template";
+
+fn web_app() {
+    return create_web_app();
+}

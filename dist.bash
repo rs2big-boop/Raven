@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# dist.bash - Generates release distribution archives for Raven v1.2.0
+# dist.bash - Generates release distribution archives for Raven v1.3.0
 set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="1.2.0"
+VERSION="1.3.0"
 DIST_DIR="${REPO_ROOT}/dist"
 PKG_NAME="raven-v${VERSION}-linux-x86_64"
 TARGET_DIR="${DIST_DIR}/${PKG_NAME}"

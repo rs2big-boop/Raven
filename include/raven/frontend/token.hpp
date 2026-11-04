@@ -35,6 +35,8 @@ enum class TokenType {
     Extends,
     Super,
     Static,
+    Async,
+    Await,
 
     // Literals & Identifiers
     Identifier,
@@ -117,6 +119,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Extends: return "Extends";
         case TokenType::Super: return "Super";
         case TokenType::Static: return "Static";
+        case TokenType::Async: return "Async";
+        case TokenType::Await: return "Await";
         case TokenType::Break: return "Break";
         case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";
@@ -131,6 +135,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Extends: return "Extends";
         case TokenType::Super: return "Super";
         case TokenType::Static: return "Static";
+        case TokenType::Async: return "Async";
+        case TokenType::Await: return "Await";
 
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";

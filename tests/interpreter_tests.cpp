@@ -1574,4 +1574,36 @@ TEST(InterpreterTest, TypeConversionsPythonStyle) {
     EXPECT_EQ(run_code(source), "3.14\ntrue\nfalse\n3\nc\n30\n");
 }
 
+TEST(InterpreterTest, AsyncAwaitBasic) {
+    EXPECT_EQ(run_code(
+        "async fn compute(x) {\n"
+        "    return x * 2;\n"
+        "}\n"
+        "let ch = compute(21);\n"
+        "let result = await ch;\n"
+        "print(result);\n"
+    ), "42\n");
+}
+
+TEST(InterpreterTest, AsyncFnReturnsString) {
+    EXPECT_EQ(run_code(
+        "async fn greet(name) {\n"
+        "    return \"Hello, \" + name + \"!\";\n"
+        "}\n"
+        "let ch = greet(\"Raven\");\n"
+        "print(await ch);\n"
+    ), "Hello, Raven!\n");
+}
+
+TEST(InterpreterTest, MultipleAsyncCalls) {
+    EXPECT_EQ(run_code(
+        "async fn double(x) {\n"
+        "    return x * 2;\n"
+        "}\n"
+        "let a = double(10);\n"
+        "let b = double(20);\n"
+        "print(await a + await b);\n"
+    ), "60\n");
+}
+
 
