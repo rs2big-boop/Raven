@@ -143,6 +143,52 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('raven.runVM', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                void vscode.window.showErrorMessage('No active Raven file to run in VM.');
+                return;
+            }
+            await editor.document.save();
+            const ravenBin = resolveRavenExecutable();
+            const terminal = getTerminal('Raven VM');
+            terminal.show();
+            terminal.sendText(`"${ravenBin}" --vm "${editor.document.uri.fsPath}"`);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('raven.repl', () => {
+            const ravenBin = resolveRavenExecutable();
+            const terminal = getTerminal('Raven REPL');
+            terminal.show();
+            terminal.sendText(`"${ravenBin}"`);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('raven.disasm', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+            await editor.document.save();
+            const ravenBin = resolveRavenExecutable();
+            const child = spawn(ravenBin, ['--disasm', editor.document.uri.fsPath]);
+            let outputText = '';
+            child.stdout.on('data', (chunk: Buffer) => { outputText += chunk.toString(); });
+            child.stderr.on('data', (chunk: Buffer) => { outputText += chunk.toString(); });
+            child.on('close', async () => {
+                const doc = await vscode.workspace.openTextDocument({
+                    content: outputText,
+                    language: 'text'
+                });
+                await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+            });
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('raven.debug', () => {
             launchDebugger({ stopOnEntry: true });
         })

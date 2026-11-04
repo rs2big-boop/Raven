@@ -341,18 +341,28 @@ std::shared_ptr<Stmt> Parser::struct_declaration() {
 
 std::shared_ptr<Stmt> Parser::class_declaration() {
     Token name = consume(TokenType::Identifier, "Expected class name.");
+    Token superclass;
+    bool has_superclass = false;
+    if (match({TokenType::Extends})) {
+        superclass = consume(TokenType::Identifier, "Expected superclass name after 'extends'.");
+        has_superclass = true;
+    }
     consume(TokenType::LeftBrace, "Expected '{' after class name.");
 
     std::vector<Token> fields;
     std::vector<ClassMember> members;
 
     while (!check(TokenType::RightBrace) && !is_at_end()) {
+        bool is_static = false;
+        if (match({TokenType::Static})) {
+            is_static = true;
+        }
         if (match({TokenType::Fn})) {
             // optional fn keyword before a method
         }
 
         bool is_method = check(TokenType::Identifier) && peek_next().type == TokenType::LeftParen;
-        if (!is_method) {
+        if (!is_method && !is_static) {
             Token field = consume(TokenType::Identifier, "Expected field or method in class.");
             fields.push_back(field);
             while (match({TokenType::Comma})) {
@@ -364,7 +374,8 @@ std::shared_ptr<Stmt> Parser::class_declaration() {
 
         ClassMember member;
         member.name = advance();
-        member.is_constructor = member.name.lexeme == name.lexeme;
+        member.is_constructor = !is_static && (member.name.lexeme == name.lexeme);
+        member.is_static = is_static;
         consume(TokenType::LeftParen, "Expected '(' after method name.");
         if (!check(TokenType::RightParen)) {
             do {
@@ -393,7 +404,7 @@ std::shared_ptr<Stmt> Parser::class_declaration() {
 
     consume(TokenType::RightBrace, "Expected '}' after class body.");
     match({TokenType::Semicolon});
-    return std::make_shared<ClassStmt>(std::move(name), std::move(fields), std::move(members));
+    return std::make_shared<ClassStmt>(std::move(name), std::move(fields), std::move(members), std::move(superclass), has_superclass);
 }
 
 std::shared_ptr<Stmt> Parser::break_statement() {
@@ -702,7 +713,7 @@ std::unique_ptr<Expr> Parser::primary() {
     if (allow_arrow_ && starts_arrow_function()) {
         return parse_arrow_function();
     }
-    if (match({TokenType::Identifier}) || match({TokenType::This})) {
+    if (match({TokenType::Identifier}) || match({TokenType::This}) || match({TokenType::Super})) {
         return std::make_unique<VariableExpr>(previous());
     }
 

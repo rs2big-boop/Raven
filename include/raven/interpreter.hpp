@@ -65,6 +65,17 @@ public:
         return this_stack_.empty() ? Value() : this_stack_.back();
     }
 
+    void push_super(const Value& super_val) { super_stack_.push_back(super_val); }
+    void pop_super() {
+        if (!super_stack_.empty()) {
+            super_stack_.pop_back();
+        }
+    }
+    bool has_super() const { return !super_stack_.empty(); }
+    Value current_super() const {
+        return super_stack_.empty() ? Value() : super_stack_.back();
+    }
+
     // ExprVisitor overrides
     Value visit(const BinaryExpr& expr) override;
     Value visit(const GroupingExpr& expr) override;
@@ -114,6 +125,7 @@ private:
     std::unordered_set<std::string> imported_modules_;
     std::vector<StackFrame> call_stack_;
     std::vector<Value> this_stack_;
+    std::vector<Value> super_stack_;
     StepCallback step_callback_;
 };
 

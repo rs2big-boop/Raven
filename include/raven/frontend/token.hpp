@@ -32,6 +32,9 @@ enum class TokenType {
     Loop,
     Is,
     This,
+    Extends,
+    Super,
+    Static,
 
     // Literals & Identifiers
     Identifier,
@@ -111,6 +114,9 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Import: return "Import";
         case TokenType::Struct: return "Struct";
         case TokenType::Class: return "Class";
+        case TokenType::Extends: return "Extends";
+        case TokenType::Super: return "Super";
+        case TokenType::Static: return "Static";
         case TokenType::Break: return "Break";
         case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";
@@ -122,6 +128,9 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Loop: return "Loop";
         case TokenType::Is: return "Is";
         case TokenType::This: return "This";
+        case TokenType::Extends: return "Extends";
+        case TokenType::Super: return "Super";
+        case TokenType::Static: return "Static";
 
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";

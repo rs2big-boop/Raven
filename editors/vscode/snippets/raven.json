@@ -1,4 +1,38 @@
 {
+  "Class Declaration": {
+    "prefix": "class",
+    "body": [
+      "class ${1:ClassName} {",
+      "    ${2:field}",
+      "",
+      "    ${1:ClassName}(${2:field}) {",
+      "        this.${2:field} = ${2:field}",
+      "    }",
+      "",
+      "    get${2/(.*)/${1:/capitalize}/}() {",
+      "        return this.${2:field}",
+      "    }",
+      "",
+      "    set${2/(.*)/${1:/capitalize}/}(${2:field}) {",
+      "        this.${2:field} = ${2:field}",
+      "    }",
+      "",
+      "    toString() {",
+      "        return \"${1:ClassName}{\" + str(this.${2:field}) + \"}\"",
+      "    }",
+      "}"
+    ],
+    "description": "Declare an object-oriented class with constructor, methods, and toString"
+  },
+  "Constructor": {
+    "prefix": "ctor",
+    "body": [
+      "${1:ClassName}(${2:args}) {",
+      "    ${0:// initialize}",
+      "}"
+    ],
+    "description": "Class constructor definition"
+  },
   "Function Definition": {
     "prefix": "fn",
     "body": [

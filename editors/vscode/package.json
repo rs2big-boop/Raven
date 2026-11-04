@@ -78,6 +78,24 @@
         "category": "Raven"
       },
       {
+        "command": "raven.runVM",
+        "title": "Run in Corvus Bytecode VM",
+        "icon": "$(zap)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.repl",
+        "title": "Start Interactive REPL",
+        "icon": "$(terminal)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.disasm",
+        "title": "Disassemble Bytecode",
+        "icon": "$(file-binary)",
+        "category": "Raven"
+      },
+      {
         "command": "raven.debug",
         "title": "Debug File",
         "icon": "$(debug-alt)",
@@ -306,6 +324,24 @@
         "key": "ctrl+shift+f5",
         "mac": "cmd+shift+f5",
         "when": "editorLangId == raven"
+      },
+      {
+        "command": "raven.runVM",
+        "title": "Run in Corvus Bytecode VM",
+        "icon": "$(zap)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.repl",
+        "title": "Start Interactive REPL",
+        "icon": "$(terminal)",
+        "category": "Raven"
+      },
+      {
+        "command": "raven.disasm",
+        "title": "Disassemble Bytecode",
+        "icon": "$(file-binary)",
+        "category": "Raven"
       },
       {
         "command": "raven.debug",

@@ -490,18 +490,23 @@ struct ClassMember {
     std::vector<std::shared_ptr<Stmt>> body;
     bool is_constructor = false;
     bool is_variadic = false;
+    bool is_static = false;
 };
 
 class ClassStmt : public Stmt {
 public:
-    ClassStmt(Token name, std::vector<Token> fields, std::vector<ClassMember> members)
-        : name(std::move(name)), fields(std::move(fields)), members(std::move(members)) {}
+    ClassStmt(Token name, std::vector<Token> fields, std::vector<ClassMember> members,
+              Token superclass = {}, bool has_superclass = false)
+        : name(std::move(name)), fields(std::move(fields)), members(std::move(members)),
+          superclass(std::move(superclass)), has_superclass(has_superclass) {}
 
     void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
 
     Token name;
     std::vector<Token> fields;
     std::vector<ClassMember> members;
+    Token superclass;
+    bool has_superclass = false;
 };
 
 class BreakStmt : public Stmt {

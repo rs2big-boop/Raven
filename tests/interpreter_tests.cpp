@@ -1479,9 +1479,75 @@ TEST(InterpreterTest, DotAccessInsteadOfBrackets) {
     EXPECT_EQ(run_code(source), "5\n8\n");
 }
 
+TEST(InterpreterTest, ClassInheritanceBasic) {
+    std::string source =
+        "class Animal {\n"
+        "    fn speak() { return this.name + \" makes a sound\"; }\n"
+        "    Animal(name) { this.name = name; }\n"
+        "}\n"
+        "class Dog extends Animal {\n"
+        "    fn speak() { return this.name + \" barks!\"; }\n"
+        "    Dog(name) { super(name); }\n"
+        "}\n"
+        "let a = Animal(\"Cat\");\n"
+        "print(a.speak());\n"
+        "let d = Dog(\"Rex\");\n"
+        "print(d.speak());\n"
+        "print(d.name);\n";
+    EXPECT_EQ(run_code(source), "Cat makes a sound\nRex barks!\nRex\n");
+}
 
+TEST(InterpreterTest, ClassInheritanceMultiLevel) {
+    std::string source =
+        "class A {\n"
+        "    A(x) { this.x = x; }\n"
+        "    fn val() { return this.x; }\n"
+        "}\n"
+        "class B extends A {\n"
+        "    B(x, y) { super(x); this.y = y; }\n"
+        "    fn val() { return this.x + this.y; }\n"
+        "}\n"
+        "class C extends B {\n"
+        "    C(x, y, z) { super(x, y); this.z = z; }\n"
+        "    fn val() { return this.x + this.y + this.z; }\n"
+        "}\n"
+        "let c = C(1, 2, 3);\n"
+        "print(c.val());\n"
+        "print(c.x);\n"
+        "print(c.y);\n"
+        "print(c.z);\n";
+    EXPECT_EQ(run_code(source), "6\n1\n2\n3\n");
+}
 
+TEST(InterpreterTest, ClassStaticMethods) {
+    std::string source =
+        "class MathHelper {\n"
+        "    static fn square(x) { return x * x; }\n"
+        "    static fn cube(x) { return x * x * x; }\n"
+        "    static fn add(a, b) { return a + b; }\n"
+        "}\n"
+        "print(MathHelper.square(5));\n"
+        "print(MathHelper.cube(3));\n"
+        "print(MathHelper.add(10, 20));\n";
+    EXPECT_EQ(run_code(source), "25\n27\n30\n");
+}
 
+TEST(InterpreterTest, SuperMethodCall) {
+    std::string source =
+        "class Shape {\n"
+        "    Shape(color) { this.color = color; }\n"
+        "    fn describe() { return \"A \" + this.color + \" shape\"; }\n"
+        "}\n"
+        "class Circle extends Shape {\n"
+        "    Circle(color, radius) { super(color); this.radius = radius; }\n"
+        "    fn describe() { return super.describe() + \" (circle)\"; }\n"
+        "}\n"
+        "let c = Circle(\"red\", 5);\n"
+        "print(c.describe());\n"
+        "print(c.color);\n"
+        "print(c.radius);\n";
+    EXPECT_EQ(run_code(source), "A red shape (circle)\nred\n5\n");
+}
 
 
 

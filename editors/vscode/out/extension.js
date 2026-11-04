@@ -151,6 +151,43 @@ async function activate(context) {
         terminal.show();
         terminal.sendText(`"${ravenBin}" run "${editor.document.uri.fsPath}"`);
     }));
+    context.subscriptions.push(vscode.commands.registerCommand('raven.runVM', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            void vscode.window.showErrorMessage('No active Raven file to run in VM.');
+            return;
+        }
+        await editor.document.save();
+        const ravenBin = (0, ravenPath_1.resolveRavenExecutable)();
+        const terminal = getTerminal('Raven VM');
+        terminal.show();
+        terminal.sendText(`"${ravenBin}" --vm "${editor.document.uri.fsPath}"`);
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('raven.repl', () => {
+        const ravenBin = (0, ravenPath_1.resolveRavenExecutable)();
+        const terminal = getTerminal('Raven REPL');
+        terminal.show();
+        terminal.sendText(`"${ravenBin}"`);
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand('raven.disasm', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+        await editor.document.save();
+        const ravenBin = (0, ravenPath_1.resolveRavenExecutable)();
+        const child = (0, child_process_1.spawn)(ravenBin, ['--disasm', editor.document.uri.fsPath]);
+        let outputText = '';
+        child.stdout.on('data', (chunk) => { outputText += chunk.toString(); });
+        child.stderr.on('data', (chunk) => { outputText += chunk.toString(); });
+        child.on('close', async () => {
+            const doc = await vscode.workspace.openTextDocument({
+                content: outputText,
+                language: 'text'
+            });
+            await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+        });
+    }));
     context.subscriptions.push(vscode.commands.registerCommand('raven.debug', () => {
         launchDebugger({ stopOnEntry: true });
     }));

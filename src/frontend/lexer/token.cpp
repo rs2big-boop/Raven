@@ -65,6 +65,9 @@ std::string token_type_name(TokenType type) {
         case TokenType::Loop: return "Loop";
         case TokenType::Is: return "Is";
         case TokenType::This: return "This";
+        case TokenType::Extends: return "Extends";
+        case TokenType::Super: return "Super";
+        case TokenType::Static: return "Static";
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";
         case TokenType::String: return "String";

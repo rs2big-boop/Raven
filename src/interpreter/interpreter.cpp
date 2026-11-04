@@ -98,26 +98,25 @@ public:
     int arity() const override { return method_->arity(); }
     int min_arity() const override { return method_->min_arity(); }
 
-    Value call(Interpreter& interpreter, const std::vector<Value>& arguments) override {
-        interpreter.push_this(receiver_);
-        try {
-            Value result = method_->call(interpreter, arguments);
-            interpreter.pop_this();
-            return result;
-        } catch (...) {
-            interpreter.pop_this();
-            throw;
-        }
-    }
+    Value call(Interpreter& interpreter, const std::vector<Value>& arguments) override;
 
     std::string to_string() const override {
         return method_->to_string();
     }
 
+    const Value& receiver() const { return receiver_; }
+
 private:
     Value receiver_;
     std::shared_ptr<Callable> method_;
 };
+
+Value bind_if_method(const Value& receiver, const Value& property) {
+    if (property.is_callable() && receiver.is_map()) {
+        return Value(std::make_shared<BoundMethod>(receiver, property.as_callable()));
+    }
+    return property;
+}
 
 class UserFunction : public Callable {
 public:
@@ -171,6 +170,9 @@ public:
         if (interpreter.has_this()) {
             env->define("this", interpreter.current_this());
         }
+        if (interpreter.has_super()) {
+            env->define("super", interpreter.current_super());
+        }
 
         try {
             interpreter.execute_block(body_, env);
@@ -198,6 +200,199 @@ private:
     std::vector<std::shared_ptr<Expr>> param_defaults_;
     bool is_variadic_ = false;
 };
+
+class ClassConstructor;
+
+class SuperWrapper : public Callable {
+public:
+    SuperWrapper(Value receiver, std::shared_ptr<ClassConstructor> superclass);
+
+    int arity() const override;
+    int min_arity() const override;
+    Value call(Interpreter& interpreter, const std::vector<Value>& args) override;
+    Value get_method(const std::string& name) const;
+    const Value& receiver() const { return receiver_; }
+    std::string to_string() const override;
+
+private:
+    Value receiver_;
+    std::shared_ptr<ClassConstructor> superclass_;
+};
+
+class ClassConstructor : public Callable, public std::enable_shared_from_this<ClassConstructor> {
+public:
+    ClassConstructor(std::string name,
+                     std::vector<std::string> fields,
+                     std::vector<std::shared_ptr<UserFunction>> constructors,
+                     std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods,
+                     std::unordered_map<std::string, Value> static_methods = {},
+                     std::shared_ptr<ClassConstructor> superclass = nullptr,
+                     std::vector<std::string> superclasses = {})
+        : name_(std::move(name)), fields_(std::move(fields)),
+          constructors_(std::move(constructors)), methods_(std::move(methods)),
+          static_methods_(std::move(static_methods)), superclass_(std::move(superclass)),
+          superclasses_(std::move(superclasses)) {}
+
+    const std::string& name() const { return name_; }
+    const std::vector<std::string>& fields() const { return fields_; }
+    const std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>>& methods() const { return methods_; }
+    const std::vector<std::string>& superclasses() const { return superclasses_; }
+    std::shared_ptr<ClassConstructor> superclass() const { return superclass_; }
+
+    Value get_static(const std::string& name) const {
+        auto it = static_methods_.find(name);
+        if (it != static_methods_.end()) return it->second;
+        if (superclass_) return superclass_->get_static(name);
+        return Value();
+    }
+
+    Value get_method(const std::string& name) const {
+        for (const auto& [mname, mfn] : methods_) {
+            if (mname == name) return Value(mfn);
+        }
+        if (superclass_) return superclass_->get_method(name);
+        return Value();
+    }
+
+    int arity() const override { return -1; }
+
+    int min_arity() const override {
+        int required = 0;
+        bool any = false;
+        for (const auto& ctor : constructors_) {
+            int min_a = ctor->min_arity();
+            if (!any || min_a < required) {
+                required = min_a;
+                any = true;
+            }
+        }
+        if (!any && superclass_) return superclass_->min_arity();
+        return required;
+    }
+
+    void call_on_receiver(Interpreter& interpreter, Value receiver, const std::vector<Value>& args) {
+        std::shared_ptr<UserFunction> chosen;
+        int best_min = -1;
+        for (const auto& ctor : constructors_) {
+            int min_a = ctor->min_arity();
+            int max_a = ctor->arity();
+            bool fits = max_a < 0
+                ? static_cast<int>(args.size()) >= min_a
+                : static_cast<int>(args.size()) >= min_a && static_cast<int>(args.size()) <= max_a;
+            if (!fits) continue;
+            if (!chosen || min_a > best_min) {
+                chosen = ctor;
+                best_min = min_a;
+            }
+        }
+        if (!chosen && !constructors_.empty()) {
+            throw RuntimeError(
+                Token{TokenType::Identifier, name_, 0, 0},
+                "No " + name_ + " constructor accepts " + std::to_string(args.size()) + " arguments.");
+        }
+        if (chosen) {
+            interpreter.push_this(receiver);
+            if (superclass_) {
+                interpreter.push_super(Value(std::make_shared<SuperWrapper>(receiver, superclass_)));
+            }
+            try {
+                chosen->call(interpreter, args);
+                if (superclass_) interpreter.pop_super();
+                interpreter.pop_this();
+            } catch (...) {
+                if (superclass_) interpreter.pop_super();
+                interpreter.pop_this();
+                throw;
+            }
+        } else if (superclass_) {
+            superclass_->call_on_receiver(interpreter, receiver, args);
+        }
+    }
+
+    Value call(Interpreter& interpreter, const std::vector<Value>& args) override {
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*map)["__type__"] = Value(name_);
+        // Store class reference so bound methods can access superclass for 'super'
+        (*map)["__class__"] = Value(std::static_pointer_cast<Callable>(shared_from_this()));
+        if (!superclasses_.empty()) {
+            auto arr = std::make_shared<std::vector<Value>>();
+            for (const auto& s : superclasses_) arr->push_back(Value(s));
+            (*map)["__supers__"] = Value(arr);
+            (*map)["__super__"] = Value(superclasses_.front());
+        }
+
+        for (const auto& field : fields_) {
+            (*map)[field] = Value();
+        }
+        for (const auto& [method_name, method] : methods_) {
+            (*map)[method_name] = Value(method);
+        }
+
+        Value receiver(map);
+        call_on_receiver(interpreter, receiver, args);
+        return receiver;
+    }
+
+    std::string to_string() const override {
+        return "<class " + name_ + ">";
+    }
+
+private:
+    std::string name_;
+    std::vector<std::string> fields_;
+    std::vector<std::shared_ptr<UserFunction>> constructors_;
+    std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods_;
+    std::unordered_map<std::string, Value> static_methods_;
+    std::shared_ptr<ClassConstructor> superclass_;
+    std::vector<std::string> superclasses_;
+};
+
+inline SuperWrapper::SuperWrapper(Value receiver, std::shared_ptr<ClassConstructor> superclass)
+    : receiver_(std::move(receiver)), superclass_(std::move(superclass)) {}
+
+inline int SuperWrapper::arity() const { return superclass_->arity(); }
+inline int SuperWrapper::min_arity() const { return superclass_->min_arity(); }
+
+inline Value SuperWrapper::call(Interpreter& interpreter, const std::vector<Value>& args) {
+    superclass_->call_on_receiver(interpreter, receiver_, args);
+    return receiver_;
+}
+
+inline Value SuperWrapper::get_method(const std::string& name) const {
+    return superclass_->get_method(name);
+}
+
+inline std::string SuperWrapper::to_string() const {
+    return "<super " + superclass_->name() + ">";
+}
+
+// Out-of-line BoundMethod::call — defined here because it references ClassConstructor
+Value BoundMethod::call(Interpreter& interpreter, const std::vector<Value>& arguments) {
+    interpreter.push_this(receiver_);
+    // Inject 'super' if the instance's class has a superclass
+    bool pushed_super = false;
+    if (receiver_.is_map()) {
+        auto& m = *receiver_.as_map();
+        auto cls_it = m.find("__class__");
+        if (cls_it != m.end() && cls_it->second.is_callable()) {
+            auto* cls = dynamic_cast<ClassConstructor*>(cls_it->second.as_callable().get());
+            if (cls && cls->superclass()) {
+                interpreter.push_super(Value(std::make_shared<SuperWrapper>(receiver_, cls->superclass())));
+                pushed_super = true;
+            }
+        }
+    }
+    try {
+        Value result = method_->call(interpreter, arguments);
+        if (pushed_super) interpreter.pop_super();
+        interpreter.pop_this();
+        return result;
+    } catch (...) {
+        if (pushed_super) interpreter.pop_super();
+        interpreter.pop_this();
+        throw;
+    }
+}
 
 static std::string value_to_json(const Value& val) {
     if (val.is_nil()) return "null";
@@ -527,7 +722,16 @@ void Interpreter::register_builtins() {
         return Value(true);
     });
 
-    def("str", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+    def("str", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (args[0].is_map()) {
+            auto m = args[0].as_map();
+            auto it = m->find("toString");
+            if (it == m->end()) it = m->find("to_string");
+            if (it != m->end() && it->second.is_callable()) {
+                BoundMethod bound(args[0], it->second.as_callable());
+                return bound.call(interp, {});
+            }
+        }
         return Value(args[0].to_string());
     });
 
@@ -1802,6 +2006,12 @@ Value Interpreter::visit(const BinaryExpr& expr) {
             if (it != m->end() && it->second.to_string() == type_name) {
                 return Value(true);
             }
+            auto it_sup = m->find("__supers__");
+            if (it_sup != m->end() && it_sup->second.is_array()) {
+                for (const auto& sup : *it_sup->second.as_array()) {
+                    if (sup.to_string() == type_name) return Value(true);
+                }
+            }
         }
         return Value(false);
     }
@@ -2147,6 +2357,18 @@ Value Interpreter::visit(const PropertyExpr& expr) {
         if (it == m.end()) return Value();
         return bind_if_method(obj, it->second);
     }
+    if (obj.is_callable()) {
+        if (auto* sup = dynamic_cast<SuperWrapper*>(obj.as_callable().get())) {
+            Value m = sup->get_method(expr.name.lexeme);
+            if (!m.is_nil()) {
+                return bind_if_method(sup->receiver(), m);
+            }
+        }
+        if (auto* cls = dynamic_cast<ClassConstructor*>(obj.as_callable().get())) {
+            Value val = cls->get_static(expr.name.lexeme);
+            if (!val.is_nil()) return val;
+        }
+    }
     if (expr.is_optional) {
         return Value();
     }
@@ -2436,104 +2658,60 @@ private:
     std::vector<std::string> fields_;
 };
 
-class ClassConstructor : public Callable {
-public:
-    ClassConstructor(std::string name,
-                     std::vector<std::string> fields,
-                     std::vector<std::shared_ptr<UserFunction>> constructors,
-                     std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods)
-        : name_(std::move(name)), fields_(std::move(fields)),
-          constructors_(std::move(constructors)), methods_(std::move(methods)) {}
-
-    int arity() const override { return -1; }
-
-    int min_arity() const override {
-        int required = 0;
-        bool any = false;
-        for (const auto& ctor : constructors_) {
-            int min_a = ctor->min_arity();
-            if (!any || min_a < required) {
-                required = min_a;
-                any = true;
-            }
-        }
-        return required;
-    }
-
-    Value call(Interpreter& interpreter, const std::vector<Value>& args) override {
-        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
-        (*map)["__type__"] = Value(name_);
-        for (const auto& field : fields_) {
-            (*map)[field] = Value();
-        }
-        for (const auto& [method_name, method] : methods_) {
-            (*map)[method_name] = Value(method);
-        }
-
-        Value receiver(map);
-        std::shared_ptr<UserFunction> chosen;
-        int best_min = -1;
-        for (const auto& ctor : constructors_) {
-            int min_a = ctor->min_arity();
-            int max_a = ctor->arity();
-            bool fits = max_a < 0
-                ? static_cast<int>(args.size()) >= min_a
-                : static_cast<int>(args.size()) >= min_a && static_cast<int>(args.size()) <= max_a;
-            if (!fits) continue;
-            if (!chosen || min_a > best_min) {
-                chosen = ctor;
-                best_min = min_a;
-            }
-        }
-        if (!chosen && !constructors_.empty()) {
-            throw RuntimeError(
-                Token{TokenType::Identifier, name_, 0, 0},
-                "No " + name_ + " constructor accepts " + std::to_string(args.size()) + " arguments.");
-        }
-        if (chosen) {
-            interpreter.push_this(receiver);
-            try {
-                chosen->call(interpreter, args);
-                interpreter.pop_this();
-            } catch (...) {
-                interpreter.pop_this();
-                throw;
-            }
-        }
-        return receiver;
-    }
-
-    std::string to_string() const override {
-        return "<class " + name_ + ">";
-    }
-
-private:
-    std::string name_;
-    std::vector<std::string> fields_;
-    std::vector<std::shared_ptr<UserFunction>> constructors_;
-    std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods_;
-};
-
 void Interpreter::visit(const ClassStmt& stmt) {
+    std::shared_ptr<ClassConstructor> superclass = nullptr;
+    std::vector<std::string> superclasses;
     std::vector<std::string> fields;
+    std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods;
+
+    if (stmt.has_superclass) {
+        Value sup_val = environment_->get(stmt.superclass);
+        if (!sup_val.is_callable()) {
+            throw RuntimeError(stmt.superclass, "Superclass must be a class.");
+        }
+        auto* sup_cls = dynamic_cast<ClassConstructor*>(sup_val.as_callable().get());
+        if (!sup_cls) {
+            throw RuntimeError(stmt.superclass, "Superclass must be a class.");
+        }
+        superclass = std::dynamic_pointer_cast<ClassConstructor>(sup_val.as_callable());
+        fields = superclass->fields();
+        methods = superclass->methods();
+        superclasses = superclass->superclasses();
+        superclasses.insert(superclasses.begin(), superclass->name());
+    }
+
     for (const auto& field : stmt.fields) {
         fields.push_back(field.lexeme);
     }
 
     std::vector<std::shared_ptr<UserFunction>> constructors;
-    std::vector<std::pair<std::string, std::shared_ptr<UserFunction>>> methods;
+    std::unordered_map<std::string, Value> static_methods;
+
     for (const auto& member : stmt.members) {
         auto function = std::make_shared<UserFunction>(
             member.name, member.params, member.body, environment_, member.defaults, member.is_variadic);
         if (member.is_constructor) {
             constructors.push_back(function);
+        } else if (member.is_static) {
+            static_methods[member.name.lexeme] = Value(function);
         } else {
-            methods.emplace_back(member.name.lexeme, function);
+            bool replaced = false;
+            for (auto& [mname, mfn] : methods) {
+                if (mname == member.name.lexeme) {
+                    mfn = function;
+                    replaced = true;
+                    break;
+                }
+            }
+            if (!replaced) {
+                methods.emplace_back(member.name.lexeme, function);
+            }
         }
     }
 
     environment_->define(stmt.name.lexeme, Value(std::make_shared<ClassConstructor>(
-        stmt.name.lexeme, std::move(fields), std::move(constructors), std::move(methods))));
+        stmt.name.lexeme, std::move(fields), std::move(constructors), std::move(methods),
+        std::move(static_methods), std::move(superclass), std::move(superclasses))));
 }
 
 void Interpreter::visit(const StructStmt& stmt) {
@@ -2621,13 +2799,6 @@ void Interpreter::check_number_operand(const Token& op, const Value& operand) {
 void Interpreter::check_number_operands(const Token& op, const Value& left, const Value& right) {
     if (left.is_number() && right.is_number()) return;
     throw RuntimeError(op, "Operands must be numbers.");
-}
-
-Value bind_if_method(const Value& receiver, const Value& property) {
-    if (property.is_callable() && receiver.is_map()) {
-        return Value(std::make_shared<BoundMethod>(receiver, property.as_callable()));
-    }
-    return property;
 }
 
 } // namespace raven
