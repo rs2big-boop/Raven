@@ -158,6 +158,28 @@ void Compiler::visit(const LiteralExpr& expr) {
 }
 
 void Compiler::visit(const UnaryExpr& expr) {
+    if (expr.op.type == TokenType::Move) {
+        const auto* var_expr = dynamic_cast<const VariableExpr*>(expr.right.get());
+        if (var_expr) {
+            int arg = resolve_local(var_expr->name);
+            if (arg != -1) {
+                emit_op(OpCode::GetLocal, var_expr->name.line);
+                emit_byte(static_cast<uint8_t>(arg), var_expr->name.line);
+                emit_op(OpCode::Nil, var_expr->name.line);
+                emit_op(OpCode::SetLocal, var_expr->name.line);
+                emit_byte(static_cast<uint8_t>(arg), var_expr->name.line);
+                emit_op(OpCode::Pop, var_expr->name.line);
+                return;
+            } else {
+                uint32_t name = make_constant(Value(var_expr->name.lexeme));
+                emit_get_global(name, var_expr->name.line);
+                emit_op(OpCode::Nil, var_expr->name.line);
+                emit_set_global(name, var_expr->name.line);
+                emit_op(OpCode::Pop, var_expr->name.line);
+                return;
+            }
+        }
+    }
     expr.right->accept(*this);
     current_line_ = expr.op.line;
     if (expr.op.type == TokenType::Minus) {

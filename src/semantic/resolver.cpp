@@ -2,9 +2,14 @@
 
 namespace raven::semantic {
 
-Resolver::Resolver() = default;
+Resolver::Resolver() {
+    moved_scopes_.emplace_back();
+}
 
 bool Resolver::resolve(const std::vector<std::shared_ptr<Stmt>>& statements) {
+    errors_.clear();
+    moved_scopes_.clear();
+    moved_scopes_.emplace_back(); // root scope
     for (const auto& stmt : statements) {
         if (stmt) stmt->accept(*this);
     }
@@ -23,6 +28,35 @@ void Resolver::resolve(const Expr& expr) {
     const_cast<Expr&>(expr).accept(*this);
 }
 
+// --- Move-Only tracking helpers ---
+void Resolver::mark_moved(const std::string& name, int line) {
+    if (is_moved(name)) {
+        error("Variable '" + name + "' has already been moved.", line);
+        return;
+    }
+    auto sym = scopes_.lookup(name);
+    if (sym && sym->depth >= 0 && static_cast<size_t>(sym->depth) < moved_scopes_.size()) {
+        moved_scopes_[sym->depth].insert(name);
+    } else if (!moved_scopes_.empty()) {
+        moved_scopes_.back().insert(name);
+    }
+}
+
+bool Resolver::is_moved(const std::string& name) const {
+    // Search from innermost scope outward
+    for (auto it = moved_scopes_.rbegin(); it != moved_scopes_.rend(); ++it) {
+        if (it->count(name)) return true;
+    }
+    return false;
+}
+
+void Resolver::unmark_moved(const std::string& name) {
+    // Remove from all scopes (reassignment revives the variable)
+    for (auto& scope : moved_scopes_) {
+        scope.erase(name);
+    }
+}
+
 // StmtVisitor
 void Resolver::visit(const ExpressionStmt& stmt) {
     if (stmt.expression) resolve(*stmt.expression);
@@ -39,6 +73,9 @@ void Resolver::visit(const VarDeclStmt& stmt) {
     if (stmt.initializer) {
         resolve(*stmt.initializer);
     }
+    if (!moved_scopes_.empty()) {
+        moved_scopes_.back().erase(stmt.name.lexeme);
+    }
     Symbol sym(stmt.name.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
     scopes_.define(sym);
 }
@@ -48,6 +85,9 @@ void Resolver::visit(const DestructureStmt& stmt) {
         resolve(*stmt.initializer);
     }
     for (const auto& name : stmt.names) {
+        if (!moved_scopes_.empty()) {
+            moved_scopes_.back().erase(name.lexeme);
+        }
         Symbol sym(name.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
         scopes_.define(sym);
     }
@@ -57,21 +97,21 @@ void Resolver::visit(const UsingStmt& stmt) {
     if (stmt.initializer) {
         resolve(*stmt.initializer);
     }
-    scopes_.push_scope(false);
+    push_scope(false);
     Symbol sym(stmt.name.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
     scopes_.define(sym);
     for (const auto& s : stmt.body) {
         if (s) s->accept(*this);
     }
-    scopes_.pop_scope();
+    pop_scope();
 }
 
 void Resolver::visit(const BlockStmt& stmt) {
-    scopes_.push_scope(false);
+    push_scope(false);
     for (const auto& s : stmt.statements) {
         if (s) s->accept(*this);
     }
-    scopes_.pop_scope();
+    pop_scope();
 }
 
 void Resolver::visit(const IfStmt& stmt) {
@@ -89,22 +129,22 @@ void Resolver::visit(const WhileStmt& stmt) {
 
 void Resolver::visit(const ForInStmt& stmt) {
     if (stmt.iterable) resolve(*stmt.iterable);
-    scopes_.push_scope(false);
+    push_scope(false);
     Symbol sym(stmt.variable.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
     scopes_.define(sym);
     loop_depth_++;
     if (stmt.body) stmt.body->accept(*this);
     loop_depth_--;
-    scopes_.pop_scope();
+    pop_scope();
 }
 
 void Resolver::visit(const TryCatchStmt& stmt) {
     if (stmt.try_block) stmt.try_block->accept(*this);
-    scopes_.push_scope(false);
+    push_scope(false);
     Symbol err_sym(stmt.error_var.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
     scopes_.define(err_sym);
     if (stmt.catch_block) stmt.catch_block->accept(*this);
-    scopes_.pop_scope();
+    pop_scope();
 }
 
 void Resolver::visit(const ThrowStmt& stmt) {
@@ -149,7 +189,7 @@ void Resolver::visit(const FunctionStmt& stmt) {
     Symbol fn_sym(stmt.name.lexeme, SymbolKind::Function, scopes_.current_depth(), 0);
     scopes_.define(fn_sym);
 
-    scopes_.push_scope(true);
+    push_scope(true);
     function_depth_++;
 
     for (const auto& param : stmt.params) {
@@ -162,7 +202,7 @@ void Resolver::visit(const FunctionStmt& stmt) {
     }
 
     function_depth_--;
-    scopes_.pop_scope();
+    pop_scope();
 }
 
 void Resolver::visit(const ReturnStmt& stmt) {
@@ -187,16 +227,31 @@ void Resolver::visit(const LiteralExpr&) {
 }
 
 void Resolver::visit(const UnaryExpr& expr) {
+    if (expr.op.type == TokenType::Move) {
+        // move operator: operand must be a variable, mark it as moved
+        const auto* var_expr = dynamic_cast<const VariableExpr*>(expr.right.get());
+        if (!var_expr) {
+            error("Operand of 'move' must be a simple variable name.", expr.op.line);
+        } else {
+            mark_moved(var_expr->name.lexeme, expr.op.line);
+        }
+        return;
+    }
     if (expr.right) resolve(*expr.right);
 }
 
 void Resolver::visit(const VariableExpr& expr) {
+    if (is_moved(expr.name.lexeme)) {
+        error("Variable '" + expr.name.lexeme + "' used after move.", expr.name.line);
+        return;
+    }
     auto sym = scopes_.lookup(expr.name.lexeme);
     (void)sym;
 }
 
 void Resolver::visit(const AssignExpr& expr) {
     if (expr.value) resolve(*expr.value);
+    unmark_moved(expr.name.lexeme);
 }
 
 void Resolver::visit(const LogicalExpr& expr) {
@@ -247,7 +302,7 @@ void Resolver::visit(const PropertyAssignExpr& expr) {
 }
 
 void Resolver::visit(const LambdaExpr& expr) {
-    scopes_.push_scope(true);
+    push_scope(true);
     function_depth_++;
 
     for (const auto& param : expr.params) {
@@ -260,7 +315,7 @@ void Resolver::visit(const LambdaExpr& expr) {
     }
 
     function_depth_--;
-    scopes_.pop_scope();
+    pop_scope();
 }
 
 void Resolver::visit(const PipelineExpr& expr) {

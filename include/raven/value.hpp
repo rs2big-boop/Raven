@@ -17,6 +17,12 @@ class Interpreter;
 
 struct Nil {};
 
+// Sentinel type for a variable that has been moved-out of.
+// Once a value is Moved, any attempt to use it throws a RuntimeError.
+struct Moved {
+    std::string var_name; // for helpful error messages
+};
+
 class Callable;
 class Value;
 
@@ -30,7 +36,8 @@ using ValueBase = std::variant<
     std::string,
     std::shared_ptr<Callable>,
     ArrayPtr,
-    MapPtr
+    MapPtr,
+    Moved
 >;
 
 class Value {
@@ -49,6 +56,12 @@ public:
     Value(MapPtr m) : data_(std::move(m)) {
         gc::track_map_auto(std::get<MapPtr>(data_));
     }
+    // Construct a Moved-sentinel Value (used by the `move` operator)
+    static Value make_moved(std::string var_name) {
+        Value v;
+        v.data_ = Moved{std::move(var_name)};
+        return v;
+    }
 
     bool is_nil() const { return std::holds_alternative<Nil>(data_); }
     bool is_bool() const { return std::holds_alternative<bool>(data_); }
@@ -57,6 +70,9 @@ public:
     bool is_callable() const { return std::holds_alternative<std::shared_ptr<Callable>>(data_); }
     bool is_array() const { return std::holds_alternative<ArrayPtr>(data_); }
     bool is_map() const { return std::holds_alternative<MapPtr>(data_); }
+    bool is_moved() const { return std::holds_alternative<Moved>(data_); }
+
+    const Moved& as_moved() const { return std::get<Moved>(data_); }
 
     bool as_bool() const { return std::get<bool>(data_); }
     double as_number() const { return std::get<double>(data_); }
@@ -73,11 +89,13 @@ public:
         if (is_callable()) return "function";
         if (is_array()) return "array";
         if (is_map()) return "map";
+        if (is_moved()) return "<moved>";
         return "unknown";
     }
 
     bool is_truthy() const {
         if (is_nil()) return false;
+        if (is_moved()) return false;
         if (is_bool()) return as_bool();
         if (is_number()) return as_number() != 0.0;
         if (is_string()) return !as_string().empty();
@@ -100,6 +118,7 @@ public:
             return s;
         }
         if (is_string()) return as_string();
+        if (is_moved()) return "<moved:" + as_moved().var_name + ">";
         if (is_array()) {
             const auto& vec = *as_array();
             std::string res = "[";

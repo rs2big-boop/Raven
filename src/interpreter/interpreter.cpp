@@ -2218,6 +2218,25 @@ Value Interpreter::visit(const LiteralExpr& expr) {
 }
 
 Value Interpreter::visit(const UnaryExpr& expr) {
+    // ---- move operator: special-cased BEFORE evaluating the operand ----
+    if (expr.op.type == TokenType::Move) {
+        const auto* var_expr = dynamic_cast<const VariableExpr*>(expr.right.get());
+        if (!var_expr) {
+            throw RuntimeError(expr.op, "Operand of 'move' must be a simple variable name.");
+        }
+        const std::string& var_name = var_expr->name.lexeme;
+        // Look up without triggering the moved-check in VariableExpr visit
+        Value current = environment_->get(var_expr->name);
+        if (current.is_moved()) {
+            throw RuntimeError(expr.op,
+                "Cannot move '" + var_name + "': variable has already been moved.");
+        }
+        // Stamp the env slot with the Moved sentinel
+        environment_->assign(var_expr->name, Value::make_moved(var_name));
+        // Return the original value — ownership transferred to caller
+        return current;
+    }
+
     Value right = evaluate(*expr.right);
 
     switch (expr.op.type) {
@@ -2257,7 +2276,13 @@ Value Interpreter::visit(const UnaryExpr& expr) {
 }
 
 Value Interpreter::visit(const VariableExpr& expr) {
-    return environment_->get(expr.name);
+    Value v = environment_->get(expr.name);
+    if (v.is_moved()) {
+        throw RuntimeError(expr.name,
+            "Use of moved value: variable '" + expr.name.lexeme +
+            "' has been moved and can no longer be used.");
+    }
+    return v;
 }
 
 Value Interpreter::visit(const AssignExpr& expr) {
@@ -3011,9 +3036,19 @@ void Interpreter::visit(const UsingStmt& stmt) {
         active_ex = std::current_exception();
     }
 
+    // Check if ownership was transferred via `move` inside the using block
+    bool resource_was_moved = false;
+    try {
+        Value bound_val = using_env->get(stmt.name);
+        if (bound_val.is_moved()) {
+            resource_was_moved = true;
+        }
+    } catch (...) {
+    }
+
     environment_ = previous_env;
 
-    // Guaranteed RAII cleanup: Invoke .close() or .dispose() on resource
+    // Guaranteed RAII cleanup: Invoke .close() or .dispose() on resource (if ownership was not moved)
     auto invoke_resource_close = [&](const Value& res) {
         if (res.is_map()) {
             std::shared_ptr<Callable> close_fn = nullptr;
@@ -3038,14 +3073,16 @@ void Interpreter::visit(const UsingStmt& stmt) {
         }
     };
 
-    try {
-        invoke_resource_close(resource);
-    } catch (...) {
-        if (!active_ex) {
-            // No prior exception: the cleanup failure becomes primary!
-            throw;
+    if (!resource_was_moved) {
+        try {
+            invoke_resource_close(resource);
+        } catch (...) {
+            if (!active_ex) {
+                // No prior exception: the cleanup failure becomes primary!
+                throw;
+            }
+            // If an exception was already active, preserve primary active_ex (suppressed exception policy)
         }
-        // If an exception was already active, preserve primary active_ex (suppressed exception policy)
     }
 
     if (active_ex) {

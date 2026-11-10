@@ -1715,4 +1715,54 @@ TEST(InterpreterTest, UsingMultipleCleanupBothFailPreservesPrimaryAndRunsAll) {
     EXPECT_EQ(run_code(source), "4\nwork done\nres2 close attempt\nres1 close attempt\nprimary: err 2\n");
 }
 
+TEST(InterpreterTest, MoveTransfersValueAndInvalidatesSource) {
+    std::string source =
+        "let a = \"hello\";\n"
+        "let b = move a;\n"
+        "print(b);\n";
+    EXPECT_EQ(run_code(source), "hello\n");
+}
+
+TEST(InterpreterTest, MoveUseAfterMoveThrowsRuntimeError) {
+    std::string source =
+        "let a = 123;\n"
+        "let b = move a;\n"
+        "print(a);\n";
+    EXPECT_THROW(run_code(source), RuntimeError);
+}
+
+TEST(InterpreterTest, DoubleMoveThrowsRuntimeError) {
+    std::string source =
+        "let a = 123;\n"
+        "let b = move a;\n"
+        "let c = move a;\n";
+    EXPECT_THROW(run_code(source), RuntimeError);
+}
+
+TEST(InterpreterTest, MoveReassignmentRevivesVariable) {
+    std::string source =
+        "let a = 10;\n"
+        "let b = move a;\n"
+        "a = 20;\n"
+        "print(a + b);\n";
+    EXPECT_EQ(run_code(source), "30\n");
+}
+
+TEST(InterpreterTest, MoveInsideUsingSuppressesRAIICleanup) {
+    std::string source =
+        "let closed = false;\n"
+        "let res = { \"close\": fn() { closed = true; } };\n"
+        "fn take_res() {\n"
+        "    using r = res {\n"
+        "        return move r;\n"
+        "    }\n"
+        "}\n"
+        "let r2 = take_res();\n"
+        "print(closed);\n"
+        "r2.close();\n"
+        "print(closed);\n";
+    EXPECT_EQ(run_code(source), "false\ntrue\n");
+}
+
+
 

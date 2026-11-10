@@ -107,3 +107,61 @@ TEST(SemanticTest, ResolverBreakOutsideLoop) {
     resolver.resolve(stmts);
     EXPECT_TRUE(resolver.has_errors());
 }
+
+TEST(SemanticTest, ResolverUseAfterMoveFails) {
+    Resolver resolver;
+    raven::Lexer lexer("let a = 42;\nlet b = move a;\nlet c = a;\n");
+    auto tokens = lexer.tokenize();
+    raven::Parser parser(tokens);
+    auto stmts = parser.parse();
+
+    EXPECT_FALSE(resolver.resolve(stmts));
+    EXPECT_TRUE(resolver.has_errors());
+    bool found_use_after_move = false;
+    for (const auto& err : resolver.errors()) {
+        if (err.message.find("used after move") != std::string::npos) {
+            found_use_after_move = true;
+        }
+    }
+    EXPECT_TRUE(found_use_after_move);
+}
+
+TEST(SemanticTest, ResolverDoubleMoveFails) {
+    Resolver resolver;
+    raven::Lexer lexer("let a = 42;\nlet b = move a;\nlet c = move a;\n");
+    auto tokens = lexer.tokenize();
+    raven::Parser parser(tokens);
+    auto stmts = parser.parse();
+
+    EXPECT_FALSE(resolver.resolve(stmts));
+    EXPECT_TRUE(resolver.has_errors());
+    bool found_already_moved = false;
+    for (const auto& err : resolver.errors()) {
+        if (err.message.find("already been moved") != std::string::npos) {
+            found_already_moved = true;
+        }
+    }
+    EXPECT_TRUE(found_already_moved);
+}
+
+TEST(SemanticTest, ResolverMoveAndReassignRevivesVariable) {
+    Resolver resolver;
+    raven::Lexer lexer("let a = 42;\nlet b = move a;\na = 100;\nlet c = a;\n");
+    auto tokens = lexer.tokenize();
+    raven::Parser parser(tokens);
+    auto stmts = parser.parse();
+
+    EXPECT_TRUE(resolver.resolve(stmts));
+    EXPECT_FALSE(resolver.has_errors());
+}
+
+TEST(SemanticTest, ResolverMoveInNestedScopeInvalidatesOuterVariable) {
+    Resolver resolver;
+    raven::Lexer lexer("let a = 42;\n{\n    let b = move a;\n}\nlet c = a;\n");
+    auto tokens = lexer.tokenize();
+    raven::Parser parser(tokens);
+    auto stmts = parser.parse();
+
+    EXPECT_FALSE(resolver.resolve(stmts));
+    EXPECT_TRUE(resolver.has_errors());
+}

@@ -3,6 +3,7 @@
 #include "raven/ast.hpp"
 #include <vector>
 #include <string>
+#include <unordered_set>
 
 namespace raven::semantic {
 
@@ -68,6 +69,30 @@ private:
     std::vector<ResolverError> errors_;
     int function_depth_ = 0;
     int loop_depth_     = 0;
+
+    // --- Move-Only tracking ---
+    // Stack of per-scope sets: each set tracks variable names that have been moved
+    // in the current scope. We push/pop along with scopes_.
+    std::vector<std::unordered_set<std::string>> moved_scopes_;
+
+    void push_scope(bool is_function = false) {
+        scopes_.push_scope(is_function);
+        moved_scopes_.emplace_back();
+    }
+    void pop_scope() {
+        scopes_.pop_scope();
+        if (!moved_scopes_.empty()) moved_scopes_.pop_back();
+    }
+
+    void push_moved_scope() { moved_scopes_.emplace_back(); }
+    void pop_moved_scope()  { if (!moved_scopes_.empty()) moved_scopes_.pop_back(); }
+
+    // Mark a variable as moved in the innermost scope that contains it
+    void mark_moved(const std::string& name, int line);
+    // Check if a variable is moved — scans from innermost scope outward
+    bool is_moved(const std::string& name) const;
+    // Un-mark a variable (reassignment revives it)
+    void unmark_moved(const std::string& name);
 };
 
 } // namespace raven::semantic
