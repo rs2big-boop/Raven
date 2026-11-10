@@ -16,6 +16,7 @@
 #include "raven/runtime/safepoint_manager.hpp"
 #include "raven/vm/stack_map.hpp"
 #include "raven/runtime/memory/card_table.hpp"
+#include "raven/interpreter.hpp"
 #include "raven/compiler.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
@@ -998,3 +999,249 @@ TEST(MemoryTest, StackMapCompletenessAudit) {
     EXPECT_GT(safepoint_count, 0u);
     EXPECT_FALSE(chunk.stack_maps.empty());
 }
+
+TEST(MemoryTest, ReturnValueRemainsRootedDuringNestedUnwindingAndCleanup) {
+    // Proves that when returning heap objects through nested scopes and RAII using-blocks,
+    // the returned object remains rooted throughout the unwinding sequence, LIFO cleanup handlers
+    // complete, and the caller receives an uncorrupted, fully-accessible data structure.
+    std::string source =
+        "fn make_resource(log_arr, tag) {\n"
+        "    return {\n"
+        "        \"tag\": tag,\n"
+        "        \"close\": fn() {\n"
+        "            push(log_arr, tag + \"_closed\");\n"
+        "        }\n"
+        "    };\n"
+        "}\n"
+        "fn create_nested_data(log_arr) {\n"
+        "    using r1 = make_resource(log_arr, \"outer\") {\n"
+        "        using r2 = make_resource(log_arr, \"middle\") {\n"
+        "            using r3 = make_resource(log_arr, \"inner\") {\n"
+        "                let complex_data = [\n"
+        "                    {\"id\": 1, \"name\": \"payload_alpha\"},\n"
+        "                    {\"id\": 2, \"name\": \"payload_beta\"},\n"
+        "                    {\"nested\": [10, 20, 30]}\n"
+        "                ];\n"
+        "                return complex_data;\n"
+        "            }\n"
+        "        }\n"
+        "    }\n"
+        "}\n"
+        "let cleanup_log = [];\n"
+        "let res = create_nested_data(cleanup_log);\n"
+        "print(len(cleanup_log));\n"
+        "print(cleanup_log[0]);\n"
+        "print(cleanup_log[1]);\n"
+        "print(cleanup_log[2]);\n"
+        "print(res[0][\"name\"]);\n"
+        "print(res[1][\"id\"]);\n"
+        "print(res[2][\"nested\"][1]);\n";
+
+    raven::Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    raven::Parser parser(tokens);
+    auto statements = parser.parse();
+
+    std::ostringstream out;
+    raven::Interpreter interpreter(out);
+    interpreter.interpret(statements);
+
+    std::string expected =
+        "3\n"
+        "inner_closed\n"
+        "middle_closed\n"
+        "outer_closed\n"
+        "payload_alpha\n"
+        "2\n"
+        "20\n";
+    EXPECT_EQ(out.str(), expected);
+}
+
+TEST(MemoryTest, ResourceLeaseConcurrentWithRuntimeShutdown) {
+    // Tests Scenario A: Multi-threaded lease contention vs concurrent close / shutdown.
+    // Verifies:
+    // 1. Multiple threads can acquire leases concurrently while Open.
+    // 2. Once close() starts (Closing state), subsequent lease acquisitions are rejected.
+    // 3. close() blocks until all in-flight active leases are released.
+    // 4. close_fn is called exactly once.
+    std::atomic<int> close_fn_count{0};
+    int dummy_fd = 42;
+    auto block = std::make_shared<raven::ResourceControlBlock>(
+        dummy_fd, "socket://api.cluster.internal:8080",
+        [&](int /*fd*/) {
+            close_fn_count.fetch_add(1);
+        });
+
+    std::atomic<bool> start_flag{false};
+    std::atomic<bool> shutdown_initiated{false};
+    std::atomic<size_t> successful_ops{0};
+    std::atomic<size_t> rejected_ops{0};
+
+    constexpr size_t kWorkers = 8;
+    std::vector<std::thread> workers;
+    workers.reserve(kWorkers);
+
+    for (size_t i = 0; i < kWorkers; ++i) {
+        workers.emplace_back([&]() {
+            while (!start_flag.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+
+            for (int op = 0; op < 500; ++op) {
+                try {
+                    raven::ResourceLease lease(block);
+                    EXPECT_EQ(lease.native_fd(), dummy_fd);
+                    successful_ops.fetch_add(1, std::memory_order_relaxed);
+                    std::this_thread::sleep_for(std::chrono::microseconds(10));
+                } catch (const std::runtime_error&) {
+                    // Lease rejected because close() was called
+                    rejected_ops.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    start_flag.store(true, std::memory_order_release);
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+    // Concurrently trigger shutdown/close
+    shutdown_initiated.store(true, std::memory_order_release);
+    bool closed = block->close();
+    EXPECT_TRUE(closed);
+    EXPECT_EQ(block->state(), raven::ResourceState::Closed);
+    EXPECT_EQ(block->native_fd(), -1);
+
+    for (auto& w : workers) {
+        w.join();
+    }
+
+    EXPECT_GT(successful_ops.load(), 0u);
+    EXPECT_GT(rejected_ops.load(), 0u);
+    EXPECT_EQ(close_fn_count.load(), 1);
+
+    // Duplicate close is a safe no-op
+    EXPECT_FALSE(block->close());
+    EXPECT_EQ(close_fn_count.load(), 1);
+}
+
+TEST(MemoryTest, ArcRootRegistryConcurrentPhaseTransitionsUnderStress) {
+    // Tests Scenario B: ArcRootRegistry under heavy concurrent register/unregister
+    // while GC rapidly transitions phases (Idle -> InitialMark -> IncrementalMarking -> FinalRemark -> Sweep).
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    std::atomic<bool> running{true};
+    std::atomic<size_t> total_registered{0};
+    constexpr size_t kNumMutators = 6;
+    std::vector<std::thread> mutators;
+    mutators.reserve(kNumMutators);
+
+    for (size_t i = 0; i < kNumMutators; ++i) {
+        mutators.emplace_back([&, i]() {
+            uintptr_t base_addr = 0x10000000 + i * 0x100000;
+            size_t local_count = 0;
+            while (running.load(std::memory_order_relaxed)) {
+                void* ptr = reinterpret_cast<void*>(base_addr + (local_count % 100) * 64);
+                reg.register_root(ptr);
+                total_registered.fetch_add(1, std::memory_order_relaxed);
+                if ((local_count % 3) == 0) {
+                    reg.unregister_root(ptr);
+                }
+                local_count++;
+                if ((local_count % 50) == 0) {
+                    std::this_thread::yield();
+                }
+            }
+        });
+    }
+
+    // GC coordinator simulating multiple full collection cycles
+    for (int cycle = 0; cycle < 10; ++cycle) {
+        reg.set_gc_phase(raven::GCPhase::InitialMark);
+        auto roots = reg.snapshot_roots();
+        (void)roots;
+
+        reg.set_gc_phase(raven::GCPhase::IncrementalMarking);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+
+        reg.set_gc_phase(raven::GCPhase::FinalRemark);
+        auto grey = reg.drain_grey_roots();
+        (void)grey;
+
+        reg.set_gc_phase(raven::GCPhase::Sweep);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+        reg.set_gc_phase(raven::GCPhase::Idle);
+    }
+
+    running.store(false, std::memory_order_release);
+    for (auto& t : mutators) {
+        t.join();
+    }
+
+    EXPECT_GT(total_registered.load(), 1000u);
+    reg.clear();
+    EXPECT_EQ(reg.root_count(), 0u);
+}
+
+TEST(MemoryTest, SafepointManagerNativeBlockingExitsSafelyWithoutStaleRoots) {
+    // Tests Scenario C: Mutators transitioning between Native Blocking and Running
+    // while Safepoints are requested. Ensures no thread is considered safe if it's
+    // still modifying heap, and that exit_native properly parks if a safepoint is active.
+    auto& sp_mgr = raven::SafepointManager::instance();
+    sp_mgr.reset();
+
+    std::atomic<bool> running{true};
+    std::atomic<size_t> native_trips{0};
+    std::atomic<size_t> safepoints_observed{0};
+
+    constexpr size_t kMutators = 4;
+    std::vector<std::thread> threads;
+    threads.reserve(kMutators);
+
+    for (size_t i = 0; i < kMutators; ++i) {
+        threads.emplace_back([&]() {
+            sp_mgr.register_thread();
+
+            while (running.load(std::memory_order_relaxed)) {
+                // Mutator running Raven work
+                sp_mgr.poll_safepoint();
+
+                // Mutator transitions to native blocked (e.g. socket read, sleep)
+                sp_mgr.enter_native();
+                native_trips.fetch_add(1, std::memory_order_relaxed);
+                std::this_thread::sleep_for(std::chrono::microseconds(50));
+                sp_mgr.exit_native();
+
+                sp_mgr.poll_safepoint();
+            }
+
+            sp_mgr.unregister_thread();
+        });
+    }
+
+    // GC coordinator fires 5 Stop-The-World safepoints
+    for (int pause = 0; pause < 5; ++pause) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        sp_mgr.request_safepoint();
+
+        // While STW is active, all registered threads MUST be either AtSafepoint or InNativeBlocked
+        EXPECT_EQ(sp_mgr.parked_thread_count(), sp_mgr.registered_thread_count());
+
+        safepoints_observed.fetch_add(1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+
+        sp_mgr.resume_mutators();
+    }
+
+    running.store(false, std::memory_order_release);
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    EXPECT_EQ(safepoints_observed.load(), 5u);
+    EXPECT_GT(native_trips.load(), 50u);
+    EXPECT_EQ(sp_mgr.registered_thread_count(), 0u);
+    sp_mgr.reset();
+}
+
