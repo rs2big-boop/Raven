@@ -121,13 +121,25 @@ public:
 
     /**
      * @brief Initiated by GC coordinator to begin an STW pause.
-     * Blocks until all registered mutators are either AtSafepoint or InNativeBlocked.
+     * Serializes concurrent GC requests, enforces Single-GC-Owner semantics,
+     * tracks generation epochs to prevent ABA hazards, and supports deadline timeouts.
+     * @param timeout Maximum duration to wait for all mutator threads to park.
      */
-    void request_safepoint() {
+    void request_safepoint(std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) {
         std::unique_lock<std::mutex> lock(mtx_);
+
+        // 1. Serialize concurrent GC coordinator requests
+        cv_coordinator_.wait(lock, [this]() {
+            return !safepoint_requested_.load(std::memory_order_acquire);
+        });
+
+        // 2. Claim ownership of this safepoint session
+        active_gc_owner_ = std::this_thread::get_id();
+        safepoint_epoch_++;
         safepoint_requested_.store(true, std::memory_order_release);
 
-        cv_gc_.wait(lock, [this]() {
+        // 3. Wait with timeout for all registered mutators to park or block in native
+        bool ok = cv_gc_.wait_for(lock, timeout, [this]() {
             for (const auto& [tid, state] : thread_states_) {
                 if (state == MutatorState::Running) {
                     return false;
@@ -135,15 +147,54 @@ public:
             }
             return true;
         });
+
+        if (!ok) {
+            // Collect unparked threads for diagnostics
+            std::string offenders;
+            for (const auto& [tid, state] : thread_states_) {
+                if (state == MutatorState::Running) {
+                    offenders += "[tid " + std::to_string(std::hash<std::thread::id>{}(tid)) + "] ";
+                }
+            }
+            // Teardown aborted session
+            active_gc_owner_ = std::thread::id{};
+            safepoint_requested_.store(false, std::memory_order_release);
+            cv_mutator_.notify_all();
+            cv_coordinator_.notify_one();
+            throw std::runtime_error("SafepointManager: timeout waiting for mutator threads to park: " + offenders);
+        }
     }
 
     /**
      * @brief Initiated by GC coordinator to resume all mutators after STW pause.
+     * Validates that only the owning GC thread can resume mutators.
      */
     void resume_mutators() {
         std::lock_guard<std::mutex> lock(mtx_);
+        if (!safepoint_requested_.load(std::memory_order_acquire)) {
+            return;
+        }
+
+        // Validate Single-GC-Owner contract
+        if (active_gc_owner_ != std::thread::id{} &&
+            active_gc_owner_ != std::this_thread::get_id()) {
+            throw std::runtime_error("SafepointManager: resume_mutators called by non-owner thread.");
+        }
+
+        active_gc_owner_ = std::thread::id{};
         safepoint_requested_.store(false, std::memory_order_release);
         cv_mutator_.notify_all();
+        cv_coordinator_.notify_one(); // Wake up next queued coordinator if any
+    }
+
+    uint64_t safepoint_epoch() const noexcept {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return safepoint_epoch_;
+    }
+
+    std::thread::id active_gc_owner() const noexcept {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return active_gc_owner_;
     }
 
     bool is_safepoint_requested() const noexcept {
@@ -175,7 +226,10 @@ public:
     void reset() {
         std::lock_guard<std::mutex> lock(mtx_);
         safepoint_requested_.store(false, std::memory_order_release);
+        active_gc_owner_ = std::thread::id{};
         thread_states_.clear();
+        cv_coordinator_.notify_all();
+        cv_mutator_.notify_all();
     }
 
 private:
@@ -184,7 +238,10 @@ private:
     mutable std::mutex mtx_;
     std::condition_variable cv_gc_;
     std::condition_variable cv_mutator_;
+    std::condition_variable cv_coordinator_;
     std::atomic<bool> safepoint_requested_{false};
+    std::thread::id active_gc_owner_{};
+    uint64_t safepoint_epoch_{0};
     std::unordered_map<std::thread::id, MutatorState> thread_states_;
 };
 

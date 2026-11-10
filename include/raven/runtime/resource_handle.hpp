@@ -58,8 +58,13 @@ public:
         return s == ResourceState::Closed || s == ResourceState::Closing;
     }
 
-    int native_fd() const noexcept {
-        return native_fd_;
+    /**
+     * @brief Returns the native descriptor.
+     * @note Accessing the native descriptor should be done via a valid ResourceLease
+     * to guarantee that the descriptor remains open and valid for the duration of the operation.
+     */
+    [[nodiscard]] int native_fd() const noexcept {
+        return native_fd_.load(std::memory_order_acquire);
     }
 
     const std::string& descriptor_name() const noexcept {
@@ -69,6 +74,16 @@ public:
     uint32_t active_operations() const {
         std::lock_guard<std::mutex> lock(mtx_);
         return active_operations_;
+    }
+
+    const std::string& last_close_error() const noexcept {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return last_close_error_;
+    }
+
+    bool had_close_error() const noexcept {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return !last_close_error_.empty();
     }
 
     /**
@@ -82,20 +97,24 @@ public:
             return false;
         }
 
+        // 1. Transition to Closing: rejects any NEW leases immediately
         state_.store(ResourceState::Closing, std::memory_order_release);
 
-        // Wait for all in-flight operation leases to complete
+        // 2. Wait for all in-flight operation leases to complete
         cv_.wait(lock, [this]() {
             return active_operations_ == 0;
         });
 
-        if (close_fn_ && native_fd_ >= 0) {
+        // 3. Atomically exchange descriptor to -1 and invoke native closer exactly once
+        int fd = native_fd_.exchange(-1, std::memory_order_acq_rel);
+        if (close_fn_ && fd >= 0) {
             try {
-                close_fn_(native_fd_);
+                close_fn_(fd);
+            } catch (const std::exception& e) {
+                last_close_error_ = e.what();
             } catch (...) {
-                // Suppress native throw during close
+                last_close_error_ = "Unknown native exception during close";
             }
-            native_fd_ = -1;
         }
 
         state_.store(ResourceState::Closed, std::memory_order_release);
@@ -106,13 +125,14 @@ public:
 private:
     friend class ResourceLease;
 
-    int native_fd_{-1};
+    std::atomic<int> native_fd_{-1};
     std::string descriptor_name_;
     NativeCloseFn close_fn_;
     std::atomic<ResourceState> state_{ResourceState::Open};
     mutable std::mutex mtx_;
     mutable std::condition_variable cv_;
     uint32_t active_operations_{0};
+    std::string last_close_error_;
 };
 
 /**
@@ -121,6 +141,8 @@ private:
  */
 class ResourceLease {
 public:
+    ResourceLease() : block_(nullptr) {}
+
     explicit ResourceLease(std::shared_ptr<ResourceControlBlock> block)
         : block_(std::move(block)) {
         if (!block_) {
@@ -134,6 +156,27 @@ public:
     }
 
     ~ResourceLease() {
+        reset();
+    }
+
+    ResourceLease(const ResourceLease&) = delete;
+    ResourceLease& operator=(const ResourceLease&) = delete;
+
+    ResourceLease(ResourceLease&& other) noexcept
+        : block_(std::move(other.block_)) {
+        other.block_ = nullptr;
+    }
+
+    ResourceLease& operator=(ResourceLease&& other) noexcept {
+        if (this != &other) {
+            reset();
+            block_ = std::move(other.block_);
+            other.block_ = nullptr;
+        }
+        return *this;
+    }
+
+    void reset() {
         if (block_) {
             std::lock_guard<std::mutex> lock(block_->mtx_);
             block_->active_operations_--;
@@ -141,17 +184,19 @@ public:
                 block_->state_.load(std::memory_order_acquire) == ResourceState::Closing) {
                 block_->cv_.notify_all();
             }
+            block_ = nullptr;
         }
     }
-
-    ResourceLease(const ResourceLease&) = delete;
-    ResourceLease& operator=(const ResourceLease&) = delete;
 
     bool is_valid() const noexcept {
         return block_ != nullptr;
     }
 
-    int native_fd() const noexcept {
+    /**
+     * @brief Accesses the native descriptor guarded by this lease.
+     * Guaranteed not to be closed or invalidated while this lease is active.
+     */
+    [[nodiscard]] int native_fd() const noexcept {
         return block_ ? block_->native_fd() : -1;
     }
 

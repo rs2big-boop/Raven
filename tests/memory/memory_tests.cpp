@@ -1245,3 +1245,174 @@ TEST(MemoryTest, SafepointManagerNativeBlockingExitsSafelyWithoutStaleRoots) {
     sp_mgr.reset();
 }
 
+TEST(MemoryTest, ResourceLeaseMoveSemanticsAndAtomicDescriptorGuarantees) {
+    // Tests M11 Checklist #1 and #6:
+    // 1. ResourceLease move construction and move assignment transfer the lease.
+    // 2. Closed resource captures native exception into last_close_error without swallowing.
+    // 3. native_fd is an atomic read.
+    auto block = std::make_shared<raven::ResourceControlBlock>(
+        101, "socket://m11-hardened.internal",
+        [](int) {
+            throw std::runtime_error("Simulated kernel close EIO failure");
+        });
+
+    EXPECT_EQ(block->native_fd(), 101);
+    EXPECT_FALSE(block->had_close_error());
+
+    {
+        raven::ResourceLease lease1(block);
+        EXPECT_TRUE(lease1.is_valid());
+        EXPECT_EQ(lease1.native_fd(), 101);
+        EXPECT_EQ(block->active_operations(), 1u);
+
+        // Move construct
+        raven::ResourceLease lease2(std::move(lease1));
+        EXPECT_FALSE(lease1.is_valid());
+        EXPECT_TRUE(lease2.is_valid());
+        EXPECT_EQ(lease2.native_fd(), 101);
+        EXPECT_EQ(block->active_operations(), 1u);
+
+        // Move assign
+        raven::ResourceLease lease3;
+        EXPECT_FALSE(lease3.is_valid());
+        lease3 = std::move(lease2);
+        EXPECT_FALSE(lease2.is_valid());
+        EXPECT_TRUE(lease3.is_valid());
+        EXPECT_EQ(lease3.native_fd(), 101);
+        EXPECT_EQ(block->active_operations(), 1u);
+    }
+
+    EXPECT_EQ(block->active_operations(), 0u);
+
+    // Closing invokes native closer and catches exception cleanly into last_close_error
+    bool closed = block->close();
+    EXPECT_TRUE(closed);
+    EXPECT_EQ(block->native_fd(), -1);
+    EXPECT_TRUE(block->had_close_error());
+    EXPECT_NE(block->last_close_error().find("Simulated kernel close EIO failure"), std::string::npos);
+}
+
+TEST(MemoryTest, ArcRootRegistryGreyRootLifetimePinThroughIncrementalMarking) {
+    // Tests M11 Checklist #2:
+    // Proves that when a root is shaded grey during IncrementalMarking, its lifetime
+    // remains pinned in the registry even if the mutator unregisters its Arc before FinalRemark.
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    void* test_obj = reinterpret_cast<void*>(0xbeefc001);
+
+    // 1. Start in IncrementalMarking
+    reg.set_gc_phase(raven::GCPhase::IncrementalMarking);
+
+    // 2. Mutator registers root: write barrier shades to grey and pins lifetime
+    reg.register_root(test_obj);
+    EXPECT_TRUE(reg.is_root_pinned_for_gc(test_obj));
+
+    // 3. Mutator drops Arc (strong count goes to 0) during IncrementalMarking
+    reg.unregister_root(test_obj);
+    EXPECT_EQ(reg.strong_count(test_obj), 0u);
+    // Crucial: Object MUST remain pinned for the active GC cycle!
+    EXPECT_TRUE(reg.is_root_pinned_for_gc(test_obj));
+
+    // 4. GC transitions to FinalRemark and drains grey roots
+    reg.set_gc_phase(raven::GCPhase::FinalRemark);
+    auto grey = reg.drain_grey_roots();
+    ASSERT_EQ(grey.size(), 1u);
+    EXPECT_EQ(grey[0], test_obj);
+
+    // 5. Sweep finishes and GC phase returns to Idle
+    reg.set_gc_phase(raven::GCPhase::Sweep);
+    reg.set_gc_phase(raven::GCPhase::Idle);
+
+    // Now that cycle is over, pinned state is cleared
+    EXPECT_FALSE(reg.is_root_pinned_for_gc(test_obj));
+    reg.clear();
+}
+
+TEST(MemoryTest, SafepointManagerSingleGCOwnerAndSerializedCoordinators) {
+    // Tests M11 Checklist #3:
+    // 1. Single-GC-Owner semantics: only the thread that called request_safepoint can resume.
+    // 2. Non-owner resume_mutators throws runtime_error.
+    // 3. Multiple concurrent GC coordinators serialize cleanly without race or deadlock.
+    auto& sp_mgr = raven::SafepointManager::instance();
+    sp_mgr.reset();
+
+    std::thread::id caller_tid = std::this_thread::get_id();
+    sp_mgr.request_safepoint();
+    EXPECT_EQ(sp_mgr.active_gc_owner(), caller_tid);
+    EXPECT_GT(sp_mgr.safepoint_epoch(), 0u);
+
+    // Another thread trying to call resume_mutators must fail
+    std::atomic<bool> unauthorized_rejected{false};
+    std::thread rouge_thread([&]() {
+        try {
+            sp_mgr.resume_mutators();
+        } catch (const std::runtime_error&) {
+            unauthorized_rejected.store(true);
+        }
+    });
+    rouge_thread.join();
+    EXPECT_TRUE(unauthorized_rejected.load());
+
+    // Legitimate owner resumes
+    sp_mgr.resume_mutators();
+    EXPECT_EQ(sp_mgr.active_gc_owner(), std::thread::id{});
+    EXPECT_FALSE(sp_mgr.is_safepoint_requested());
+
+    // Concurrently request safepoints from two separate coordinator threads
+    std::atomic<int> completed_coordinators{0};
+    auto coordinator_work = [&]() {
+        sp_mgr.request_safepoint();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        sp_mgr.resume_mutators();
+        completed_coordinators.fetch_add(1);
+    };
+
+    std::thread c1(coordinator_work);
+    std::thread c2(coordinator_work);
+    c1.join();
+    c2.join();
+
+    EXPECT_EQ(completed_coordinators.load(), 2);
+    sp_mgr.reset();
+}
+
+TEST(MemoryTest, SafepointManagerUnregisterDuringActiveSTWDoesNotHang) {
+    // Tests M11 Checklist #4:
+    // When a mutator thread unregisters during an active safepoint request (e.g. exit/crash),
+    // the SafepointManager must immediately notify cv_gc_ so GC does not hang.
+    auto& sp_mgr = raven::SafepointManager::instance();
+    sp_mgr.reset();
+
+    std::atomic<bool> thread_registered{false};
+    std::atomic<bool> unregister_done{false};
+
+    std::thread mutator([&]() {
+        sp_mgr.register_thread();
+        thread_registered.store(true);
+
+        // Wait until safepoint requested
+        while (!sp_mgr.is_safepoint_requested()) {
+            std::this_thread::yield();
+        }
+
+        // Thread terminates and unregisters without calling poll_safepoint
+        sp_mgr.unregister_thread();
+        unregister_done.store(true);
+    });
+
+    while (!thread_registered.load()) {
+        std::this_thread::yield();
+    }
+
+    // GC requests safepoint with 2-second timeout
+    sp_mgr.request_safepoint(std::chrono::milliseconds(2000));
+    EXPECT_TRUE(unregister_done.load());
+    EXPECT_EQ(sp_mgr.registered_thread_count(), 0u);
+
+    sp_mgr.resume_mutators();
+    mutator.join();
+    sp_mgr.reset();
+}
+
+

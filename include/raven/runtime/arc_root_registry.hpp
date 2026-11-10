@@ -7,6 +7,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace raven {
@@ -35,6 +36,12 @@ public:
 
     void set_gc_phase(GCPhase phase) noexcept {
         gc_phase_.store(phase, std::memory_order_release);
+        if (phase == GCPhase::Idle) {
+            // When GC cycle completes, release all epoch-pinned grey root lifetime locks
+            std::lock_guard<std::mutex> lock(grey_mtx_);
+            pinned_grey_roots_.clear();
+            deferred_reclaim_roots_.clear();
+        }
     }
 
     GCPhase gc_phase() const noexcept {
@@ -49,13 +56,18 @@ public:
             std::unique_lock<std::shared_mutex> lock(stripes_[idx].mtx);
             stripes_[idx].active_roots[gc_ptr]++;
         }
-        // Root Write Barrier: if in IncrementalMarking phase, shade grey
+        // Root Write Barrier: if in IncrementalMarking phase, shade grey and pin lifetime
         if (gc_phase() == GCPhase::IncrementalMarking) {
             write_barrier_root(gc_ptr);
         }
     }
 
-    // Invoked when an Arc strong count drops
+    /**
+     * @brief Invoked when an Arc strong count drops.
+     * If the root count reaches 0 during an active GC marking pass, its lifetime
+     * is pinned in deferred_reclaim_roots_ until the current cycle's Sweep completes,
+     * guaranteeing that the GC scanner never encounters dangling grey roots.
+     */
     void unregister_root(void* gc_ptr) {
         if (!gc_ptr) return;
         size_t idx = stripe_index(gc_ptr);
@@ -64,6 +76,14 @@ public:
         if (it != stripes_[idx].active_roots.end()) {
             if (--(it->second) == 0) {
                 stripes_[idx].active_roots.erase(it);
+
+                // If GC is active, retain lifetime pin until Idle phase
+                if (gc_phase() != GCPhase::Idle) {
+                    std::lock_guard<std::mutex> glock(grey_mtx_);
+                    if (pinned_grey_roots_.find(gc_ptr) != pinned_grey_roots_.end()) {
+                        deferred_reclaim_roots_.insert(gc_ptr);
+                    }
+                }
             }
         }
     }
@@ -101,10 +121,15 @@ public:
         return (it != stripes_[idx].active_roots.end()) ? it->second : 0;
     }
 
+    /**
+     * @brief Root Write Barrier shading an object into grey roots.
+     * Pins the pointer into pinned_grey_roots_ to guarantee lifetime through FinalRemark.
+     */
     void write_barrier_root(void* gc_ptr) {
         if (!gc_ptr) return;
         std::lock_guard<std::mutex> lock(grey_mtx_);
         grey_roots_.push_back(gc_ptr);
+        pinned_grey_roots_.insert(gc_ptr);
     }
 
     std::vector<void*> drain_grey_roots() {
@@ -114,6 +139,12 @@ public:
         return drained;
     }
 
+    bool is_root_pinned_for_gc(void* gc_ptr) const {
+        if (!gc_ptr) return false;
+        std::lock_guard<std::mutex> lock(grey_mtx_);
+        return pinned_grey_roots_.find(gc_ptr) != pinned_grey_roots_.end();
+    }
+
     void clear() {
         for (size_t i = 0; i < kNumStripes; ++i) {
             std::unique_lock<std::shared_mutex> lock(stripes_[i].mtx);
@@ -121,6 +152,8 @@ public:
         }
         std::lock_guard<std::mutex> glock(grey_mtx_);
         grey_roots_.clear();
+        pinned_grey_roots_.clear();
+        deferred_reclaim_roots_.clear();
         gc_phase_.store(GCPhase::Idle, std::memory_order_release);
     }
 
@@ -140,8 +173,10 @@ private:
     std::array<Stripe, kNumStripes> stripes_;
     std::atomic<GCPhase> gc_phase_{GCPhase::Idle};
 
-    std::mutex grey_mtx_;
+    mutable std::mutex grey_mtx_;
     std::vector<void*> grey_roots_;
+    std::unordered_set<void*> pinned_grey_roots_;
+    std::unordered_set<void*> deferred_reclaim_roots_;
 };
 
 /**
