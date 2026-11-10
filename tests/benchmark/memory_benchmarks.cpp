@@ -403,21 +403,27 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
     reg.clear();
     sp.reset();
 
-    const int kDurationMs = g_soak_duration_ms;
-    const int kRssSampleIntervalMs = 2000;  // sample RSS every 2 s
-    const int kMutatorThreads = 4;
+    const int kDurationMs       = g_soak_duration_ms;
+    const int kRssSampleMs      = 2000;   // RSS sample every 2 s
+    const int kMutatorThreads   = 4;
+    // "Stabilization window" = final 20% of the soak.
+    // RSS in this window must not grow more than 5% (plateau check).
+    const double kStabilizationFraction = 0.80;
 
     std::atomic<bool>     stop_flag{false};
     std::atomic<uint64_t> total_mutator_ops{0};
     std::atomic<uint64_t> gc_cycles_completed{0};
-    int                   dummy = 0;
+    std::atomic<uint64_t> live_arc_objects{0};   // approximation: arcs in flight
+    int dummy = 0;
 
-    // RSS samples collected from the main thread while the workload runs
-    std::vector<uint32_t> rss_samples;
+    // ---- Timestamped RSS snapshot ----
+    struct RssSample { int64_t elapsed_ms; uint32_t rss_kb; };
+    std::vector<RssSample> rss_samples;
 
-    // ---- GC coordinator ----
+    // ---- GC coordinator: full 4-phase cycle ----
     std::thread gc_thread([&]() {
         while (!stop_flag.load(std::memory_order_relaxed)) {
+            // Phase 1: Initial Mark (STW)
             sp.request_safepoint();
             reg.set_gc_phase(raven::GCPhase::InitialMark);
             auto roots = reg.snapshot_roots();
@@ -425,13 +431,18 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
             reg.set_gc_phase(raven::GCPhase::IncrementalMarking);
             sp.resume_mutators();
 
+            // Phase 2: Concurrent incremental marking
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            auto grey = reg.drain_grey_roots();
+            (void)grey;
 
-            reg.set_gc_phase(raven::GCPhase::FinalRemark);
+            // Phase 3: Final Remark (STW)
             sp.request_safepoint();
-            reg.set_gc_phase(raven::GCPhase::Sweep);
+            reg.set_gc_phase(raven::GCPhase::FinalRemark);
             sp.resume_mutators();
 
+            // Phase 4: Sweep
+            reg.set_gc_phase(raven::GCPhase::Sweep);
             std::this_thread::sleep_for(std::chrono::milliseconds(3));
             reg.set_gc_phase(raven::GCPhase::Idle);
             gc_cycles_completed.fetch_add(1, std::memory_order_relaxed);
@@ -451,8 +462,11 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
                 {
                     raven::Arc<int> a(&dummy);
                     raven::Arc<int> b = a;
+                    live_arc_objects.fetch_add(2, std::memory_order_relaxed);
                     raven::ResourceLease lease(rcb);
                     total_mutator_ops.fetch_add(1, std::memory_order_relaxed);
+                    // Arcs destroyed here — count decreases
+                    live_arc_objects.fetch_sub(2, std::memory_order_relaxed);
                 }
                 if ((total_mutator_ops.load(std::memory_order_relaxed) % 500) == 0) {
                     sp.enter_native();
@@ -466,57 +480,101 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
         });
     }
 
-    // ---- Main thread: run for kDurationMs, sampling RSS every 2 s ----
-    auto start = std::chrono::steady_clock::now();
-    auto next_sample = start + std::chrono::milliseconds(kRssSampleIntervalMs);
-    auto end_time    = start + std::chrono::milliseconds(kDurationMs);
+    // ---- Main thread: sampling loop ----
+    auto wall_start  = std::chrono::steady_clock::now();
+    auto next_sample = wall_start + std::chrono::milliseconds(kRssSampleMs);
+    auto end_time    = wall_start + std::chrono::milliseconds(kDurationMs);
 
     while (std::chrono::steady_clock::now() < end_time) {
         if (std::chrono::steady_clock::now() >= next_sample) {
             uint32_t rss = read_rss_kb();
-            if (rss > 0) rss_samples.push_back(rss);
-            next_sample += std::chrono::milliseconds(kRssSampleIntervalMs);
+            if (rss > 0) {
+                int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - wall_start).count();
+                rss_samples.push_back({elapsed, rss});
+            }
+            next_sample += std::chrono::milliseconds(kRssSampleMs);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    // Final sample at end
-    uint32_t final_rss = read_rss_kb();
-    if (final_rss > 0) rss_samples.push_back(final_rss);
+    // Final sample
+    {
+        uint32_t rss = read_rss_kb();
+        if (rss > 0) {
+            int64_t elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - wall_start).count();
+            rss_samples.push_back({elapsed, rss});
+        }
+    }
 
     stop_flag.store(true, std::memory_order_release);
     for (auto& m : mutators) m.join();
     gc_thread.join();
 
+    // ---- Compute stabilization-window RSS plateau ----
+    double rss_plateau_growth_pct = 0.0;
+    if (rss_samples.size() >= 3) {
+        int64_t stable_start_ms = static_cast<int64_t>(kDurationMs * kStabilizationFraction);
+        uint32_t stable_first = 0, stable_last = 0;
+        for (auto& s : rss_samples) {
+            if (s.elapsed_ms >= stable_start_ms) {
+                if (stable_first == 0) stable_first = s.rss_kb;
+                stable_last = s.rss_kb;
+            }
+        }
+        if (stable_first > 0) {
+            rss_plateau_growth_pct =
+                (static_cast<double>(stable_last) - stable_first) / stable_first * 100.0;
+        }
+    }
+
+    uint64_t gc_cycles  = gc_cycles_completed.load();
+    uint64_t mutator_ops = total_mutator_ops.load();
+    double   gc_rate     = gc_cycles  * 1000.0 / kDurationMs;   // cycles/sec
+    double   op_rate     = mutator_ops * 1000.0 / kDurationMs;  // ops/sec
+
     // ---- Report ----
     std::cout << "\n========================================================================================\n";
     std::cout << "EXTENDED SOAK TEST SUMMARY (Gate 3 — Full Qualification)\n";
+    std::cout << "----------------------------------------------------------------------------------------\n";
     std::cout << "Duration          : " << kDurationMs << " ms\n";
     std::cout << "Mutator Threads   : " << kMutatorThreads << "\n";
-    std::cout << "Total Mutator Ops : " << total_mutator_ops.load() << "\n";
-    std::cout << "GC Cycles Run     : " << gc_cycles_completed.load() << "\n";
-    if (!rss_samples.empty()) {
-        uint32_t rss_min = *std::min_element(rss_samples.begin(), rss_samples.end());
-        uint32_t rss_max = *std::max_element(rss_samples.begin(), rss_samples.end());
-        std::cout << "RSS Min / Max     : " << rss_min << " kB / " << rss_max << " kB ("
-                  << rss_samples.size() << " samples)\n";
+    std::cout << "Total Mutator Ops : " << mutator_ops << "  (" << std::fixed << std::setprecision(1) << op_rate << " ops/sec)\n";
+    std::cout << "GC Cycles Run     : " << gc_cycles    << "  (" << std::fixed << std::setprecision(2) << gc_rate  << " cycles/sec)\n";
 
-        // Monotonic growth check: RSS at end must not be more than 20% above
-        // the minimum seen during the run (a healthy GC reclaims memory).
-        uint32_t rss_first = rss_samples.front();
-        uint32_t rss_last  = rss_samples.back();
-        double growth_pct  = rss_first > 0
-            ? (static_cast<double>(rss_last) - rss_first) / rss_first * 100.0
-            : 0.0;
-        std::cout << "RSS Growth        : " << std::fixed << std::setprecision(1)
-                  << growth_pct << "% (first=" << rss_first << " kB, last=" << rss_last << " kB)\n";
-        EXPECT_LT(growth_pct, 20.0)
-            << "Potential memory leak: RSS grew by " << growth_pct
-            << "% over " << kDurationMs << " ms soak";
+    if (!rss_samples.empty()) {
+        uint32_t rss_min = rss_samples[0].rss_kb, rss_max = rss_samples[0].rss_kb;
+        for (auto& s : rss_samples) {
+            rss_min = std::min(rss_min, s.rss_kb);
+            rss_max = std::max(rss_max, s.rss_kb);
+        }
+        uint32_t rss_first = rss_samples.front().rss_kb;
+        uint32_t rss_last  = rss_samples.back().rss_kb;
+        double   full_growth = rss_first > 0
+            ? (static_cast<double>(rss_last) - rss_first) / rss_first * 100.0 : 0.0;
+
+        std::cout << "RSS Min / Max     : " << rss_min << " kB / " << rss_max << " kB (" << rss_samples.size() << " samples)\n";
+        std::cout << "RSS Full Growth   : " << std::fixed << std::setprecision(1)
+                  << full_growth << "% (first=" << rss_first << " kB, last=" << rss_last << " kB)\n";
+        std::cout << "RSS Plateau (last " << static_cast<int>((1.0 - kStabilizationFraction) * 100)
+                  << "% of run): " << std::fixed << std::setprecision(1)
+                  << rss_plateau_growth_pct << "% growth\n";
+
+        // Invariant 1: Total growth < 20%
+        EXPECT_LT(full_growth, 20.0)
+            << "Memory leak suspected: RSS grew " << full_growth << "% over full soak";
+
+        // Invariant 2: Plateau growth < 5% (GC is reclaiming — not leaking)
+        if (rss_samples.size() >= 4) {
+            EXPECT_LT(rss_plateau_growth_pct, 5.0)
+                << "GC not reclaiming: RSS still growing " << rss_plateau_growth_pct
+                << "% in stabilization window";
+        }
     }
     std::cout << "========================================================================================\n\n";
 
-    EXPECT_GT(total_mutator_ops.load(), 500u);
-    EXPECT_GT(gc_cycles_completed.load(), 2u);
+    EXPECT_GT(mutator_ops, 500u)   << "Too few mutator ops — workload may have stalled";
+    EXPECT_GT(gc_cycles,   2u)     << "Too few GC cycles — GC coordinator may have stalled";
 
     reg.clear();
     sp.reset();

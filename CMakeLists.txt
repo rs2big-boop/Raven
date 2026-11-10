@@ -212,6 +212,10 @@ if(RAVEN_BUILD_TESTS)
     add_executable(memory_benchmarks tests/benchmark/memory_benchmarks.cpp)
     target_link_libraries(memory_benchmarks PRIVATE raven_core GTest::gtest_main)
     gtest_discover_tests(memory_benchmarks)
+
+    add_executable(http_integration_benchmark tests/benchmark/http_integration_benchmark.cpp)
+    target_link_libraries(http_integration_benchmark PRIVATE raven_core GTest::gtest_main)
+    gtest_discover_tests(http_integration_benchmark)
 endif()
 
 # Installation targets
