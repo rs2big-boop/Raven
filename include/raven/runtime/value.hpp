@@ -9,6 +9,8 @@
 #include <variant>
 #include <vector>
 
+#include "raven/gc_hook.hpp"
+
 namespace raven {
 
 class Interpreter;
@@ -41,8 +43,12 @@ public:
     Value(std::string s) : data_(std::move(s)) {}
     Value(const char* s) : data_(std::string(s)) {}
     Value(std::shared_ptr<Callable> c) : data_(std::move(c)) {}
-    Value(ArrayPtr arr) : data_(std::move(arr)) {}
-    Value(MapPtr m) : data_(std::move(m)) {}
+    Value(ArrayPtr arr) : data_(std::move(arr)) {
+        gc::track_array_auto(std::get<ArrayPtr>(data_));
+    }
+    Value(MapPtr m) : data_(std::move(m)) {
+        gc::track_map_auto(std::get<MapPtr>(data_));
+    }
 
     bool is_nil() const { return std::holds_alternative<Nil>(data_); }
     bool is_bool() const { return std::holds_alternative<bool>(data_); }

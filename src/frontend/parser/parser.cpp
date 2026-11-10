@@ -86,6 +86,9 @@ std::shared_ptr<Stmt> Parser::declaration() {
     if (match({TokenType::Class})) {
         return class_declaration();
     }
+    if (match({TokenType::Using})) {
+        return using_statement();
+    }
     return statement();
 }
 
@@ -215,6 +218,9 @@ std::shared_ptr<Stmt> Parser::statement() {
     }
     if (match({TokenType::Return})) {
         return return_statement();
+    }
+    if (match({TokenType::Using})) {
+        return using_statement();
     }
     if (match({TokenType::LeftBrace})) {
         return block_statement();
@@ -436,6 +442,20 @@ std::shared_ptr<Stmt> Parser::return_statement() {
     return std::make_shared<ReturnStmt>(std::move(keyword), std::move(value));
 }
 
+std::shared_ptr<Stmt> Parser::using_statement() {
+    Token name = consume(TokenType::Identifier, "Expected variable name after 'using'.");
+    consume(TokenType::Equal, "Expected '=' after variable name in 'using' statement.");
+    std::unique_ptr<Expr> initializer = expression();
+
+    consume(TokenType::LeftBrace, "Expected '{' block for 'using' statement scope.");
+    std::vector<std::shared_ptr<Stmt>> body;
+    while (!check(TokenType::RightBrace) && !is_at_end()) {
+        body.push_back(declaration());
+    }
+    consume(TokenType::RightBrace, "Expected '}' after 'using' block.");
+    return std::make_shared<UsingStmt>(std::move(name), std::move(initializer), std::move(body));
+}
+
 std::shared_ptr<Stmt> Parser::block_statement() {
     std::vector<std::shared_ptr<Stmt>> statements;
     while (!check(TokenType::RightBrace) && !is_at_end()) {
@@ -603,7 +623,7 @@ std::unique_ptr<Expr> Parser::factor() {
 }
 
 std::unique_ptr<Expr> Parser::unary() {
-    if (match({TokenType::Bang, TokenType::Minus, TokenType::Await})) {
+    if (match({TokenType::Bang, TokenType::Minus, TokenType::Await, TokenType::Move})) {
         Token op = previous();
         auto right = unary();
         return std::make_unique<UnaryExpr>(std::move(op), std::move(right));

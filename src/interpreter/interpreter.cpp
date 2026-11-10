@@ -33,10 +33,12 @@
 #include "raven/concurrency/wait_group.hpp"
 #include "raven/concurrency/mutex.hpp"
 #include "raven/concurrency/spawn_registry.hpp"
+#include "raven/concurrency/container_lock.hpp"
 #include "raven/platform/crypto.hpp"
 #include "raven/platform/http_client.hpp"
 #include "raven/platform/sockets.hpp"
 #include "raven/platform/filesystem.hpp"
+#include "raven/runtime/resource_handle.hpp"
 #include "raven/platform/system_info.hpp"
 
 #include "raven/lexer.hpp"
@@ -591,6 +593,11 @@ Interpreter::Interpreter(std::ostream& out)
     : out_(out),
       globals_(std::make_shared<Environment>()),
       environment_(globals_) {
+    gc::GCRegistry::instance().register_root_scanner(this, [this](std::function<void(const Value&)> trace_fn) {
+        if (environment_) {
+            environment_->scan_values(trace_fn);
+        }
+    });
     register_builtins();
 }
 
@@ -598,6 +605,15 @@ Interpreter::Interpreter(std::shared_ptr<Environment> globals, std::ostream& out
     : out_(out),
       globals_(std::move(globals)),
       environment_(globals_) {
+    gc::GCRegistry::instance().register_root_scanner(this, [this](std::function<void(const Value&)> trace_fn) {
+        if (environment_) {
+            environment_->scan_values(trace_fn);
+        }
+    });
+}
+
+Interpreter::~Interpreter() {
+    gc::GCRegistry::instance().unregister_root_scanner(this);
 }
 
 void Interpreter::register_builtins() {
@@ -617,6 +633,7 @@ void Interpreter::register_builtins() {
         if (!args[0].is_array()) {
             throw RuntimeError(Token{TokenType::Identifier, "push", 0, 0}, "push() expects array as first argument.");
         }
+        std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(args[0].as_array().get()));
         args[0].as_array()->push_back(args[1]);
         return args[1];
     });
@@ -625,6 +642,7 @@ void Interpreter::register_builtins() {
         if (!args[0].is_array()) {
             throw RuntimeError(Token{TokenType::Identifier, "pop", 0, 0}, "pop() expects array as argument.");
         }
+        std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(args[0].as_array().get()));
         auto& arr = *args[0].as_array();
         if (arr.empty()) return Value();
         Value val = arr.back();
@@ -960,7 +978,11 @@ void Interpreter::register_builtins() {
         buf << f.rdbuf();
         return Value(buf.str());
     });
-    def("write_file", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+    def("write_file", 2, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (interp.sandbox().enabled && !interp.sandbox().allow_fs_write) {
+            throw RuntimeError(Token{TokenType::Identifier, "write_file", 0, 0},
+                               "Security violation: write_file() is blocked by sandbox policy.");
+        }
         if (!args[0].is_string() || !args[1].is_string()) {
             throw RuntimeError(Token{TokenType::Identifier, "write_file", 0, 0}, "write_file() expects path and content strings.");
         }
@@ -986,7 +1008,11 @@ void Interpreter::register_builtins() {
         if (!val) return Value();
         return Value(std::string(val));
     });
-    def("exec", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+    def("exec", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (interp.sandbox().enabled && !interp.sandbox().allow_shell) {
+            throw RuntimeError(Token{TokenType::Identifier, "exec", 0, 0},
+                               "Security violation: exec() is blocked by sandbox policy.");
+        }
         if (!args[0].is_string()) throw RuntimeError(Token{TokenType::Identifier, "exec", 0, 0}, "exec() expects shell command string.");
         std::string cmd = args[0].as_string();
         std::array<char, 256> buffer;
@@ -1609,7 +1635,11 @@ void Interpreter::register_builtins() {
         return Value(lines);
     });
 
-    def("append_file", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+    def("append_file", 2, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (interp.sandbox().enabled && !interp.sandbox().allow_fs_write) {
+            throw RuntimeError(Token{TokenType::Identifier, "append_file", 0, 0},
+                               "Security violation: append_file() is blocked by sandbox policy.");
+        }
         std::string path = args[0].to_string();
         std::string content = args[1].to_string();
         std::ofstream file(path, std::ios::app);
@@ -1773,7 +1803,11 @@ void Interpreter::register_builtins() {
     });
 
     // Foreign Function Interface (FFI) Native Builtins
-    def("ffi_open", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+    def("ffi_open", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (interp.sandbox().enabled && !interp.sandbox().allow_ffi) {
+            throw RuntimeError(Token{TokenType::Identifier, "ffi_open", 0, 0},
+                               "Security violation: FFI dynamic library loading is blocked by sandbox policy.");
+        }
         std::string path;
         if (!args[0].is_nil()) {
             path = args[0].to_string();
@@ -2002,6 +2036,8 @@ void Interpreter::register_builtins() {
 }
 
 void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements) {
+    start_time_ = std::chrono::steady_clock::now();
+    instruction_count_ = 0;
     try {
         for (const auto& stmt : statements) {
             if (stmt) {
@@ -2017,6 +2053,20 @@ void Interpreter::interpret(const std::vector<std::shared_ptr<Stmt>>& statements
 }
 
 void Interpreter::execute(const Stmt& stmt) {
+    if (sandbox_.enabled) {
+        if (sandbox_.max_instructions > 0 && ++instruction_count_ > sandbox_.max_instructions) {
+            throw RuntimeError(Token{TokenType::Identifier, "sandbox", 0, 0},
+                               "Security violation: maximum instruction budget exceeded.");
+        }
+        if (sandbox_.timeout_ms > 0) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time_).count();
+            if (elapsed > static_cast<int64_t>(sandbox_.timeout_ms)) {
+                throw RuntimeError(Token{TokenType::Identifier, "sandbox", 0, 0},
+                                   "Security violation: execution time limit exceeded (" + std::to_string(sandbox_.timeout_ms) + " ms).");
+            }
+        }
+    }
     if (step_callback_) {
         step_callback_(*this, stmt);
     }
@@ -2420,6 +2470,7 @@ Value Interpreter::visit(const IndexAssignExpr& expr) {
         if (!idx.is_number()) {
             throw RuntimeError(expr.bracket, "Array index must be a number.");
         }
+        std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(obj.as_array().get()));
         int i = static_cast<int>(idx.as_number());
         auto& arr = *obj.as_array();
         if (i < 0) i += static_cast<int>(arr.size());
@@ -2431,6 +2482,7 @@ Value Interpreter::visit(const IndexAssignExpr& expr) {
     }
 
     if (obj.is_map()) {
+        std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(obj.as_map().get()));
         std::string key = idx.is_string() ? idx.as_string() : idx.to_string();
         (*obj.as_map())[key] = val;
         return val;
@@ -2445,6 +2497,7 @@ Value Interpreter::visit(const PropertyExpr& expr) {
         return Value();
     }
     if (obj.is_map()) {
+        std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(obj.as_map().get()));
         auto& m = *obj.as_map();
         auto it = m.find(expr.name.lexeme);
         if (it == m.end()) return Value();
@@ -2472,6 +2525,7 @@ Value Interpreter::visit(const PropertyAssignExpr& expr) {
     Value obj = evaluate(*expr.object);
     Value val = evaluate(*expr.value);
     if (obj.is_map()) {
+        std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(obj.as_map().get()));
         (*obj.as_map())[expr.name.lexeme] = val;
         return val;
     }
@@ -2922,6 +2976,89 @@ void Interpreter::visit(const DestructureStmt& stmt) {
                 environment_->define(name.lexeme, Value());
             }
         }
+    }
+}
+
+void Interpreter::visit(const UsingStmt& stmt) {
+    Value resource;
+    if (stmt.initializer) {
+        resource = evaluate(*stmt.initializer);
+    }
+
+    auto previous_env = environment_;
+    auto using_env = std::make_shared<Environment>(environment_);
+    using_env->define(stmt.name.lexeme, resource);
+    environment_ = using_env;
+
+    std::exception_ptr active_ex = nullptr;
+    bool has_return = false;
+    Value return_val;
+    bool has_break = false;
+    bool has_continue = false;
+
+    try {
+        for (const auto& s : stmt.body) {
+            if (s) execute(*s);
+        }
+    } catch (const ReturnException& re) {
+        has_return = true;
+        return_val = re.value;
+    } catch (const BreakException&) {
+        has_break = true;
+    } catch (const ContinueException&) {
+        has_continue = true;
+    } catch (...) {
+        active_ex = std::current_exception();
+    }
+
+    environment_ = previous_env;
+
+    // Guaranteed RAII cleanup: Invoke .close() or .dispose() on resource
+    auto invoke_resource_close = [&](const Value& res) {
+        if (res.is_map()) {
+            std::shared_ptr<Callable> close_fn = nullptr;
+            {
+                std::lock_guard<std::mutex> lk(concurrency::ContainerLock::get_mutex(res.as_map().get()));
+                auto& m = *res.as_map();
+                auto it = m.find("close");
+                if (it != m.end() && it->second.is_callable()) {
+                    Value bound = bind_if_method(res, it->second);
+                    if (bound.is_callable()) close_fn = bound.as_callable();
+                } else {
+                    it = m.find("dispose");
+                    if (it != m.end() && it->second.is_callable()) {
+                        Value bound = bind_if_method(res, it->second);
+                        if (bound.is_callable()) close_fn = bound.as_callable();
+                    }
+                }
+            }
+            if (close_fn) {
+                close_fn->call(*this, {});
+            }
+        }
+    };
+
+    try {
+        invoke_resource_close(resource);
+    } catch (...) {
+        if (!active_ex) {
+            // No prior exception: the cleanup failure becomes primary!
+            throw;
+        }
+        // If an exception was already active, preserve primary active_ex (suppressed exception policy)
+    }
+
+    if (active_ex) {
+        std::rethrow_exception(active_ex);
+    }
+    if (has_return) {
+        throw ReturnException{return_val};
+    }
+    if (has_break) {
+        throw BreakException{};
+    }
+    if (has_continue) {
+        throw ContinueException{};
     }
 }
 

@@ -70,6 +70,8 @@ std::string token_type_name(TokenType type) {
         case TokenType::Static: return "Static";
         case TokenType::Async: return "Async";
         case TokenType::Await: return "Await";
+        case TokenType::Using: return "Using";
+        case TokenType::Move: return "Move";
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";
         case TokenType::String: return "String";

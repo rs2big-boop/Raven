@@ -132,6 +132,8 @@ Token Lexer::scan_identifier_or_keyword() {
         {"static", TokenType::Static},
         {"async", TokenType::Async},
         {"await", TokenType::Await},
+        {"using", TokenType::Using},
+        {"move", TokenType::Move},
     };
 
     int start_line = line_;

@@ -37,6 +37,8 @@ enum class TokenType {
     Static,
     Async,
     Await,
+    Using,
+    Move,
 
     // Literals & Identifiers
     Identifier,
@@ -121,6 +123,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Static: return "Static";
         case TokenType::Async: return "Async";
         case TokenType::Await: return "Await";
+        case TokenType::Using: return "Using";
+        case TokenType::Move: return "Move";
         case TokenType::Break: return "Break";
         case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";
@@ -137,6 +141,8 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Static: return "Static";
         case TokenType::Async: return "Async";
         case TokenType::Await: return "Await";
+        case TokenType::Using: return "Using";
+        case TokenType::Move: return "Move";
 
         case TokenType::Identifier: return "Identifier";
         case TokenType::Number: return "Number";

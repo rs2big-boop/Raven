@@ -69,6 +69,20 @@ public:
         roots_.erase(root);
     }
 
+    using RootScanner = std::function<void(std::function<void(const Value&)>)>;
+
+    // Register a dynamic root scanner (e.g. Interpreter Environment, VM execution stack)
+    void register_root_scanner(const void* key, RootScanner scanner) {
+        std::lock_guard<std::mutex> lk(mutex_);
+        root_scanners_[key] = std::move(scanner);
+    }
+
+    // Unregister a dynamic root scanner
+    void unregister_root_scanner(const void* key) {
+        std::lock_guard<std::mutex> lk(mutex_);
+        root_scanners_.erase(key);
+    }
+
     // Perform one cycle-detection pass.
     //
     // Algorithm (simplified Bacon-Rajan):
@@ -89,6 +103,15 @@ public:
         std::unordered_set<const void*> reachable;
         for (const Value* root : roots_) {
             trace_value(*root, reachable);
+        }
+
+        // Trace dynamic roots from registered environments and stacks
+        for (const auto& [_, scanner] : root_scanners_) {
+            if (scanner) {
+                scanner([this, &reachable](const Value& v) {
+                    this->trace_value(v, reachable);
+                });
+            }
         }
 
         // Step 3 & 4: find candidates not in reachable set and break them.
@@ -236,6 +259,7 @@ private:
 
     mutable std::mutex mutex_;
     std::unordered_set<const Value*> roots_;
+    std::unordered_map<const void*, RootScanner> root_scanners_;
     std::vector<std::weak_ptr<std::vector<Value>>>                          tracked_arrays_;
     std::vector<std::weak_ptr<std::unordered_map<std::string, Value>>>      tracked_maps_;
     GCStats stats_;

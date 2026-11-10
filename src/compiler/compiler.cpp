@@ -462,6 +462,24 @@ void Compiler::visit(const DestructureStmt& stmt) {
     }
 }
 
+void Compiler::visit(const UsingStmt& stmt) {
+    scope_depth_++;
+    if (stmt.initializer) {
+        stmt.initializer->accept(*this);
+    } else {
+        emit_op(OpCode::Nil);
+    }
+    locals_.push_back(Local{stmt.name, scope_depth_});
+    for (const auto& s : stmt.body) {
+        if (s) s->accept(*this);
+    }
+    while (!locals_.empty() && locals_.back().depth >= scope_depth_) {
+        emit_op(OpCode::Pop);
+        locals_.pop_back();
+    }
+    scope_depth_--;
+}
+
 void Compiler::visit(const BlockStmt& stmt) {
     scope_depth_++;
     for (const auto& s : stmt.statements) {

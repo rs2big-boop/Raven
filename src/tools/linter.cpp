@@ -108,6 +108,19 @@ void Linter::visit(const DestructureStmt& stmt) {
     }
 }
 
+void Linter::visit(const UsingStmt& stmt) {
+    if (stmt.initializer) stmt.initializer->accept(*this);
+    push_scope();
+    if (!declared_vars_.empty()) {
+        declared_vars_.back().insert(stmt.name.lexeme);
+        var_tokens_.back().push_back({stmt.name.lexeme, stmt.name});
+    }
+    for (const auto& s : stmt.body) {
+        if (s) s->accept(*this);
+    }
+    pop_scope();
+}
+
 void Linter::visit(const BlockStmt& stmt) {
     push_scope();
     bool has_term = false;

@@ -50,6 +50,7 @@ private:
     std::shared_ptr<Stmt> break_statement();
     std::shared_ptr<Stmt> continue_statement();
     std::shared_ptr<Stmt> return_statement();
+    std::shared_ptr<Stmt> using_statement();
     std::shared_ptr<Stmt> block_statement();
     std::shared_ptr<Stmt> expression_statement();
 

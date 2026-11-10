@@ -319,6 +319,7 @@ class ContinueStmt;
 class FunctionStmt;
 class ReturnStmt;
 class DestructureStmt;
+class UsingStmt;
 
 template <typename R>
 class StmtVisitor {
@@ -335,11 +336,13 @@ public:
     virtual R visit(const ThrowStmt& stmt) = 0;
     virtual R visit(const ImportStmt& stmt) = 0;
     virtual R visit(const StructStmt& stmt) = 0;
+    virtual R visit(const ClassStmt& stmt) = 0;
     virtual R visit(const BreakStmt& stmt) = 0;
     virtual R visit(const ContinueStmt& stmt) = 0;
     virtual R visit(const FunctionStmt& stmt) = 0;
     virtual R visit(const ReturnStmt& stmt) = 0;
     virtual R visit(const DestructureStmt& stmt) = 0;
+    virtual R visit(const UsingStmt& stmt) = 0;
 };
 
 class Stmt {
@@ -567,6 +570,18 @@ public:
     DestructureKind kind;
     std::vector<Token> names;
     std::unique_ptr<Expr> initializer;
+};
+
+class UsingStmt : public Stmt {
+public:
+    UsingStmt(Token name, std::unique_ptr<Expr> initializer, std::vector<std::shared_ptr<Stmt>> body)
+        : name(std::move(name)), initializer(std::move(initializer)), body(std::move(body)) {}
+
+    void accept(StmtVisitor<void>& visitor) const override { visitor.visit(*this); }
+
+    Token name;
+    std::unique_ptr<Expr> initializer;
+    std::vector<std::shared_ptr<Stmt>> body;
 };
 
 } // namespace raven

@@ -53,6 +53,19 @@ void Resolver::visit(const DestructureStmt& stmt) {
     }
 }
 
+void Resolver::visit(const UsingStmt& stmt) {
+    if (stmt.initializer) {
+        resolve(*stmt.initializer);
+    }
+    scopes_.push_scope(false);
+    Symbol sym(stmt.name.lexeme, SymbolKind::Variable, scopes_.current_depth(), 0);
+    scopes_.define(sym);
+    for (const auto& s : stmt.body) {
+        if (s) s->accept(*this);
+    }
+    scopes_.pop_scope();
+}
+
 void Resolver::visit(const BlockStmt& stmt) {
     scopes_.push_scope(false);
     for (const auto& s : stmt.statements) {

@@ -1606,4 +1606,113 @@ TEST(InterpreterTest, MultipleAsyncCalls) {
     ), "60\n");
 }
 
+TEST(InterpreterTest, UsingNormalExit) {
+    std::string source =
+        "let closed = false;\n"
+        "let res = {\n"
+        "    \"close\": fn() { closed = true; }\n"
+        "};\n"
+        "using r = res {\n"
+        "    print(\"inside\");\n"
+        "}\n"
+        "print(closed);\n";
+    EXPECT_EQ(run_code(source), "inside\ntrue\n");
+}
+
+TEST(InterpreterTest, UsingEarlyReturn) {
+    std::string source =
+        "let closed = false;\n"
+        "let res = {\n"
+        "    \"close\": fn() { closed = true; }\n"
+        "};\n"
+        "fn test_ret() {\n"
+        "    using r = res {\n"
+        "        return \"early\";\n"
+        "    }\n"
+        "}\n"
+        "let res_val = test_ret();\n"
+        "print(res_val);\n"
+        "print(closed);\n";
+    EXPECT_EQ(run_code(source), "early\ntrue\n");
+}
+
+TEST(InterpreterTest, UsingExceptionUnwinding) {
+    std::string source =
+        "let closed = false;\n"
+        "let res = {\n"
+        "    \"close\": fn() { closed = true; }\n"
+        "};\n"
+        "try {\n"
+        "    using r = res {\n"
+        "        throw \"something failed\";\n"
+        "    }\n"
+        "} catch (e) {\n"
+        "    print(e);\n"
+        "}\n"
+        "print(closed);\n";
+    EXPECT_EQ(run_code(source), "something failed\ntrue\n");
+}
+
+TEST(InterpreterTest, UsingNestedMultiCleanupContinuesOnFailure) {
+    std::string source =
+        "let log = [];\n"
+        "let res1 = { \"close\": fn() { push(log, \"closed 1\"); } };\n"
+        "let res2 = { \"close\": fn() { push(log, \"closed 2\"); throw \"fail 2\"; } };\n"
+        "try {\n"
+        "    using r1 = res1 {\n"
+        "        using r2 = res2 {\n"
+        "            push(log, \"inside\");\n"
+        "        }\n"
+        "    }\n"
+        "} catch (e) {\n"
+        "    push(log, \"caught: \" + str(e));\n"
+        "}\n"
+        "print(len(log));\n"
+        "print(log[0]);\n"
+        "print(log[1]);\n"
+        "print(log[2]);\n"
+        "print(log[3]);\n";
+    EXPECT_EQ(run_code(source), "4\ninside\nclosed 2\nclosed 1\ncaught: fail 2\n");
+}
+
+TEST(InterpreterTest, UsingLoopBreakAndContinue) {
+    std::string source =
+        "let close_count = 0;\n"
+        "fn make_res() {\n"
+        "    return { \"close\": fn() { close_count += 1; } };\n"
+        "}\n"
+        "let i = 0;\n"
+        "while (i < 3) {\n"
+        "    i += 1;\n"
+        "    using r = make_res() {\n"
+        "        if (i == 1) { continue; }\n"
+        "        if (i == 2) { break; }\n"
+        "    }\n"
+        "}\n"
+        "print(close_count);\n";
+    EXPECT_EQ(run_code(source), "2\n");
+}
+
+TEST(InterpreterTest, UsingMultipleCleanupBothFailPreservesPrimaryAndRunsAll) {
+    std::string source =
+        "let log = [];\n"
+        "let res1 = { \"close\": fn() { push(log, \"res1 close attempt\"); throw \"err 1\"; } };\n"
+        "let res2 = { \"close\": fn() { push(log, \"res2 close attempt\"); throw \"err 2\"; } };\n"
+        "try {\n"
+        "    using r1 = res1 {\n"
+        "        using r2 = res2 {\n"
+        "            push(log, \"work done\");\n"
+        "        }\n"
+        "    }\n"
+        "} catch (e) {\n"
+        "    push(log, \"primary: \" + str(e));\n"
+        "}\n"
+        "print(len(log));\n"
+        "print(log[0]);\n"
+        "print(log[1]);\n"
+        "print(log[2]);\n"
+        "print(log[3]);\n";
+    EXPECT_EQ(run_code(source), "4\nwork done\nres2 close attempt\nres1 close attempt\nprimary: err 2\n");
+}
+
 

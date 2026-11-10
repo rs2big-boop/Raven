@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -58,13 +60,17 @@ public:
         : enclosing_(std::move(enclosing)) {}
 
     void define(const std::string& name, Value value) {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
         values_[name] = std::move(value);
     }
 
     Value get(const Token& name) {
-        auto it = values_.find(name.lexeme);
-        if (it != values_.end()) {
-            return it->second;
+        {
+            std::shared_lock<std::shared_mutex> lock(mutex_);
+            auto it = values_.find(name.lexeme);
+            if (it != values_.end()) {
+                return it->second;
+            }
         }
 
         if (enclosing_ != nullptr) {
@@ -81,10 +87,13 @@ public:
     }
 
     void assign(const Token& name, Value value) {
-        auto it = values_.find(name.lexeme);
-        if (it != values_.end()) {
-            it->second = std::move(value);
-            return;
+        {
+            std::unique_lock<std::shared_mutex> lock(mutex_);
+            auto it = values_.find(name.lexeme);
+            if (it != values_.end()) {
+                it->second = std::move(value);
+                return;
+            }
         }
 
         if (enclosing_ != nullptr) {
@@ -101,11 +110,29 @@ public:
     }
 
     std::shared_ptr<Environment> enclosing() const { return enclosing_; }
-    const std::unordered_map<std::string, Value>& values() const { return values_; }
+
+    std::unordered_map<std::string, Value> values() const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        return values_;
+    }
+
+    template <typename Fn>
+    void scan_values(Fn&& fn) const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        for (const auto& [k, v] : values_) {
+            fn(v);
+        }
+        if (enclosing_ != nullptr) {
+            enclosing_->scan_values(fn);
+        }
+    }
 
     void collect_names(std::vector<std::string>& out) const {
-        for (const auto& [k, _] : values_) {
-            out.push_back(k);
+        {
+            std::shared_lock<std::shared_mutex> lock(mutex_);
+            for (const auto& [k, _] : values_) {
+                out.push_back(k);
+            }
         }
         if (enclosing_ != nullptr) {
             enclosing_->collect_names(out);
@@ -128,6 +155,7 @@ public:
     }
 
 private:
+    mutable std::shared_mutex mutex_;
     std::unordered_map<std::string, Value> values_;
     std::shared_ptr<Environment> enclosing_ = nullptr;
 };

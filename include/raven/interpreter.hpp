@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -11,6 +12,15 @@
 #include "raven/value.hpp"
 
 namespace raven {
+
+struct SandboxConfig {
+    bool enabled = false;
+    bool allow_shell = false;
+    bool allow_ffi = false;
+    bool allow_fs_write = false;
+    uint64_t max_instructions = 0;
+    uint64_t timeout_ms = 0;
+};
 
 struct ReturnException {
     Value value;
@@ -27,6 +37,7 @@ class Interpreter : public ExprVisitor<Value>, public StmtVisitor<void> {
 public:
     explicit Interpreter(std::ostream& out = std::cout);
     Interpreter(std::shared_ptr<Environment> globals, std::ostream& out);
+    ~Interpreter();
 
     void interpret(const std::vector<std::shared_ptr<Stmt>>& statements);
     void execute(const Stmt& stmt);
@@ -40,6 +51,9 @@ public:
 
     using StepCallback = std::function<void(Interpreter&, const Stmt&)>;
     void set_step_callback(StepCallback cb) { step_callback_ = std::move(cb); }
+
+    void set_sandbox(const SandboxConfig& config) { sandbox_ = config; }
+    const SandboxConfig& sandbox() const { return sandbox_; }
 
     const std::vector<StackFrame>& call_stack() const { return call_stack_; }
     std::vector<StackFrame>& call_stack() { return call_stack_; }
@@ -113,6 +127,7 @@ public:
     void visit(const FunctionStmt& stmt) override;
     void visit(const ReturnStmt& stmt) override;
     void visit(const DestructureStmt& stmt) override;
+    void visit(const UsingStmt& stmt) override;
 
 private:
     void register_builtins();
@@ -127,6 +142,9 @@ private:
     std::vector<Value> this_stack_;
     std::vector<Value> super_stack_;
     StepCallback step_callback_;
+    SandboxConfig sandbox_;
+    uint64_t instruction_count_ = 0;
+    std::chrono::steady_clock::time_point start_time_;
 };
 
 Value bind_if_method(const Value& receiver, const Value& property);
