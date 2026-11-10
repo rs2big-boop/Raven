@@ -13,6 +13,7 @@
 #include "raven/runtime/arc_root_registry.hpp"
 #include "raven/runtime/safepoint_manager.hpp"
 #include "raven/vm/stack_map.hpp"
+#include "raven/runtime/memory/card_table.hpp"
 
 using namespace raven::runtime::memory;
 
@@ -574,4 +575,92 @@ TEST(MemoryTest, SafepointMutatorPollingSuspendsCleanly) {
     stop_flag.store(true, std::memory_order_release);
     mutator.join();
     sp.reset();
+}
+
+TEST(MemoryTest, CardTableIndexingAndDirtyMarking) {
+    auto& ct = raven::runtime::memory::CardTable::instance();
+    uintptr_t heap_base = 0x100000;
+    uintptr_t heap_end  = 0x120000; // 128 KB -> 256 cards (512 bytes each)
+    ct.set_heap_bounds(heap_base, heap_end);
+
+    EXPECT_EQ(ct.card_count(), 256u);
+    EXPECT_TRUE(ct.get_dirty_cards().empty());
+
+    void* obj1 = reinterpret_cast<void*>(heap_base + 1024); // card 2
+    size_t idx1 = ct.card_index(obj1);
+    EXPECT_EQ(idx1, 2u);
+
+    ct.mark_dirty(obj1);
+    EXPECT_TRUE(ct.is_dirty(idx1));
+    EXPECT_FALSE(ct.is_dirty(0));
+    EXPECT_FALSE(ct.is_dirty(1));
+
+    auto dirty_cards = ct.get_dirty_cards();
+    EXPECT_EQ(dirty_cards.size(), 1u);
+    EXPECT_EQ(dirty_cards[0], 2u);
+
+    ct.clear_card(idx1);
+    EXPECT_FALSE(ct.is_dirty(idx1));
+    EXPECT_TRUE(ct.get_dirty_cards().empty());
+}
+
+TEST(MemoryTest, GenerationalBarrierFiltersOldToYoungOnly) {
+    auto& ct = raven::runtime::memory::CardTable::instance();
+    uintptr_t heap_base = 0x200000;
+    uintptr_t heap_end  = 0x210000;
+    ct.set_heap_bounds(heap_base, heap_end);
+    ct.clear_all_cards();
+
+    void* old_obj   = reinterpret_cast<void*>(heap_base + 512); // card 1
+    void* young_val = reinterpret_cast<void*>(heap_base + 2048);
+
+    using raven::runtime::memory::Generation;
+    using raven::runtime::memory::write_barrier_generational;
+
+    // Young -> Young: No card marked
+    write_barrier_generational(Generation::Young, old_obj, Generation::Young, young_val);
+    EXPECT_TRUE(ct.get_dirty_cards().empty());
+
+    // Old -> Old: No card marked
+    write_barrier_generational(Generation::Old, old_obj, Generation::Old, young_val);
+    EXPECT_TRUE(ct.get_dirty_cards().empty());
+
+    // Old -> Young: Card 1 marked DIRTY!
+    write_barrier_generational(Generation::Old, old_obj, Generation::Young, young_val);
+    auto dirty = ct.get_dirty_cards();
+    EXPECT_EQ(dirty.size(), 1u);
+    EXPECT_EQ(dirty[0], 1u);
+
+    ct.clear_all_cards();
+}
+
+TEST(MemoryTest, IncrementalMarkingBarrierTriColorInvariant) {
+    using raven::runtime::memory::GCColor;
+    using raven::runtime::memory::write_barrier_marking;
+
+    std::vector<void*> mark_stack;
+    int dummy = 42;
+
+    // Case 1: Black source points to White target -> target shades Gray, pushed to mark stack
+    GCColor target_white = GCColor::White;
+    bool triggered = write_barrier_marking(GCColor::Black, target_white, mark_stack, &dummy);
+    EXPECT_TRUE(triggered);
+    EXPECT_EQ(target_white, GCColor::Gray);
+    EXPECT_EQ(mark_stack.size(), 1u);
+    EXPECT_EQ(mark_stack[0], &dummy);
+
+    // Case 2: Black source points to Gray target -> No trigger
+    mark_stack.clear();
+    GCColor target_gray = GCColor::Gray;
+    triggered = write_barrier_marking(GCColor::Black, target_gray, mark_stack, &dummy);
+    EXPECT_FALSE(triggered);
+    EXPECT_TRUE(mark_stack.empty());
+
+    // Case 3: Gray source points to White target -> No trigger (Gray will trace its own children)
+    mark_stack.clear();
+    GCColor target_white2 = GCColor::White;
+    triggered = write_barrier_marking(GCColor::Gray, target_white2, mark_stack, &dummy);
+    EXPECT_FALSE(triggered);
+    EXPECT_EQ(target_white2, GCColor::White);
+    EXPECT_TRUE(mark_stack.empty());
 }
