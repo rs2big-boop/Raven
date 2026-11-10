@@ -26,9 +26,19 @@ mkdir -p "${TARGET_DIR}/stdlib"
 cp "${REPO_ROOT}/build/raven" "${TARGET_DIR}/bin/"
 cp "${REPO_ROOT}/build/ravenc" "${TARGET_DIR}/bin/"
 cp "${REPO_ROOT}/build/rvm" "${TARGET_DIR}/bin/"
-[ -f "${REPO_ROOT}/build_release/rvndb" ] \
-    && cp "${REPO_ROOT}/build_release/rvndb" "${TARGET_DIR}/bin/" \
-    || { echo "❌ Required binary build_release/rvndb not found — packaging aborted."; exit 1; }
+RVNDB_BIN=""
+if [ -f "${REPO_ROOT}/build_release/rvndb" ]; then
+    RVNDB_BIN="${REPO_ROOT}/build_release/rvndb"
+elif [ -f "${REPO_ROOT}/build/rvndb" ]; then
+    RVNDB_BIN="${REPO_ROOT}/build/rvndb"
+fi
+
+if [ -n "${RVNDB_BIN}" ]; then
+    cp "${RVNDB_BIN}" "${TARGET_DIR}/bin/"
+else
+    echo "❌ Required binary rvndb not found in build or build_release — packaging aborted."
+    exit 1
+fi
 cp -r "${REPO_ROOT}/stdlib/"* "${TARGET_DIR}/stdlib/"
 cp "${REPO_ROOT}/README.md" "${TARGET_DIR}/"
 cp "${REPO_ROOT}/LICENSE" "${TARGET_DIR}/" 2>/dev/null || true
