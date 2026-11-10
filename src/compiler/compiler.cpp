@@ -36,10 +36,17 @@ void Compiler::patch_jump(int offset) {
 }
 
 void Compiler::emit_loop(int loop_start, int line) {
+    uint32_t safepoint_offset = static_cast<uint32_t>(chunk_.code.size());
     emit_op(OpCode::Loop, line);
     int jump = static_cast<int>(chunk_.code.size()) - loop_start + 2;
     emit_byte(static_cast<uint8_t>((jump >> 8) & 0xff), line);
     emit_byte(static_cast<uint8_t>(jump & 0xff), line);
+
+    StackMap sm;
+    sm.bytecode_offset = safepoint_offset;
+    sm.local_slots_bitmap.resize(locals_.size(), true);
+    sm.operand_stack_bitmap.clear();
+    chunk_.stack_maps.add_map(std::move(sm));
 }
 
 uint32_t Compiler::make_constant(Value value) {
@@ -303,8 +310,15 @@ void Compiler::visit(const CallExpr& expr) {
     for (const auto& arg : expr.arguments) {
         arg->accept(*this);
     }
+    uint32_t safepoint_offset = static_cast<uint32_t>(chunk_.code.size());
     emit_op(OpCode::Call, expr.paren.line);
     emit_byte(static_cast<uint8_t>(expr.arguments.size()), expr.paren.line);
+
+    StackMap sm;
+    sm.bytecode_offset = safepoint_offset;
+    sm.local_slots_bitmap.resize(locals_.size(), true);
+    sm.operand_stack_bitmap.resize(expr.arguments.size() + 1, true);
+    chunk_.stack_maps.add_map(std::move(sm));
 }
 
 void Compiler::visit(const ArrayExpr& expr) {
@@ -389,8 +403,15 @@ void Compiler::visit(const LambdaExpr& expr) {
 void Compiler::visit(const PipelineExpr& expr) {
     expr.right->accept(*this);
     expr.left->accept(*this);
+    uint32_t safepoint_offset = static_cast<uint32_t>(chunk_.code.size());
     emit_op(OpCode::Call);
     emit_byte(1);
+
+    StackMap sm;
+    sm.bytecode_offset = safepoint_offset;
+    sm.local_slots_bitmap.resize(locals_.size(), true);
+    sm.operand_stack_bitmap.resize(2, true);
+    chunk_.stack_maps.add_map(std::move(sm));
 }
 
 void Compiler::visit(const MatchExpr& expr) {

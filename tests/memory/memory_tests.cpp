@@ -16,6 +16,9 @@
 #include "raven/runtime/safepoint_manager.hpp"
 #include "raven/vm/stack_map.hpp"
 #include "raven/runtime/memory/card_table.hpp"
+#include "raven/compiler.hpp"
+#include "raven/lexer.hpp"
+#include "raven/parser.hpp"
 
 using namespace raven::runtime::memory;
 
@@ -917,4 +920,49 @@ TEST(MemoryTest, ResourceLeaseConcurrentWithCloseDrainsAndBlocksDescriptorReuse)
     EXPECT_TRUE(closed_called.load());
     EXPECT_EQ(block->state(), raven::ResourceState::Closed);
     EXPECT_EQ(block->native_fd(), -1);
+}
+
+TEST(MemoryTest, StackMapCompletenessAudit) {
+    std::string source =
+        "fn calculate(n) {\n"
+        "    let sum = 0;\n"
+        "    let i = 0;\n"
+        "    while (i < n) {\n"
+        "        sum = sum + i;\n"
+        "        i = i + 1;\n"
+        "    }\n"
+        "    return sum;\n"
+        "}\n"
+        "let res = calculate(10);\n";
+
+    raven::Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    raven::Parser parser(tokens);
+    auto stmts = parser.parse();
+
+    raven::Chunk chunk;
+    raven::Compiler compiler(chunk);
+    bool compiled = compiler.compile(stmts);
+    EXPECT_TRUE(compiled);
+
+    // Audit every instruction in the chunk:
+    // Any opcode that can trigger a safepoint (OpCode::Loop, OpCode::Call) MUST have
+    // an exact corresponding StackMap in chunk.stack_maps.
+    int offset = 0;
+    size_t safepoint_count = 0;
+    std::ostringstream devnull;
+    while (offset < static_cast<int>(chunk.code.size())) {
+        raven::OpCode op = static_cast<raven::OpCode>(chunk.code[offset]);
+        if (op == raven::OpCode::Loop || op == raven::OpCode::Call) {
+            safepoint_count++;
+            const raven::StackMap* sm = chunk.stack_maps.find_map(static_cast<uint32_t>(offset));
+            ASSERT_NE(sm, nullptr) << "Missing StackMap at bytecode offset " << offset
+                                   << " for opcode " << static_cast<int>(op);
+            EXPECT_EQ(sm->bytecode_offset, static_cast<uint32_t>(offset));
+        }
+        offset = chunk.disassemble_instruction(devnull, offset);
+    }
+
+    EXPECT_GT(safepoint_count, 0u);
+    EXPECT_FALSE(chunk.stack_maps.empty());
 }

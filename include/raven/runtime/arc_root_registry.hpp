@@ -73,6 +73,8 @@ public:
         std::vector<void*> roots;
         for (size_t i = 0; i < kNumStripes; ++i) {
             std::shared_lock<std::shared_mutex> lock(stripes_[i].mtx);
+            if (stripes_[i].active_roots.empty()) continue;
+            roots.reserve(roots.size() + stripes_[i].active_roots.size());
             for (const auto& [ptr, count] : stripes_[i].active_roots) {
                 if (count > 0 && ptr != nullptr) {
                     roots.push_back(ptr);
@@ -123,7 +125,7 @@ public:
     }
 
 private:
-    struct Stripe {
+    struct alignas(64) Stripe {
         mutable std::shared_mutex mtx;
         std::unordered_map<void*, size_t> active_roots;
     };
@@ -132,7 +134,7 @@ private:
 
     static size_t stripe_index(const void* ptr) noexcept {
         uintptr_t v = reinterpret_cast<uintptr_t>(ptr);
-        return ((v >> 4) * 2654435761u) % kNumStripes;
+        return ((v >> 4) * 2654435761u) & (kNumStripes - 1);
     }
 
     std::array<Stripe, kNumStripes> stripes_;

@@ -3,7 +3,7 @@
 set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="1.3.0"
+VERSION="1.4.0"
 DIST_DIR="${REPO_ROOT}/dist"
 PKG_NAME="raven-v${VERSION}-linux-x86_64"
 TARGET_DIR="${DIST_DIR}/${PKG_NAME}"
@@ -26,6 +26,7 @@ mkdir -p "${TARGET_DIR}/stdlib"
 cp "${REPO_ROOT}/build/raven" "${TARGET_DIR}/bin/"
 cp "${REPO_ROOT}/build/ravenc" "${TARGET_DIR}/bin/"
 cp "${REPO_ROOT}/build/rvm" "${TARGET_DIR}/bin/"
+[ -f "${REPO_ROOT}/build/rvndb" ] && cp "${REPO_ROOT}/build/rvndb" "${TARGET_DIR}/bin/"
 cp -r "${REPO_ROOT}/stdlib/"* "${TARGET_DIR}/stdlib/"
 cp "${REPO_ROOT}/README.md" "${TARGET_DIR}/"
 cp "${REPO_ROOT}/LICENSE" "${TARGET_DIR}/" 2>/dev/null || true
