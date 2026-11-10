@@ -153,28 +153,27 @@ TEST(HttpBenchmark, SingleThreadedRequestLatency) {
 
     raven::Interpreter interp;
 
-    auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(kDurationMs);
+    // Phase 1: Measure Raven request throughput & latency
+    auto raven_end = std::chrono::steady_clock::now() + std::chrono::milliseconds(kDurationMs);
+    while (std::chrono::steady_clock::now() < raven_end) {
+        auto t0 = std::chrono::high_resolution_clock::now();
+        interp.interpret(stmts);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        raven_tracker.record(us);
+        ++raven_requests;
+    }
 
-    while (std::chrono::steady_clock::now() < end) {
-        // --- Raven request ---
-        {
-            auto t0 = std::chrono::high_resolution_clock::now();
-            interp.interpret(stmts);
-            auto t1 = std::chrono::high_resolution_clock::now();
-            double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
-            raven_tracker.record(us);
-            ++raven_requests;
-        }
-        // --- Native (Go-equivalent) request ---
-        {
-            auto t0 = std::chrono::high_resolution_clock::now();
-            volatile double r = run_native_request();
-            (void)r;
-            auto t1 = std::chrono::high_resolution_clock::now();
-            double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
-            native_tracker.record(us);
-            ++native_requests;
-        }
+    // Phase 2: Measure Native C++ baseline throughput & latency in its OWN loop
+    auto native_end = std::chrono::steady_clock::now() + std::chrono::milliseconds(kDurationMs);
+    while (std::chrono::steady_clock::now() < native_end) {
+        auto t0 = std::chrono::high_resolution_clock::now();
+        volatile double r = run_native_request();
+        (void)r;
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
+        native_tracker.record(us);
+        ++native_requests;
     }
 
     auto rs = raven_tracker.compute();
@@ -380,9 +379,14 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
 
     std::atomic<bool>     stop{false};
     std::atomic<uint64_t> total_requests{0};
+    std::atomic<uint64_t> failed_requests{0};
     std::atomic<bool>     crash_occurred{false};
     std::atomic<bool>     recovery_confirmed{false};
     std::atomic<int>      active_workers{kWorkers};
+
+    std::chrono::steady_clock::time_point crash_time;
+    std::chrono::steady_clock::time_point recovery_time;
+    std::atomic<int64_t> recovery_latency_us{0};
 
     raven::Lexer  lexer(kRequestScript);
     auto          tokens = lexer.tokenize();
@@ -400,9 +404,11 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
         auto crash_at = std::chrono::steady_clock::now() + std::chrono::milliseconds(kCrashAfterMs);
         while (!stop.load(std::memory_order_relaxed)) {
             if (std::chrono::steady_clock::now() >= crash_at && !crash_occurred.load()) {
+                crash_time = std::chrono::steady_clock::now();
                 crash_occurred.store(true);
+                failed_requests.fetch_add(1);  // the in-flight request was lost
                 active_workers.fetch_sub(1);
-                // Simulate crash — thread exits abnormally (exception caught by harness)
+                // Simulate crash — worker thread terminates abnormally
                 return;
             }
             interp.interpret(stmts);
@@ -422,17 +428,25 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
         });
     }
 
-    // Supervisor: detects crash, spawns replacement
+    // Supervisor: detects crash via poll, spawns replacement
     std::thread supervisor([&]() {
         while (!stop.load(std::memory_order_relaxed)) {
             if (crash_occurred.load() && !recovery_confirmed.load()) {
-                // Replacement worker
+                // Replacement worker spawned immediately
                 std::thread replacement([&]() {
                     raven::Interpreter interp;
+                    bool first = true;
                     while (!stop.load(std::memory_order_relaxed)) {
                         interp.interpret(stmts);
+                        if (first) {
+                            recovery_time = std::chrono::steady_clock::now();
+                            recovery_latency_us.store(
+                                std::chrono::duration_cast<std::chrono::microseconds>(
+                                    recovery_time - crash_time).count());
+                            recovery_confirmed.store(true);
+                            first = false;
+                        }
                         total_requests.fetch_add(1, std::memory_order_relaxed);
-                        recovery_confirmed.store(true);
                     }
                     active_workers.fetch_sub(1);
                 });
@@ -440,7 +454,7 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
                 replacement.detach();
                 return;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     });
 
@@ -453,13 +467,18 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
 
     std::cout << "\n========================================================\n";
     std::cout << "BENCHMARK 4: Worker Crash Recovery\n";
-    std::cout << "  Crash after        : " << kCrashAfterMs << " ms\n";
-    std::cout << "  Total requests     : " << total_requests.load() << "\n";
+    std::cout << "  Crash simulated at : " << kCrashAfterMs << " ms into execution\n";
     std::cout << "  Crash detected     : " << (crash_occurred.load()   ? "YES" : "NO") << "\n";
     std::cout << "  Recovery confirmed : " << (recovery_confirmed.load() ? "YES" : "NO") << "\n";
+    std::cout << "  Recovery downtime  : " << (recovery_latency_us.load() / 1000.0) << " ms ("
+              << recovery_latency_us.load() << " µs)\n";
+    std::cout << "  Lost/failed reqs   : " << failed_requests.load() << "\n";
+    std::cout << "  Total served reqs  : " << total_requests.load() << "\n";
     std::cout << "========================================================\n\n";
 
     EXPECT_TRUE(crash_occurred.load())   << "Crash did not occur as expected";
     EXPECT_TRUE(recovery_confirmed.load()) << "Replacement worker did not start serving requests";
+    EXPECT_LT(recovery_latency_us.load(), 50000) << "Recovery took > 50ms";
+    EXPECT_EQ(failed_requests.load(), 1u) << "Unexpected number of lost requests";
     EXPECT_GT(total_requests.load(), 5u) << "Too few total requests processed";
 }
