@@ -11,6 +11,8 @@
 #include "raven/gc.hpp"
 #include "raven/runtime/resource_handle.hpp"
 #include "raven/runtime/arc_root_registry.hpp"
+#include "raven/runtime/safepoint_manager.hpp"
+#include "raven/vm/stack_map.hpp"
 
 using namespace raven::runtime::memory;
 
@@ -459,4 +461,117 @@ TEST(MemoryTest, ArcRootRegistryConcurrentMultiThreadMutations) {
     EXPECT_GT(total_snapshots.load(), 0u);
     EXPECT_EQ(reg.root_count(), 0u);
     reg.clear();
+}
+
+TEST(MemoryTest, StackMapTableLookup) {
+    raven::StackMapTable table;
+    EXPECT_TRUE(table.empty());
+
+    raven::StackMap sm1{16, {true, false, true}, {false, true}};
+    raven::StackMap sm2{48, {false}, {true, true, false}};
+
+    table.add_map(sm1);
+    table.add_map(sm2);
+
+    EXPECT_EQ(table.size(), 2u);
+
+    const auto* found = table.find_map(16);
+    ASSERT_NE(found, nullptr);
+    EXPECT_EQ(found->bytecode_offset, 16u);
+    EXPECT_EQ(found->operand_stack_bitmap, (std::vector<bool>{true, false, true}));
+    EXPECT_EQ(found->local_slots_bitmap, (std::vector<bool>{false, true}));
+
+    EXPECT_EQ(table.find_map(32), nullptr);
+
+    const auto* found2 = table.find_map(48);
+    ASSERT_NE(found2, nullptr);
+    EXPECT_EQ(found2->bytecode_offset, 48u);
+}
+
+TEST(MemoryTest, SafepointNativeThreadParkingDoesNotBlockGC) {
+    auto& sp = raven::SafepointManager::instance();
+    sp.reset();
+
+    std::atomic<bool> worker_in_native{false};
+    std::atomic<bool> worker_done{false};
+
+    std::thread worker([&]() {
+        sp.register_thread();
+        sp.enter_native();
+        worker_in_native.store(true, std::memory_order_release);
+
+        // Simulate blocking syscall / I/O
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        sp.exit_native();
+        sp.unregister_thread();
+        worker_done.store(true, std::memory_order_release);
+    });
+
+    while (!worker_in_native.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+
+    // GC initiates STW: worker is in native, so GC must proceed immediately without blocking!
+    auto start_time = std::chrono::steady_clock::now();
+    sp.request_safepoint();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start_time
+    ).count();
+
+    // request_safepoint() returned while worker is parked in native!
+    EXPECT_EQ(sp.parked_thread_count(), 1u);
+    EXPECT_EQ(sp.get_thread_state(worker.get_id()), raven::MutatorState::InNativeBlocked);
+    // STW request took minimal time (< 30ms) instead of waiting for worker sleep
+    EXPECT_LT(elapsed, 45);
+
+    sp.resume_mutators();
+    worker.join();
+    EXPECT_TRUE(worker_done.load());
+    sp.reset();
+}
+
+TEST(MemoryTest, SafepointMutatorPollingSuspendsCleanly) {
+    auto& sp = raven::SafepointManager::instance();
+    sp.reset();
+
+    std::atomic<bool> mutator_running{false};
+    std::atomic<int> iteration_count{0};
+    std::atomic<bool> stop_flag{false};
+
+    std::thread mutator([&]() {
+        sp.register_thread();
+        mutator_running.store(true, std::memory_order_release);
+
+        while (!stop_flag.load(std::memory_order_relaxed)) {
+            iteration_count.fetch_add(1, std::memory_order_relaxed);
+            sp.poll_safepoint();
+            std::this_thread::yield();
+        }
+
+        sp.unregister_thread();
+    });
+
+    while (!mutator_running.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+
+    // STW Safepoint requested
+    sp.request_safepoint();
+    EXPECT_EQ(sp.get_thread_state(mutator.get_id()), raven::MutatorState::AtSafepoint);
+
+    int count_during_pause = iteration_count.load();
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // Thread must be frozen at safepoint during STW pause!
+    EXPECT_EQ(iteration_count.load(), count_during_pause);
+
+    // Resume mutators
+    sp.resume_mutators();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // Thread has resumed advancing!
+    EXPECT_GT(iteration_count.load(), count_during_pause);
+
+    stop_flag.store(true, std::memory_order_release);
+    mutator.join();
+    sp.reset();
 }

@@ -1,5 +1,6 @@
 #include "raven/vm.hpp"
 #include "raven/interpreter.hpp"
+#include "raven/runtime/safepoint_manager.hpp"
 
 namespace raven {
 
@@ -86,6 +87,15 @@ Value VM::execute_function(const BytecodeFunction& fn, const std::vector<Value>&
 }
 
 InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t target_frame_depth) {
+    struct ThreadSafepointScope {
+        ThreadSafepointScope() {
+            SafepointManager::instance().register_thread();
+        }
+        ~ThreadSafepointScope() {
+            SafepointManager::instance().unregister_thread();
+        }
+    } safepoint_scope;
+
     size_t ip = initial_ip;
 
     auto read_byte = [&]() -> uint8_t {
@@ -309,6 +319,7 @@ InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t targ
             case OpCode::Loop: {
                 uint16_t offset = read_short();
                 ip -= offset;
+                SafepointManager::instance().poll_safepoint();
                 break;
             }
             case OpCode::BuildArray: {
@@ -557,6 +568,7 @@ InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t targ
                 break;
             }
             case OpCode::Call: {
+                SafepointManager::instance().poll_safepoint();
                 uint8_t arg_count = read_byte();
                 Value callee = peek(arg_count);
                 if (!callee.is_callable()) {
@@ -609,9 +621,12 @@ InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t targ
                         }
                     }
                     try {
+                        SafepointManager::instance().enter_native();
                         Value result = callable->call(*native_interp_, args);
+                        SafepointManager::instance().exit_native();
                         push(result);
                     } catch (const std::exception& e) {
+                        SafepointManager::instance().exit_native();
                         out_ << "Runtime error: " << e.what() << "\n";
                         return InterpretResult::RuntimeError;
                     }

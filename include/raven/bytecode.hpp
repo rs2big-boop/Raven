@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "raven/value.hpp"
+#include "raven/vm/stack_map.hpp"
 
 namespace raven {
 
@@ -366,6 +367,7 @@ public:
     std::vector<uint8_t> code;
     std::vector<Value> constants;
     std::vector<int> lines;
+    StackMapTable stack_maps;
 };
 
 } // namespace raven
