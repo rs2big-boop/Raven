@@ -36,7 +36,15 @@ All notable changes to the Raven programming language are documented in this fil
   - `CardTable`: 512-byte page granularity tracking Old -> Young cross-generational references.
   - Generational write barrier dirtying cards on Old-to-Young field stores.
   - Incremental update barrier preserving strong tri-color invariant (shades white targets to gray when pointed to by black objects).
-- **Test Suite Expanded to 205 Tests**: 205 automated unit, memory, concurrency, semantic, and differential tests passing at 100%.
+- **Test Suite Expanded to 210 Tests**: 210 automated unit, memory, concurrency, semantic, differential, and benchmark tests passing at 100%.
+- **Reliability Verified under Sanitizers**:
+  - Full AddressSanitizer (ASan) & UndefinedBehaviorSanitizer (UBSan) verification: zero leaks, buffer overflows, or use-after-free.
+  - Full ThreadSanitizer (TSan) verification: zero data races across multi-threaded Arc mutations and GC coordinator cycles.
+- **Formal Benchmarks**:
+  - GC Stop-The-World (STW) Pause: 29 µs (1K roots), 301 µs (10K roots), 1.55 ms (50K roots).
+  - Arc Throughput: up to 1.3M ops/sec.
+  - ResourceLease Latency: 196 ns p50.
+  - Card Table Throughput: 84.9M marks/sec, 3.9 ms scan for 524,288 cards (256 MB Heap).
 
 ## [1.3.0] — 2026-11-04
 

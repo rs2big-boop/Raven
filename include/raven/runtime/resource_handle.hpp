@@ -147,6 +147,10 @@ public:
     ResourceLease(const ResourceLease&) = delete;
     ResourceLease& operator=(const ResourceLease&) = delete;
 
+    bool is_valid() const noexcept {
+        return block_ != nullptr;
+    }
+
     int native_fd() const noexcept {
         return block_ ? block_->native_fd() : -1;
     }

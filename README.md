@@ -7,7 +7,7 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-205%2F205%20passing-brightgreen)](#)
+> [![Tests](https://img.shields.io/badge/tests-210%2F210%20passing-brightgreen)](#)
 > [![Version](https://img.shields.io/badge/version-1.4.0-blue)](#)
 > [![Release](https://img.shields.io/badge/GitHub-Releases-blue?logo=github)](https://github.com/rs2big-boop/Raven/releases)
 > [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#)

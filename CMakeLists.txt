@@ -1,9 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
-project(Raven VERSION 1.3.0 LANGUAGES CXX)
+project(Raven VERSION 1.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(RAVEN_ENABLE_ASAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(RAVEN_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+
+if(RAVEN_ENABLE_ASAN)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address,undefined)
+elseif(RAVEN_ENABLE_TSAN)
+    add_compile_options(-fsanitize=thread -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=thread)
+endif()
 
 if(MSVC)
     add_compile_options(/W4 /permissive-)
@@ -185,6 +196,10 @@ if(RAVEN_BUILD_TESTS)
     add_executable(differential_tests tests/differential/differential_tests.cpp)
     target_link_libraries(differential_tests PRIVATE raven_core GTest::gtest_main)
     gtest_discover_tests(differential_tests)
+
+    add_executable(memory_benchmarks tests/benchmark/memory_benchmarks.cpp)
+    target_link_libraries(memory_benchmarks PRIVATE raven_core GTest::gtest_main)
+    gtest_discover_tests(memory_benchmarks)
 endif()
 
 # Installation targets
