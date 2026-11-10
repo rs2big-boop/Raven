@@ -2,6 +2,42 @@
 
 All notable changes to the Raven programming language are documented in this file.
 
+## [1.4.0] — 2026-11-10
+
+### Added
+- **Formal ADR Specifications**:
+  - `ADR 0008.1`: Ownership, Root Tracking & Cleanup Semantics.
+  - `ADR 0008.2`: Resource Leases, Arc/GC Synchronization & Safepoint Lifecycle.
+- **Deterministic RAII `using` Statement & Cleanup Engine**:
+  - Syntax: `using res = expr { body }`.
+  - Guaranteed LIFO cleanup unwinding on normal exit, early `return`, `break`, `continue`, and exceptions.
+  - Multi-cleanup error chaining with Primary and Suppressed exception hierarchy.
+  - Ownership slot transfer: `move` inside `using` transfers ownership and suppresses RAII close.
+- **Move-Only Ownership & Compiler Enforcement**:
+  - Prefix operator `move x` transfers ownership and invalidates the variable handle.
+  - Static compile-time and semantic use-after-move detection via `Resolver`.
+  - Double-move rejection and reassignment revival.
+  - Bytecode compilation of `move` transferring local/global slots to nil while preserving the returned value.
+- **Thread-Safe Resource Handles & Active Leases**:
+  - `ResourceControlBlock`: atomic state machine (`Open`, `Closing`, `Closed`) draining in-flight operations before close.
+  - `ResourceLease`: RAII operation lease preventing concurrent close while read/write operations execute.
+  - `ResourceOwnerHandle`: tracks handle-level invalidation on move.
+  - `ResourceReaperQueue`: background daemon draining GC-detected leaks without stalling worker threads.
+- **Arc / GC Root Synchronization**:
+  - `ArcRootRegistry`: thread-safe atomic registry tracking `Arc<T>` pointers as live roots for GC.
+  - Exclusive lock snapshot during STW Initial Mark phase.
+  - Decoupled memory reclamation (GC sole reclaimer).
+  - Root write barrier shading newly registered roots during `IncrementalMarking`.
+- **Corvus VM Precise Stack Maps & Safepoint Lifecycle**:
+  - `StackMapTable`: exact operand stack and local slot pointer bitmaps generated per chunk.
+  - Safepoint polling at loop back-edges (`OpCode::Loop`) and function call sites (`OpCode::Call`).
+  - `SafepointManager`: native thread parking (`enter_native` / `exit_native`) allowing GC to proceed without blocking when threads sleep or perform blocking I/O.
+- **Generational GC Card Table & Incremental Marking Barrier**:
+  - `CardTable`: 512-byte page granularity tracking Old -> Young cross-generational references.
+  - Generational write barrier dirtying cards on Old-to-Young field stores.
+  - Incremental update barrier preserving strong tri-color invariant (shades white targets to gray when pointed to by black objects).
+- **Test Suite Expanded to 205 Tests**: 205 automated unit, memory, concurrency, semantic, and differential tests passing at 100%.
+
 ## [1.3.0] — 2026-11-04
 
 ### Added
