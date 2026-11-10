@@ -414,6 +414,8 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
     std::atomic<uint64_t> total_mutator_ops{0};
     std::atomic<uint64_t> gc_cycles_completed{0};
     std::atomic<uint64_t> live_arc_objects{0};   // approximation: arcs in flight
+    std::array<std::atomic<uint64_t>, kMutatorThreads> per_thread_ops{};
+    for (int t = 0; t < kMutatorThreads; ++t) per_thread_ops[t].store(0);
     int dummy = 0;
 
     // ---- Timestamped RSS snapshot ----
@@ -465,6 +467,7 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
                     live_arc_objects.fetch_add(2, std::memory_order_relaxed);
                     raven::ResourceLease lease(rcb);
                     total_mutator_ops.fetch_add(1, std::memory_order_relaxed);
+                    per_thread_ops[t].fetch_add(1, std::memory_order_relaxed);
                     // Arcs destroyed here — count decreases
                     live_arc_objects.fetch_sub(2, std::memory_order_relaxed);
                 }
@@ -540,6 +543,17 @@ TEST(BenchmarkSuite, ExtendedSoakTest) {
     std::cout << "Duration          : " << kDurationMs << " ms\n";
     std::cout << "Mutator Threads   : " << kMutatorThreads << "\n";
     std::cout << "Total Mutator Ops : " << mutator_ops << "  (" << std::fixed << std::setprecision(1) << op_rate << " ops/sec)\n";
+    std::cout << "Per-Thread Ops    : ";
+    uint64_t min_ops = UINT64_MAX, max_ops = 0;
+    for (int t = 0; t < kMutatorThreads; ++t) {
+        uint64_t ops = per_thread_ops[t].load();
+        min_ops = std::min(min_ops, ops);
+        max_ops = std::max(max_ops, ops);
+        std::cout << "T" << t << "=" << ops << " ";
+        EXPECT_GT(ops, 50u) << "Mutator thread " << t << " starved!";
+    }
+    std::cout << "\nThread Fairness   : min=" << min_ops << " max=" << max_ops
+              << " (fairness ratio=" << (max_ops > 0 ? (double)min_ops / max_ops : 0.0) << ")\n";
     std::cout << "GC Cycles Run     : " << gc_cycles    << "  (" << std::fixed << std::setprecision(2) << gc_rate  << " cycles/sec)\n";
 
     if (!rss_samples.empty()) {
