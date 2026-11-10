@@ -28,7 +28,14 @@ public:
     }
 
     void register_thread(std::thread::id tid = std::this_thread::get_id()) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::unique_lock<std::mutex> lock(mtx_);
+        if (safepoint_requested_.load(std::memory_order_acquire)) {
+            thread_states_[tid] = MutatorState::AtSafepoint;
+            cv_gc_.notify_all();
+            cv_mutator_.wait(lock, [this]() {
+                return !safepoint_requested_.load(std::memory_order_acquire);
+            });
+        }
         thread_states_[tid] = MutatorState::Running;
     }
 

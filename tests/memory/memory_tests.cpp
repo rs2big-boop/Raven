@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <atomic>
+#include <chrono>
 #include <thread>
 #include <vector>
 #include "raven/runtime/memory/managed_object.hpp"
@@ -663,4 +665,256 @@ TEST(MemoryTest, IncrementalMarkingBarrierTriColorInvariant) {
     EXPECT_FALSE(triggered);
     EXPECT_EQ(target_white2, GCColor::White);
     EXPECT_TRUE(mark_stack.empty());
+}
+
+TEST(MemoryTest, ObjectCreatedDuringIncrementalMarkingIsGreyed) {
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    reg.set_gc_phase(raven::GCPhase::IncrementalMarking);
+    int dummy = 123;
+    reg.register_root(&dummy);
+
+    auto grey = reg.drain_grey_roots();
+    EXPECT_EQ(grey.size(), 1u);
+    if (!grey.empty()) {
+        EXPECT_EQ(grey[0], &dummy);
+    }
+
+    reg.unregister_root(&dummy);
+    reg.clear();
+}
+
+TEST(MemoryTest, RootDeletedDuringSnapshotGraceful) {
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    constexpr size_t kItems = 200;
+    std::vector<int> dummy_ptrs(kItems, 0);
+    for (size_t i = 0; i < kItems; ++i) {
+        reg.register_root(&dummy_ptrs[i]);
+    }
+
+    std::atomic<bool> done{false};
+    std::thread mutator([&]() {
+        while (!done.load(std::memory_order_relaxed)) {
+            for (size_t i = 0; i < kItems / 2; ++i) {
+                reg.unregister_root(&dummy_ptrs[i]);
+                reg.register_root(&dummy_ptrs[i]);
+            }
+        }
+    });
+
+    for (int iter = 0; iter < 100; ++iter) {
+        auto snapshot = reg.snapshot_roots();
+        EXPECT_GE(snapshot.size(), kItems / 2);
+    }
+
+    done.store(true);
+    mutator.join();
+    reg.clear();
+}
+
+TEST(MemoryTest, GenerationalPromotionYoungToOldWithCardMarking) {
+    auto& ct = raven::runtime::memory::CardTable::instance();
+    uintptr_t heap_base = 0x300000;
+    uintptr_t heap_end  = 0x310000;
+    ct.set_heap_bounds(heap_base, heap_end);
+    ct.clear_all_cards();
+
+    void* promoted_old_obj = reinterpret_cast<void*>(heap_base + 1024); // card 2
+    void* young_val        = reinterpret_cast<void*>(heap_base + 3000); // card 5
+
+    raven::runtime::memory::Generation old_gen = raven::runtime::memory::Generation::Old;
+    raven::runtime::memory::Generation young_gen = raven::runtime::memory::Generation::Young;
+
+    raven::runtime::memory::write_barrier_generational(old_gen, promoted_old_obj, young_gen, young_val);
+
+    auto dirty = ct.get_dirty_cards();
+    EXPECT_EQ(dirty.size(), 1u);
+    EXPECT_EQ(dirty[0], 2u);
+    EXPECT_TRUE(ct.is_dirty(2u));
+
+    ct.clear_card(2u);
+    EXPECT_FALSE(ct.is_dirty(2u));
+    EXPECT_TRUE(ct.get_dirty_cards().empty());
+}
+
+TEST(MemoryTest, ConcurrentAllocationDuringGCPhaseTransitions) {
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    std::atomic<bool> done{false};
+    constexpr int kThreads = 4;
+    std::vector<std::thread> workers;
+
+    for (int t = 0; t < kThreads; ++t) {
+        workers.emplace_back([&, t]() {
+            std::vector<int> dummy(50);
+            while (!done.load(std::memory_order_relaxed)) {
+                for (size_t i = 0; i < dummy.size(); ++i) {
+                    reg.register_root(&dummy[i]);
+                }
+                for (size_t i = 0; i < dummy.size(); ++i) {
+                    reg.unregister_root(&dummy[i]);
+                }
+            }
+        });
+    }
+
+    std::vector<raven::GCPhase> phases = {
+        raven::GCPhase::Idle,
+        raven::GCPhase::InitialMark,
+        raven::GCPhase::IncrementalMarking,
+        raven::GCPhase::FinalRemark,
+        raven::GCPhase::Sweep,
+        raven::GCPhase::Idle
+    };
+
+    for (int cycle = 0; cycle < 10; ++cycle) {
+        for (auto phase : phases) {
+            reg.set_gc_phase(phase);
+            if (phase == raven::GCPhase::InitialMark) {
+                auto snapshot = reg.snapshot_roots();
+                (void)snapshot;
+            } else if (phase == raven::GCPhase::IncrementalMarking) {
+                auto grey = reg.drain_grey_roots();
+                (void)grey;
+            }
+            std::this_thread::yield();
+        }
+    }
+
+    done.store(true);
+    for (auto& w : workers) {
+        w.join();
+    }
+    reg.clear();
+}
+
+TEST(MemoryTest, ThreadJoiningDuringActiveSafepointParksImmediately) {
+    auto& sm = raven::SafepointManager::instance();
+    sm.reset();
+
+    sm.request_safepoint();
+    EXPECT_TRUE(sm.is_safepoint_requested());
+
+    std::atomic<bool> thread_started{false};
+    std::atomic<bool> thread_completed_register{false};
+
+    std::thread joiner([&]() {
+        thread_started.store(true);
+        sm.register_thread();
+        thread_completed_register.store(true);
+        sm.unregister_thread();
+    });
+
+    while (!thread_started.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    EXPECT_FALSE(thread_completed_register.load(std::memory_order_acquire));
+
+    sm.resume_mutators();
+    joiner.join();
+
+    EXPECT_TRUE(thread_completed_register.load());
+    sm.reset();
+}
+
+TEST(MemoryTest, ThreadExitingDuringActiveSafepointNotifiesGC) {
+    auto& sm = raven::SafepointManager::instance();
+    sm.reset();
+
+    std::atomic<bool> t1_ready{false};
+    std::atomic<bool> t2_ready{false};
+    std::atomic<bool> coordinator_waiting{false};
+
+    std::thread t1([&]() {
+        sm.register_thread();
+        t1_ready.store(true);
+        while (!sm.is_safepoint_requested()) {
+            std::this_thread::yield();
+        }
+        sm.poll_safepoint();
+        sm.unregister_thread();
+    });
+
+    std::thread t2([&]() {
+        sm.register_thread();
+        t2_ready.store(true);
+        while (!coordinator_waiting.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        sm.unregister_thread();
+    });
+
+    while (!t1_ready.load() || !t2_ready.load()) {
+        std::this_thread::yield();
+    }
+
+    std::thread coordinator([&]() {
+        coordinator_waiting.store(true);
+        sm.request_safepoint();
+        sm.resume_mutators();
+    });
+
+    coordinator.join();
+    t1.join();
+    t2.join();
+
+    sm.reset();
+}
+
+TEST(MemoryTest, ResourceLeaseConcurrentWithCloseDrainsAndBlocksDescriptorReuse) {
+    std::atomic<bool> closed_called{false};
+    auto block = std::make_shared<raven::ResourceControlBlock>(
+        99, "test_file.txt", [&](int fd) {
+            EXPECT_EQ(fd, 99);
+            closed_called.store(true);
+        });
+
+    std::atomic<bool> lease_acquired{false};
+    std::atomic<bool> lease_release_permitted{false};
+    std::atomic<bool> close_completed{false};
+
+    std::thread worker([&]() {
+        raven::ResourceLease lease(block);
+        EXPECT_TRUE(lease.is_valid());
+        EXPECT_EQ(lease.native_fd(), 99);
+        lease_acquired.store(true);
+
+        while (!lease_release_permitted.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+    });
+
+    while (!lease_acquired.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+
+    std::thread closer([&]() {
+        block->close();
+        close_completed.store(true);
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    EXPECT_EQ(block->state(), raven::ResourceState::Closing);
+    EXPECT_FALSE(closed_called.load());
+    EXPECT_FALSE(close_completed.load());
+
+    EXPECT_THROW({
+        raven::ResourceLease bad_lease(block);
+    }, std::runtime_error);
+
+    lease_release_permitted.store(true);
+    worker.join();
+    closer.join();
+
+    EXPECT_TRUE(close_completed.load());
+    EXPECT_TRUE(closed_called.load());
+    EXPECT_EQ(block->state(), raven::ResourceState::Closed);
+    EXPECT_EQ(block->native_fd(), -1);
 }

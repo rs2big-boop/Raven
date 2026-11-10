@@ -1,7 +1,9 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
@@ -18,11 +20,14 @@ enum class GCPhase : uint8_t {
 };
 
 /**
- * @brief Global Thread-Safe Registry tracking all active Arc<T> references
+ * @brief Global Thread-Safe Striped Registry tracking all active Arc<T> references
  * as GC root providers (ADR 0008.2 §3).
+ * Uses 32 striped mutex partitions to eliminate cross-thread cache-line contention.
  */
 class ArcRootRegistry {
 public:
+    static constexpr size_t kNumStripes = 32;
+
     static ArcRootRegistry& instance() {
         static ArcRootRegistry reg;
         return reg;
@@ -39,9 +44,10 @@ public:
     // Invoked when an Arc is created or cloned
     void register_root(void* gc_ptr) {
         if (!gc_ptr) return;
+        size_t idx = stripe_index(gc_ptr);
         {
-            std::unique_lock<std::shared_mutex> lock(registry_mtx_);
-            active_roots_[gc_ptr]++;
+            std::unique_lock<std::shared_mutex> lock(stripes_[idx].mtx);
+            stripes_[idx].active_roots[gc_ptr]++;
         }
         // Root Write Barrier: if in IncrementalMarking phase, shade grey
         if (gc_phase() == GCPhase::IncrementalMarking) {
@@ -52,38 +58,45 @@ public:
     // Invoked when an Arc strong count drops
     void unregister_root(void* gc_ptr) {
         if (!gc_ptr) return;
-        std::unique_lock<std::shared_mutex> lock(registry_mtx_);
-        auto it = active_roots_.find(gc_ptr);
-        if (it != active_roots_.end()) {
+        size_t idx = stripe_index(gc_ptr);
+        std::unique_lock<std::shared_mutex> lock(stripes_[idx].mtx);
+        auto it = stripes_[idx].active_roots.find(gc_ptr);
+        if (it != stripes_[idx].active_roots.end()) {
             if (--(it->second) == 0) {
-                active_roots_.erase(it);
+                stripes_[idx].active_roots.erase(it);
             }
         }
     }
 
     // Invoked by the GC coordinator during STW Initial Mark
     std::vector<void*> snapshot_roots() {
-        std::shared_lock<std::shared_mutex> lock(registry_mtx_);
         std::vector<void*> roots;
-        roots.reserve(active_roots_.size());
-        for (const auto& [ptr, count] : active_roots_) {
-            if (count > 0 && ptr != nullptr) {
-                roots.push_back(ptr);
+        for (size_t i = 0; i < kNumStripes; ++i) {
+            std::shared_lock<std::shared_mutex> lock(stripes_[i].mtx);
+            for (const auto& [ptr, count] : stripes_[i].active_roots) {
+                if (count > 0 && ptr != nullptr) {
+                    roots.push_back(ptr);
+                }
             }
         }
         return roots;
     }
 
     size_t root_count() const {
-        std::shared_lock<std::shared_mutex> lock(registry_mtx_);
-        return active_roots_.size();
+        size_t total = 0;
+        for (size_t i = 0; i < kNumStripes; ++i) {
+            std::shared_lock<std::shared_mutex> lock(stripes_[i].mtx);
+            total += stripes_[i].active_roots.size();
+        }
+        return total;
     }
 
     size_t strong_count(void* gc_ptr) const {
         if (!gc_ptr) return 0;
-        std::shared_lock<std::shared_mutex> lock(registry_mtx_);
-        auto it = active_roots_.find(gc_ptr);
-        return (it != active_roots_.end()) ? it->second : 0;
+        size_t idx = stripe_index(gc_ptr);
+        std::shared_lock<std::shared_mutex> lock(stripes_[idx].mtx);
+        auto it = stripes_[idx].active_roots.find(gc_ptr);
+        return (it != stripes_[idx].active_roots.end()) ? it->second : 0;
     }
 
     void write_barrier_root(void* gc_ptr) {
@@ -100,18 +113,29 @@ public:
     }
 
     void clear() {
-        std::unique_lock<std::shared_mutex> lock(registry_mtx_);
-        active_roots_.clear();
+        for (size_t i = 0; i < kNumStripes; ++i) {
+            std::unique_lock<std::shared_mutex> lock(stripes_[i].mtx);
+            stripes_[i].active_roots.clear();
+        }
         std::lock_guard<std::mutex> glock(grey_mtx_);
         grey_roots_.clear();
         gc_phase_.store(GCPhase::Idle, std::memory_order_release);
     }
 
 private:
+    struct Stripe {
+        mutable std::shared_mutex mtx;
+        std::unordered_map<void*, size_t> active_roots;
+    };
+
     ArcRootRegistry() : gc_phase_(GCPhase::Idle) {}
 
-    mutable std::shared_mutex registry_mtx_;
-    std::unordered_map<void*, size_t> active_roots_;
+    static size_t stripe_index(const void* ptr) noexcept {
+        uintptr_t v = reinterpret_cast<uintptr_t>(ptr);
+        return ((v >> 4) * 2654435761u) % kNumStripes;
+    }
+
+    std::array<Stripe, kNumStripes> stripes_;
     std::atomic<GCPhase> gc_phase_{GCPhase::Idle};
 
     std::mutex grey_mtx_;
