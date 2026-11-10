@@ -947,6 +947,9 @@ TEST(MemoryTest, ResourceLeaseConcurrentWithCloseDrainsAndBlocksDescriptorReuse)
 }
 
 TEST(MemoryTest, StackMapCompletenessAudit) {
+    // Source exercises Loop (back-edges), Call (function calls),
+    // BuildArray and BuildMap (heap allocation sites) — all four must
+    // have an exact StackMap entry in chunk.stack_maps.
     std::string source =
         "fn calculate(n) {\n"
         "    let sum = 0;\n"
@@ -957,7 +960,9 @@ TEST(MemoryTest, StackMapCompletenessAudit) {
         "    }\n"
         "    return sum;\n"
         "}\n"
-        "let res = calculate(10);\n";
+        "let res = calculate(10);\n"
+        "let arr = [1, 2, 3];\n"
+        "let m = {\"a\": 1, \"b\": 2};\n";
 
     raven::Lexer lexer(source);
     auto tokens = lexer.tokenize();
@@ -970,14 +975,17 @@ TEST(MemoryTest, StackMapCompletenessAudit) {
     EXPECT_TRUE(compiled);
 
     // Audit every instruction in the chunk:
-    // Any opcode that can trigger a safepoint (OpCode::Loop, OpCode::Call) MUST have
-    // an exact corresponding StackMap in chunk.stack_maps.
+    // Loop, Call, BuildArray, BuildMap — every heap-allocating or
+    // safepoint-triggering opcode MUST have a corresponding StackMap.
     int offset = 0;
     size_t safepoint_count = 0;
     std::ostringstream devnull;
     while (offset < static_cast<int>(chunk.code.size())) {
         raven::OpCode op = static_cast<raven::OpCode>(chunk.code[offset]);
-        if (op == raven::OpCode::Loop || op == raven::OpCode::Call) {
+        if (op == raven::OpCode::Loop  ||
+            op == raven::OpCode::Call  ||
+            op == raven::OpCode::BuildArray ||
+            op == raven::OpCode::BuildMap) {
             safepoint_count++;
             const raven::StackMap* sm = chunk.stack_maps.find_map(static_cast<uint32_t>(offset));
             ASSERT_NE(sm, nullptr) << "Missing StackMap at bytecode offset " << offset

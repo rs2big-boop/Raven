@@ -325,8 +325,17 @@ void Compiler::visit(const ArrayExpr& expr) {
     for (const auto& elem : expr.elements) {
         elem->accept(*this);
     }
+    // BuildArray allocates a heap object; record a StackMap so the GC can
+    // enumerate live roots if a safepoint is taken inside the allocator.
+    uint32_t safepoint_offset = static_cast<uint32_t>(chunk_.code.size());
     emit_op(OpCode::BuildArray);
     emit_byte(static_cast<uint8_t>(expr.elements.size()));
+
+    StackMap sm;
+    sm.bytecode_offset = safepoint_offset;
+    sm.local_slots_bitmap.resize(locals_.size(), true);
+    sm.operand_stack_bitmap.resize(expr.elements.size(), true);
+    chunk_.stack_maps.add_map(std::move(sm));
 }
 
 void Compiler::visit(const MapExpr& expr) {
@@ -334,8 +343,16 @@ void Compiler::visit(const MapExpr& expr) {
         entry.first->accept(*this);
         entry.second->accept(*this);
     }
+    // BuildMap allocates a heap object; record a StackMap for the same reason.
+    uint32_t safepoint_offset = static_cast<uint32_t>(chunk_.code.size());
     emit_op(OpCode::BuildMap);
     emit_byte(static_cast<uint8_t>(expr.entries.size()));
+
+    StackMap sm;
+    sm.bytecode_offset = safepoint_offset;
+    sm.local_slots_bitmap.resize(locals_.size(), true);
+    sm.operand_stack_bitmap.resize(expr.entries.size() * 2, true);
+    chunk_.stack_maps.add_map(std::move(sm));
 }
 
 void Compiler::visit(const IndexExpr& expr) {
