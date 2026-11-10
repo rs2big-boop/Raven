@@ -9,6 +9,10 @@ option(RAVEN_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(RAVEN_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(RAVEN_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
+if(RAVEN_ENABLE_ASAN AND RAVEN_ENABLE_TSAN)
+    message(FATAL_ERROR "Cannot enable both RAVEN_ENABLE_ASAN and RAVEN_ENABLE_TSAN simultaneously.")
+endif()
+
 if(RAVEN_ENABLE_ASAN)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
     add_link_options(-fsanitize=address)

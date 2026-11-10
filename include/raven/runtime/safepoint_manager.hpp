@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -28,6 +29,9 @@ public:
     }
 
     void register_thread(std::thread::id tid = std::this_thread::get_id()) {
+        if (tid != std::this_thread::get_id()) {
+            throw std::invalid_argument("SafepointManager: cannot register non-current thread.");
+        }
         std::unique_lock<std::mutex> lock(mtx_);
         if (safepoint_requested_.load(std::memory_order_acquire)) {
             thread_states_[tid] = MutatorState::AtSafepoint;
@@ -40,6 +44,9 @@ public:
     }
 
     void unregister_thread(std::thread::id tid = std::this_thread::get_id()) {
+        if (tid != std::this_thread::get_id()) {
+            throw std::invalid_argument("SafepointManager: cannot unregister non-current thread.");
+        }
         std::lock_guard<std::mutex> lock(mtx_);
         thread_states_.erase(tid);
         cv_gc_.notify_all();
@@ -51,6 +58,9 @@ public:
      * and proceeds with STW without waiting.
      */
     void enter_native(std::thread::id tid = std::this_thread::get_id()) {
+        if (tid != std::this_thread::get_id()) {
+            throw std::invalid_argument("SafepointManager: cannot enter native on non-current thread.");
+        }
         std::lock_guard<std::mutex> lock(mtx_);
         auto it = thread_states_.find(tid);
         if (it != thread_states_.end()) {
@@ -66,6 +76,9 @@ public:
      * If a safepoint is currently active, the thread parks until GC resumes.
      */
     void exit_native(std::thread::id tid = std::this_thread::get_id()) {
+        if (tid != std::this_thread::get_id()) {
+            throw std::invalid_argument("SafepointManager: cannot exit native on non-current thread.");
+        }
         std::unique_lock<std::mutex> lock(mtx_);
         auto it = thread_states_.find(tid);
         if (it == thread_states_.end()) return;
@@ -85,6 +98,9 @@ public:
      * Extremely fast path: single atomic load when no safepoint is requested.
      */
     void poll_safepoint(std::thread::id tid = std::this_thread::get_id()) {
+        if (tid != std::this_thread::get_id()) {
+            throw std::invalid_argument("SafepointManager: cannot poll safepoint for non-current thread.");
+        }
         if (!safepoint_requested_.load(std::memory_order_acquire)) {
             return;
         }

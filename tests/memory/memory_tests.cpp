@@ -815,7 +815,20 @@ TEST(MemoryTest, ThreadJoiningDuringActiveSafepointParksImmediately) {
     while (!thread_started.load(std::memory_order_acquire)) {
         std::this_thread::yield();
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // Bounded wait: poll until the joiner thread is blocked inside register_thread
+    // (parking on the safepoint barrier). A 2-second wall-clock limit prevents
+    // the test from hanging indefinitely on a loaded machine while still
+    // catching regressions where the thread never parks.
+    {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (!sm.is_safepoint_requested() ||
+               thread_completed_register.load(std::memory_order_acquire)) {
+            if (std::chrono::steady_clock::now() > deadline) {
+                FAIL() << "Timed out waiting for joiner thread to park at safepoint";
+            }
+            std::this_thread::yield();
+        }
+    }
 
     EXPECT_FALSE(thread_completed_register.load(std::memory_order_acquire));
 
@@ -902,7 +915,18 @@ TEST(MemoryTest, ResourceLeaseConcurrentWithCloseDrainsAndBlocksDescriptorReuse)
         close_completed.store(true);
     });
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // Bounded wait: poll until block->state() transitions to Closing.
+    // The closer thread calls block->close() which sets the state to Closing
+    // while a lease is held; we must observe that before asserting.
+    {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (block->state() != raven::ResourceState::Closing) {
+            if (std::chrono::steady_clock::now() > deadline) {
+                FAIL() << "Timed out waiting for block state to reach Closing";
+            }
+            std::this_thread::yield();
+        }
+    }
 
     EXPECT_EQ(block->state(), raven::ResourceState::Closing);
     EXPECT_FALSE(closed_called.load());

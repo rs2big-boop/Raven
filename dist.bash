@@ -26,7 +26,9 @@ mkdir -p "${TARGET_DIR}/stdlib"
 cp "${REPO_ROOT}/build/raven" "${TARGET_DIR}/bin/"
 cp "${REPO_ROOT}/build/ravenc" "${TARGET_DIR}/bin/"
 cp "${REPO_ROOT}/build/rvm" "${TARGET_DIR}/bin/"
-[ -f "${REPO_ROOT}/build/rvndb" ] && cp "${REPO_ROOT}/build/rvndb" "${TARGET_DIR}/bin/"
+[ -f "${REPO_ROOT}/build_release/rvndb" ] \
+    && cp "${REPO_ROOT}/build_release/rvndb" "${TARGET_DIR}/bin/" \
+    || { echo "❌ Required binary build_release/rvndb not found — packaging aborted."; exit 1; }
 cp -r "${REPO_ROOT}/stdlib/"* "${TARGET_DIR}/stdlib/"
 cp "${REPO_ROOT}/README.md" "${TARGET_DIR}/"
 cp "${REPO_ROOT}/LICENSE" "${TARGET_DIR}/" 2>/dev/null || true
