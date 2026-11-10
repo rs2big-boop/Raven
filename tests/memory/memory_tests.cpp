@@ -10,6 +10,7 @@
 #include "raven/environment.hpp"
 #include "raven/gc.hpp"
 #include "raven/runtime/resource_handle.hpp"
+#include "raven/runtime/arc_root_registry.hpp"
 
 using namespace raven::runtime::memory;
 
@@ -338,4 +339,124 @@ TEST(MemoryTest, ResourceControlBlockConcurrentCloseRace) {
     EXPECT_EQ(close_count.load(), 1);
     EXPECT_EQ(success_count.load(), 1);
     EXPECT_TRUE(rcb->is_closed());
+}
+
+TEST(MemoryTest, ArcRegistrationAndSnapshot) {
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    struct DummyGCNode { int id; };
+    DummyGCNode node1{42};
+    DummyGCNode node2{99};
+
+    {
+        raven::Arc<DummyGCNode> arc1(&node1);
+        EXPECT_EQ(arc1.use_count(), 1u);
+        EXPECT_EQ(reg.root_count(), 1u);
+
+        {
+            raven::Arc<DummyGCNode> arc2 = arc1;
+            EXPECT_EQ(arc1.use_count(), 2u);
+            EXPECT_EQ(arc2.use_count(), 2u);
+            EXPECT_EQ(reg.root_count(), 1u);
+
+            raven::Arc<DummyGCNode> arc3(&node2);
+            EXPECT_EQ(reg.root_count(), 2u);
+
+            auto snapshot = reg.snapshot_roots();
+            EXPECT_EQ(snapshot.size(), 2u);
+        }
+
+        // arc2 and arc3 out of scope
+        EXPECT_EQ(arc1.use_count(), 1u);
+        EXPECT_EQ(reg.root_count(), 1u);
+    }
+
+    // arc1 out of scope
+    EXPECT_EQ(reg.root_count(), 0u);
+    EXPECT_TRUE(reg.snapshot_roots().empty());
+}
+
+TEST(MemoryTest, ArcRootRegistryWriteBarrierDuringMarking) {
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    struct DummyGCNode { int val; };
+    DummyGCNode node{100};
+
+    // When Idle, no barrier grey roots queued
+    reg.set_gc_phase(raven::GCPhase::Idle);
+    {
+        raven::Arc<DummyGCNode> arc(&node);
+        auto drained = reg.drain_grey_roots();
+        EXPECT_TRUE(drained.empty());
+    }
+
+    // When in IncrementalMarking phase, write barrier activates
+    reg.set_gc_phase(raven::GCPhase::IncrementalMarking);
+    {
+        raven::Arc<DummyGCNode> arc(&node);
+        auto drained = reg.drain_grey_roots();
+        EXPECT_EQ(drained.size(), 1u);
+        EXPECT_EQ(drained[0], static_cast<void*>(&node));
+
+        // Cloning also triggers write barrier to ensure newly established references are greyed
+        raven::Arc<DummyGCNode> arc_copy = arc;
+        drained = reg.drain_grey_roots();
+        EXPECT_EQ(drained.size(), 1u);
+        EXPECT_EQ(drained[0], static_cast<void*>(&node));
+    }
+
+    reg.set_gc_phase(raven::GCPhase::Idle);
+    reg.clear();
+}
+
+TEST(MemoryTest, ArcRootRegistryConcurrentMultiThreadMutations) {
+    auto& reg = raven::ArcRootRegistry::instance();
+    reg.clear();
+
+    struct Node { int x; };
+    const int kNumNodes = 32;
+    std::vector<Node> nodes(kNumNodes);
+    for (int i = 0; i < kNumNodes; ++i) nodes[i].x = i;
+
+    std::atomic<bool> stop_flag{false};
+    std::atomic<uint64_t> total_snapshots{0};
+
+    // Background GC scanner thread taking snapshots
+    std::thread gc_scanner([&]() {
+        while (!stop_flag.load(std::memory_order_relaxed)) {
+            auto roots = reg.snapshot_roots();
+            total_snapshots.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield();
+        }
+    });
+
+    // 16 concurrent mutator threads creating, cloning, copying, and dropping Arcs
+    const int kMutatorThreads = 16;
+    const int kIterations = 500;
+    std::vector<std::thread> mutators;
+
+    for (int t = 0; t < kMutatorThreads; ++t) {
+        mutators.emplace_back([&, t]() {
+            for (int i = 0; i < kIterations; ++i) {
+                int node_idx = (t + i) % kNumNodes;
+                raven::Arc<Node> arc(&nodes[node_idx]);
+                raven::Arc<Node> clone = arc;
+                raven::Arc<Node> moved = std::move(clone);
+                EXPECT_TRUE(moved.get() != nullptr);
+            }
+        });
+    }
+
+    for (auto& m : mutators) {
+        m.join();
+    }
+
+    stop_flag.store(true, std::memory_order_release);
+    gc_scanner.join();
+
+    EXPECT_GT(total_snapshots.load(), 0u);
+    EXPECT_EQ(reg.root_count(), 0u);
+    reg.clear();
 }
