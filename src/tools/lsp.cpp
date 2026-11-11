@@ -86,6 +86,59 @@ static std::string read_rpc(std::istream& in) {
     return std::string(buf.data(), content_length);
 }
 
+// Unescape a JSON string value (without surrounding quotes).
+// Converts \n -> newline, \" -> quote, \\ -> backslash, \t -> tab, \r -> CR, \uXXXX -> UTF-8.
+static std::string unescape_json_string(const std::string& s) {
+    std::string result;
+    result.reserve(s.size());
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] != '\\' || i + 1 >= s.size()) {
+            result += s[i];
+            continue;
+        }
+        ++i;
+        switch (s[i]) {
+            case '"':  result += '"';  break;
+            case '\\': result += '\\'; break;
+            case '/':  result += '/';  break;
+            case 'n':  result += '\n'; break;
+            case 'r':  result += '\r'; break;
+            case 't':  result += '\t'; break;
+            case 'b':  result += '\b'; break;
+            case 'f':  result += '\f'; break;
+            case 'u':
+                // \uXXXX — emit raw bytes for now (keep as-is for non-ASCII)
+                if (i + 4 < s.size()) {
+                    result += '\\'; result += 'u';
+                } else {
+                    result += s[i];
+                }
+                break;
+            default:
+                result += '\\';
+                result += s[i];
+                break;
+        }
+    }
+    return result;
+}
+
+// Find the closing unescaped quote starting the search at pos (which should point
+// to the opening quote character). Returns the index of the closing quote, or npos.
+static size_t find_closing_quote(const std::string& s, size_t open_quote) {
+    size_t i = open_quote + 1;
+    while (i < s.size()) {
+        if (s[i] == '\\') {
+            i += 2; // skip escaped character
+        } else if (s[i] == '"') {
+            return i;
+        } else {
+            ++i;
+        }
+    }
+    return std::string::npos;
+}
+
 static std::string extract_json_field(const std::string& json, const std::string& field) {
     std::string target = "\"" + field + "\":";
     size_t pos = json.find(target);
@@ -95,7 +148,8 @@ static std::string extract_json_field(const std::string& json, const std::string
     if (pos >= json.size()) return "";
 
     if (json[pos] == '"') {
-        size_t end = json.find('"', pos + 1);
+        // Use escape-aware closing-quote search
+        size_t end = find_closing_quote(json, pos);
         if (end == std::string::npos) return "";
         return json.substr(pos + 1, end - pos - 1);
     } else {
@@ -137,9 +191,12 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
                 text_pos += 7;
                 while (text_pos < req.size() && req[text_pos] == ' ') text_pos++;
                 if (text_pos < req.size() && req[text_pos] == '"') {
-                    size_t text_end = req.rfind('"');
-                    if (text_end > text_pos) {
-                        doc_text = req.substr(text_pos + 1, text_end - text_pos - 1);
+                    // Use escape-aware quote search so embedded \" doesn't terminate early
+                    size_t text_end = find_closing_quote(req, text_pos);
+                    if (text_end != std::string::npos && text_end > text_pos) {
+                        // Extract the raw JSON string content, then unescape it
+                        doc_text = unescape_json_string(
+                            req.substr(text_pos + 1, text_end - text_pos - 1));
                     }
                 }
             }

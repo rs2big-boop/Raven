@@ -1,0 +1,52 @@
+// This is a simple example of a Raven program that prints "Hello, World!" and performs some basic operations.
+print "Hello, World!" // you can use print command with parentheses and semicolon or without them
+print 10 + 20
+fn calculate(a, b) {
+    return a + b
+}
+print calculate(10, 20)
+let name = "Raven"
+print "Hello " + name
+
+class Node {
+    value
+    next
+
+    // Constructor: single argument (no next pointer)
+    fn Node(v) {
+        this.value = v
+        this.next = null
+    }
+
+    // Constructor: two arguments (with next pointer)
+    fn Node(v, n) {
+        this.value = v
+        this.next = n
+    }
+
+    fn is_null() {
+        return this.next is null
+    }
+
+    fn set_next(n) {
+        this.next = n
+    }
+
+    fn set_value(v) {
+        this.value = v
+    }
+
+    fn get_next() {
+        return this.next
+    }
+
+    fn get_value() {
+        return this.value
+    }
+}
+
+let node1 = Node(1, null)
+let node2 = Node(2, node1)
+print node1.get_value()
+print node2.get_value()
+print node2.get_next().get_value()
