@@ -1,13 +1,4 @@
 // This is a simple example of a Raven program that prints "Hello, World!" and performs some basic operations.
-print "Hello, World!" // you can use print command with parentheses and semicolon or without them
-print 10 + 20
-fn calculate(a, b) {
-    return a + b
-}
-print calculate(10, 20)
-let name = "Raven"
-print "Hello " + name
-
 class Node {
     value
     next
@@ -43,10 +34,17 @@ class Node {
     fn get_value() {
         return this.value
     }
+    fn show() {
+        println "Node value: " + this.value
+        if (this.next is null) {
+            println "Next node: null"
+        } else {
+            println "Next node value: " + this.next.get_value()
+        }
+    }
 }
 
 let node1 = Node(1, null)
 let node2 = Node(2, node1)
-print node1.get_value()
-print node2.get_value()
-print node2.get_next().get_value()
+node1.show()
+node2.show()

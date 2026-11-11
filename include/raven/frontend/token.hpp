@@ -24,6 +24,7 @@ enum class TokenType {
     Break,
     Continue,
     Print,
+    Println,
     Fn,
     Return,
     True,

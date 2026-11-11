@@ -181,7 +181,10 @@ std::shared_ptr<Stmt> Parser::var_declaration() {
 
 std::shared_ptr<Stmt> Parser::statement() {
     if (match({TokenType::Print})) {
-        return print_statement();
+        return print_statement(/*newline=*/false);
+    }
+    if (match({TokenType::Println})) {
+        return print_statement(/*newline=*/true);
     }
     if (match({TokenType::If})) {
         return if_statement();
@@ -228,7 +231,7 @@ std::shared_ptr<Stmt> Parser::statement() {
     return expression_statement();
 }
 
-std::shared_ptr<Stmt> Parser::print_statement() {
+std::shared_ptr<Stmt> Parser::print_statement(bool newline) {
     std::vector<std::unique_ptr<Expr>> values;
     if (match({TokenType::LeftParen})) {
         if (!check(TokenType::RightParen)) {
@@ -243,7 +246,7 @@ std::shared_ptr<Stmt> Parser::print_statement() {
         } while (match({TokenType::Comma}));
     }
     consume_semicolon("Expected ';' after print statement.");
-    return std::make_shared<PrintStmt>(std::move(values));
+    return std::make_shared<PrintStmt>(std::move(values), newline);
 }
 
 std::shared_ptr<Stmt> Parser::if_statement() {

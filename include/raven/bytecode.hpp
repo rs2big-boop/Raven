@@ -61,6 +61,7 @@ enum class OpCode : uint8_t {
     Negate,
 
     Print,
+    Println,
     Pop,
 
     DefineGlobal,
@@ -203,6 +204,9 @@ public:
                 return offset + 1;
             case OpCode::Print:
                 os << "OP_PRINT\n";
+                return offset + 1;
+            case OpCode::Println:
+                os << "OP_PRINTLN\n";
                 return offset + 1;
             case OpCode::Pop:
                 os << "OP_POP\n";

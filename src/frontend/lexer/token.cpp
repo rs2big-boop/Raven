@@ -57,6 +57,7 @@ std::string token_type_name(TokenType type) {
         case TokenType::Break: return "Break";
         case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";
+        case TokenType::Println: return "Println";
         case TokenType::Fn: return "Fn";
         case TokenType::Return: return "Return";
         case TokenType::True: return "True";

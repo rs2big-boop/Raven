@@ -229,7 +229,14 @@ InterpretResult VM::run_chunk(const Chunk& chunk, size_t initial_ip, size_t targ
                 break;
             case OpCode::Print: {
                 Value val = pop();
+                out_ << val.to_string();
+                out_.flush();
+                break;
+            }
+            case OpCode::Println: {
+                Value val = pop();
                 out_ << val.to_string() << "\n";
+                out_.flush();
                 break;
             }
             case OpCode::Pop:

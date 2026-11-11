@@ -24,6 +24,7 @@ std::string opcode_name(OpCode op) {
         case OpCode::Not:           return "NOT";
         case OpCode::Negate:        return "NEGATE";
         case OpCode::Print:         return "PRINT";
+        case OpCode::Println:       return "PRINTLN";
         case OpCode::Pop:           return "POP";
         case OpCode::DefineGlobal:  return "DEFINE_GLOBAL";
         case OpCode::GetGlobal:     return "GET_GLOBAL";

@@ -1,9 +1,5 @@
 // stdlib/fmt.rvn - Formatted I/O (inspired by Go's fmt package)
 
-fn println(v) {
-    print(v);
-}
-
 fn print_val(v) {
     print(v);
 }

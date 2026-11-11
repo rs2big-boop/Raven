@@ -24,6 +24,7 @@ enum class TokenType {
     Break,
     Continue,
     Print,
+    Println,
     Fn,
     Return,
     True,
@@ -128,6 +129,7 @@ inline std::string_view token_type_to_string(TokenType type) {
         case TokenType::Break: return "Break";
         case TokenType::Continue: return "Continue";
         case TokenType::Print: return "Print";
+        case TokenType::Println: return "Println";
         case TokenType::Fn: return "Fn";
         case TokenType::Return: return "Return";
         case TokenType::True: return "True";

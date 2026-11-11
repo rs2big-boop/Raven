@@ -477,16 +477,21 @@ void Compiler::visit(const ExpressionStmt& stmt) {
 }
 
 void Compiler::visit(const PrintStmt& stmt) {
+    OpCode op = stmt.newline ? OpCode::Println : OpCode::Print;
     if (stmt.expressions.empty()) {
         if (stmt.expression) {
             stmt.expression->accept(*this);
-            emit_op(OpCode::Print);
+            emit_op(op);
         }
         return;
     }
-    for (const auto& expr : stmt.expressions) {
-        expr->accept(*this);
-        emit_op(OpCode::Print);
+    for (size_t i = 0; i < stmt.expressions.size(); ++i) {
+        stmt.expressions[i]->accept(*this);
+        if (i + 1 == stmt.expressions.size()) {
+            emit_op(op);
+        } else {
+            emit_op(OpCode::Print);
+        }
     }
 }
 

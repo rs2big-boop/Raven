@@ -27,7 +27,8 @@ static std::string get_hover_documentation(const std::string& symbol) {
         {"map", "### `map(array, transform_fn)` Builtin\\nMaps each element of an array to a new transformed array.\\n\\n```raven\\nlet sq = map([1, 2, 3], x => x * x);\\n```"},
         {"filter", "### `filter(array, predicate_fn)` Builtin\\nFilters elements satisfying the predicate function.\\n\\n```raven\\nlet evens = filter(arr, x => x % 2 == 0);\\n```"},
         {"reduce", "### `reduce(array, fn, initial)` Builtin\\nFolds an array from left to right using accumulator.\\n\\n```raven\\nlet sum = reduce([1, 2, 3], (acc, x) => acc + x, 0);\\n```"},
-        {"print", "### `print(value)` Builtin\\nPrints string representation of value to standard output.\\n\\n```raven\\nprint(\"Hello, Raven!\");\\n```"},
+        {"print", "### `print(value)` Builtin\\nPrints string representation of value to standard output without trailing newline.\\n\\n```raven\\nprint(\"Loading... \");\\n```"},
+        {"println", "### `println(value)` Builtin\\nPrints string representation of value to standard output followed by a newline.\\n\\n```raven\\nprintln(\"Hello, Raven!\");\\n```"},
         {"len", "### `len(container)` Builtin\\nReturns number of elements in array, characters in string, or keys in map.\\n\\n```raven\\nlet n = len([1, 2, 3]); // 3\\n```"},
         {"to_json", "### `to_json(value)` Builtin\\nEncodes native Raven value into JSON string.\\n\\n```raven\\nlet s = to_json({\"name\": \"Raven\"});\\n```"},
         {"parse_json", "### `parse_json(string)` Builtin\\nParses JSON string into Raven maps, arrays, numbers, and strings.\\n\\n```raven\\nlet obj = parse_json(\"{\\\"a\\\": 1}\");\\n```"},
@@ -253,7 +254,8 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
                 "{\"label\":\"match\",\"kind\":14,\"detail\":\"Pattern matching\"},"
                 "{\"label\":\"is\",\"kind\":15,\"detail\":\"Type checking operator (x is Number)\"},"
                 "{\"label\":\"loop\",\"kind\":15,\"detail\":\"Infinite loop\"},"
-                "{\"label\":\"print\",\"kind\":3,\"detail\":\"fn print(value)\"},"
+                "{\"label\":\"print\",\"kind\":3,\"detail\":\"fn print(value) -> print without newline\"},"
+                "{\"label\":\"println\",\"kind\":3,\"detail\":\"fn println(value) -> print with newline\"},"
                 "{\"label\":\"len\",\"kind\":3,\"detail\":\"fn len(container)\"},"
                 "{\"label\":\"map\",\"kind\":3,\"detail\":\"fn map(array, fn) -> array\"},"
                 "{\"label\":\"filter\",\"kind\":3,\"detail\":\"fn filter(array, fn) -> array\"},"
@@ -327,7 +329,7 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
         } else if (method == "textDocument/codeAction") {
             std::string uri = extract_json_field(req, "uri");
             static const std::vector<std::string> known_symbols = {
-                "class", "this", "print", "len", "abs", "sort_arr", "format", "to_json", "parse_json",
+                "class", "this", "print", "println", "len", "abs", "sort_arr", "format", "to_json", "parse_json",
                 "map", "filter", "reduce", "keys", "values", "is",
                 "unique", "slice", "regex_match", "http_get", "spawn", "chan_create",
                 "chan_send", "chan_recv", "chan_close", "let", "fn", "struct", "match",

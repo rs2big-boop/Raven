@@ -118,6 +118,7 @@ Token Lexer::scan_identifier_or_keyword() {
         {"break", TokenType::Break},
         {"continue", TokenType::Continue},
         {"print", TokenType::Print},
+        {"println", TokenType::Println},
         {"fn", TokenType::Fn},
         {"return", TokenType::Return},
         {"true", TokenType::True},

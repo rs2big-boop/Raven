@@ -1029,13 +1029,13 @@ TEST(MemoryTest, ReturnValueRemainsRootedDuringNestedUnwindingAndCleanup) {
         "}\n"
         "let cleanup_log = [];\n"
         "let res = create_nested_data(cleanup_log);\n"
-        "print(len(cleanup_log));\n"
-        "print(cleanup_log[0]);\n"
-        "print(cleanup_log[1]);\n"
-        "print(cleanup_log[2]);\n"
-        "print(res[0][\"name\"]);\n"
-        "print(res[1][\"id\"]);\n"
-        "print(res[2][\"nested\"][1]);\n";
+        "println(len(cleanup_log));\n"
+        "println(cleanup_log[0]);\n"
+        "println(cleanup_log[1]);\n"
+        "println(cleanup_log[2]);\n"
+        "println(res[0][\"name\"]);\n"
+        "println(res[1][\"id\"]);\n"
+        "println(res[2][\"nested\"][1]);\n";
 
     raven::Lexer lexer(source);
     auto tokens = lexer.tokenize();
