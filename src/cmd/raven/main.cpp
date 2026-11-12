@@ -14,6 +14,7 @@
 #include "raven/formatter.hpp"
 #include "raven/doc_generator.hpp"
 #include "raven/lsp.hpp"
+#include "raven/dap.hpp"
 #include "raven/debugger.hpp"
 #include "raven/packages/package_manager.hpp"
 #include "raven/platform/filesystem.hpp"
@@ -325,6 +326,12 @@ int main(int argc, char* argv[]) {
 
         if (first_arg == "lsp") {
             raven::LanguageServer::run(std::cin, std::cout);
+            return 0;
+        }
+
+        if (first_arg == "dap") {
+            std::string path = (argc > 2) ? argv[2] : "";
+            raven::run_dap_server(path, std::cin, std::cout);
             return 0;
         }
 

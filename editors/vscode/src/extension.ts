@@ -17,42 +17,6 @@ function getTerminal(name: string): vscode.Terminal {
     return vscode.window.createTerminal(name);
 }
 
-function getBreakpointsForFile(filePath: string): number[] {
-    const lines: number[] = [];
-    for (const breakpoint of vscode.debug.breakpoints) {
-        if (breakpoint instanceof vscode.SourceBreakpoint &&
-            breakpoint.location.uri.fsPath === filePath) {
-            lines.push(breakpoint.location.range.start.line + 1);
-        }
-    }
-    return lines;
-}
-
-function launchDebugger(config: {
-    program?: string;
-    stopOnEntry?: boolean;
-    [key: string]: unknown;
-} = {}): void {
-    const editor = vscode.window.activeTextEditor;
-    let filePath = config.program;
-    if (!filePath || filePath === '${file}') {
-        if (!editor) {
-            void vscode.window.showErrorMessage('No active Raven file to debug.');
-            return;
-        }
-        filePath = editor.document.uri.fsPath;
-    }
-
-    const ravenBin = resolveRavenExecutable();
-    const breakpoints = getBreakpointsForFile(filePath);
-    const bpArgs = breakpoints.map((line) => ` -b ${line}`).join('');
-    const stopArg = config.stopOnEntry === false ? ' --no-stop-on-entry' : '';
-
-    const terminal = getTerminal('Raven Debugger');
-    terminal.show();
-    terminal.sendText(`"${ravenBin}" debug "${filePath}"${bpArgs}${stopArg}`);
-}
-
 async function probeVersion(ravenBin: string): Promise<string> {
     return new Promise((resolve) => {
         const child = spawn(ravenBin, ['--version']);
@@ -189,8 +153,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('raven.debug', () => {
-            launchDebugger({ stopOnEntry: true });
+        vscode.commands.registerCommand('raven.debug', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                void vscode.window.showErrorMessage('No active Raven file to debug.');
+                return;
+            }
+            await vscode.debug.startDebugging(undefined, {
+                type: 'raven',
+                request: 'launch',
+                name: 'Raven: Debug Current File',
+                program: editor.document.uri.fsPath,
+                stopOnEntry: true
+            });
         })
     );
 
@@ -386,13 +361,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     }
                 }
 
+                if (!config.program || config.program === '${file}') {
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        config.program = editor.document.uri.fsPath;
+                    }
+                }
+
                 if (!config.program) {
                     void vscode.window.showInformationMessage('Cannot find a Raven program to debug');
                     return undefined;
                 }
 
-                launchDebugger(config);
-                return undefined;
+                return config;
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.debug.registerDebugAdapterDescriptorFactory('raven', {
+            createDebugAdapterDescriptor(_session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+                const ravenBin = resolveRavenExecutable();
+                return new vscode.DebugAdapterExecutable(ravenBin, ['dap']);
             }
         })
     );

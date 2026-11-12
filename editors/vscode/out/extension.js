@@ -51,34 +51,6 @@ function getTerminal(name) {
     }
     return vscode.window.createTerminal(name);
 }
-function getBreakpointsForFile(filePath) {
-    const lines = [];
-    for (const breakpoint of vscode.debug.breakpoints) {
-        if (breakpoint instanceof vscode.SourceBreakpoint &&
-            breakpoint.location.uri.fsPath === filePath) {
-            lines.push(breakpoint.location.range.start.line + 1);
-        }
-    }
-    return lines;
-}
-function launchDebugger(config = {}) {
-    const editor = vscode.window.activeTextEditor;
-    let filePath = config.program;
-    if (!filePath || filePath === '${file}') {
-        if (!editor) {
-            void vscode.window.showErrorMessage('No active Raven file to debug.');
-            return;
-        }
-        filePath = editor.document.uri.fsPath;
-    }
-    const ravenBin = (0, ravenPath_1.resolveRavenExecutable)();
-    const breakpoints = getBreakpointsForFile(filePath);
-    const bpArgs = breakpoints.map((line) => ` -b ${line}`).join('');
-    const stopArg = config.stopOnEntry === false ? ' --no-stop-on-entry' : '';
-    const terminal = getTerminal('Raven Debugger');
-    terminal.show();
-    terminal.sendText(`"${ravenBin}" debug "${filePath}"${bpArgs}${stopArg}`);
-}
 async function probeVersion(ravenBin) {
     return new Promise((resolve) => {
         const child = (0, child_process_1.spawn)(ravenBin, ['--version']);
@@ -188,8 +160,19 @@ async function activate(context) {
             await vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
         });
     }));
-    context.subscriptions.push(vscode.commands.registerCommand('raven.debug', () => {
-        launchDebugger({ stopOnEntry: true });
+    context.subscriptions.push(vscode.commands.registerCommand('raven.debug', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            void vscode.window.showErrorMessage('No active Raven file to debug.');
+            return;
+        }
+        await vscode.debug.startDebugging(undefined, {
+            type: 'raven',
+            request: 'launch',
+            name: 'Raven: Debug Current File',
+            program: editor.document.uri.fsPath,
+            stopOnEntry: true
+        });
     }));
     context.subscriptions.push(vscode.commands.registerCommand('raven.buildAndRun', async () => {
         const editor = vscode.window.activeTextEditor;
@@ -328,12 +311,23 @@ async function activate(context) {
                     config.stopOnEntry = true;
                 }
             }
+            if (!config.program || config.program === '${file}') {
+                const editor = vscode.window.activeTextEditor;
+                if (editor) {
+                    config.program = editor.document.uri.fsPath;
+                }
+            }
             if (!config.program) {
                 void vscode.window.showInformationMessage('Cannot find a Raven program to debug');
                 return undefined;
             }
-            launchDebugger(config);
-            return undefined;
+            return config;
+        }
+    }));
+    context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('raven', {
+        createDebugAdapterDescriptor(_session) {
+            const ravenBin = (0, ravenPath_1.resolveRavenExecutable)();
+            return new vscode.DebugAdapterExecutable(ravenBin, ['dap']);
         }
     }));
     context.subscriptions.push(vscode.languages.registerCompletionItemProvider({ language: 'raven' }, {

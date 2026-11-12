@@ -125,6 +125,7 @@ add_library(raven_core
     src/tools/doc_generator.cpp
     src/tools/lsp.cpp
     src/tools/debugger.cpp
+    src/tools/dap.cpp
 )
 
 target_include_directories(raven_core PUBLIC
