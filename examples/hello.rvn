@@ -7,4 +7,4 @@ if (age >= 18) {
     print("Adult");
 }
 println("Age: " + age);
-print age + 5;
+print(age + 5);
