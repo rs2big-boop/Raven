@@ -6,3 +6,5 @@ print("Hello, " + name);
 if (age >= 18) {
     print("Adult");
 }
+println("Age: " + age);
+print age + 5;

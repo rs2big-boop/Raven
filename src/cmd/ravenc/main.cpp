@@ -19,6 +19,50 @@ namespace fs = std::filesystem;
 using namespace raven;
 
 static const char RAVEN_NATIVE_MAGIC[16] = "RAVEN_NATIVE_V1";
+static const char RAVEN_NATIVE_SRC_MAGIC[16] = "RAVEN_NATIVE_S1";
+
+class RuntimeFeatureDetector : public StmtVisitor<void> {
+public:
+    bool needs_full_runtime = false;
+
+    void inspect(const std::vector<std::shared_ptr<Stmt>>& stmts) {
+        for (const auto& s : stmts) {
+            if (s && !needs_full_runtime) s->accept(*this);
+        }
+    }
+
+    void visit(const ExpressionStmt&) override {}
+    void visit(const PrintStmt&) override {}
+    void visit(const VarDeclStmt&) override {}
+    void visit(const DestructureStmt&) override {}
+    void visit(const IfStmt& s) override {
+        if (s.then_branch) s.then_branch->accept(*this);
+        if (s.else_branch) s.else_branch->accept(*this);
+    }
+    void visit(const WhileStmt& s) override {
+        if (s.body) s.body->accept(*this);
+    }
+    void visit(const ForInStmt& s) override {
+        if (s.body) s.body->accept(*this);
+    }
+    void visit(const BlockStmt& s) override {
+        inspect(s.statements);
+    }
+    void visit(const BreakStmt&) override {}
+    void visit(const ContinueStmt&) override {}
+    void visit(const FunctionStmt& s) override {
+        inspect(s.body);
+    }
+    void visit(const ReturnStmt&) override {}
+
+    // Features requiring high-fidelity runtime engine:
+    void visit(const ClassStmt&) override { needs_full_runtime = true; }
+    void visit(const StructStmt&) override { needs_full_runtime = true; }
+    void visit(const TryCatchStmt&) override { needs_full_runtime = true; }
+    void visit(const ThrowStmt&) override { needs_full_runtime = true; }
+    void visit(const ImportStmt&) override { needs_full_runtime = true; }
+    void visit(const UsingStmt&) override { needs_full_runtime = true; }
+};
 
 void print_usage() {
     std::cout << "Raven Bytecode & Native Compiler (ravenc)\n\n"
@@ -80,6 +124,8 @@ int main(int argc, char* argv[]) {
             native = true;
         } else if (arg == "-o" && i + 1 < argc) {
             output_path = argv[++i];
+        } else if (arg == "-o") {
+            // Trailing -o without filename: leave output_path empty to use default
         } else if (arg[0] == '-') {
             std::cerr << "Unknown option: " << arg << "\n";
             return 1;
@@ -128,16 +174,8 @@ int main(int argc, char* argv[]) {
         statements = Optimizer::optimize(statements);
     }
 
-    Chunk chunk;
-    Compiler compiler(chunk);
-    if (!compiler.compile(statements)) {
-        std::cerr << "Compilation failed.\n";
-        return 1;
-    }
-
-    if (disasm) {
-        chunk.disassemble(std::cout, input_path);
-    }
+    RuntimeFeatureDetector detector;
+    detector.inspect(statements);
 
     if (native) {
         std::string rvm_path = find_rvm_runtime();
@@ -152,12 +190,30 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        std::ostringstream payload_stream(std::ios::binary);
-        if (!BytecodeSerializer::serialize(chunk, payload_stream)) {
-            std::cerr << "Error: Failed to serialize bytecode payload.\n";
-            return 1;
+        std::string payload;
+        const char* magic = RAVEN_NATIVE_MAGIC;
+
+        if (detector.needs_full_runtime) {
+            payload = ss.str();
+            magic = RAVEN_NATIVE_SRC_MAGIC;
+        } else {
+            Chunk chunk;
+            Compiler compiler(chunk);
+            if (!compiler.compile(statements)) {
+                std::cerr << "Compilation failed.\n";
+                return 1;
+            }
+            if (disasm) {
+                chunk.disassemble(std::cout, input_path);
+            }
+            std::ostringstream payload_stream(std::ios::binary);
+            if (!BytecodeSerializer::serialize(chunk, payload_stream)) {
+                std::cerr << "Error: Failed to serialize bytecode payload.\n";
+                return 1;
+            }
+            payload = payload_stream.str();
         }
-        std::string payload = payload_stream.str();
+
         uint64_t payload_size = static_cast<uint64_t>(payload.size());
 
         std::ofstream out(output_path, std::ios::binary);
@@ -168,10 +224,10 @@ int main(int argc, char* argv[]) {
 
         // 1. Copy entire RVM engine
         out << rvm_in.rdbuf();
-        // 2. Append serialized bytecode
+        // 2. Append serialized payload
         out.write(payload.data(), payload.size());
         // 3. Append magic trailer
-        out.write(RAVEN_NATIVE_MAGIC, 16);
+        out.write(magic, 16);
         // 4. Append uint64 payload size
         out.write(reinterpret_cast<const char*>(&payload_size), sizeof(payload_size));
         out.close();
@@ -185,6 +241,24 @@ int main(int argc, char* argv[]) {
                   << "   Binary size: " << fs::file_size(output_path) << " bytes\n"
                   << "   Direct execution: ./" << output_path << "\n";
         return 0;
+    }
+
+    if (detector.needs_full_runtime) {
+        std::cerr << "Error: Program uses features (e.g. classes, structs, or module imports) that require\n"
+                  << "       the native runtime environment. To compile as a standalone native binary,\n"
+                  << "       run with '--native' or use 'raven build " << input_path << "'.\n";
+        return 1;
+    }
+
+    Chunk chunk;
+    Compiler compiler(chunk);
+    if (!compiler.compile(statements)) {
+        std::cerr << "Compilation failed.\n";
+        return 1;
+    }
+
+    if (disasm) {
+        chunk.disassemble(std::cout, input_path);
     }
 
     if (!BytecodeSerializer::save_to_file(output_path, chunk)) {

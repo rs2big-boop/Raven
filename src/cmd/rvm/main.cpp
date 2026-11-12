@@ -8,6 +8,7 @@
 #include "raven/bytecode_serializer.hpp"
 #include "raven/bytecode_verifier.hpp"
 #include "raven/compiler.hpp"
+#include "raven/interpreter.hpp"
 #include "raven/lexer.hpp"
 #include "raven/parser.hpp"
 #include "raven/platform/filesystem.hpp"
@@ -16,6 +17,7 @@
 using namespace raven;
 
 static const char RAVEN_NATIVE_MAGIC[16] = "RAVEN_NATIVE_V1";
+static const char RAVEN_NATIVE_SRC_MAGIC[16] = "RAVEN_NATIVE_S1";
 
 static bool check_and_run_embedded_native(int argc, char* argv[]) {
     std::string exe_path = raven::platform::fs_executable_path();
@@ -32,7 +34,11 @@ static bool check_and_run_embedded_native(int argc, char* argv[]) {
     file.seekg(file_size - 24);
     char magic[16];
     file.read(magic, 16);
-    if (std::memcmp(magic, RAVEN_NATIVE_MAGIC, 16) != 0) {
+
+    bool is_bc = (std::memcmp(magic, RAVEN_NATIVE_MAGIC, 16) == 0);
+    bool is_src = (std::memcmp(magic, RAVEN_NATIVE_SRC_MAGIC, 16) == 0);
+
+    if (!is_bc && !is_src) {
         return false;
     }
 
@@ -45,6 +51,33 @@ static bool check_and_run_embedded_native(int argc, char* argv[]) {
     file.seekg(file_size - 24 - payload_size);
     std::string payload(payload_size, '\0');
     file.read(&payload[0], payload_size);
+
+    if (is_src) {
+        Lexer lexer(payload);
+        auto tokens = lexer.tokenize();
+        Parser parser(tokens);
+        auto statements = parser.parse();
+        if (parser.has_error()) {
+            for (const auto& err : parser.errors()) {
+                std::cerr << err << "\n";
+            }
+            std::exit(65);
+        }
+        Interpreter interpreter;
+        try {
+            interpreter.interpret(statements);
+            std::exit(0);
+        } catch (const RuntimeError& error) {
+            std::cerr << "Runtime error: " << error.what() << "\n";
+            for (auto it = error.stack_trace().rbegin(); it != error.stack_trace().rend(); ++it) {
+                std::cerr << "    at " << it->function_name << " (line " << it->line << ", col " << it->column << ")\n";
+            }
+            std::exit(70);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
+            std::exit(70);
+        }
+    }
 
     std::istringstream stream(payload, std::ios::binary);
     Chunk chunk;
