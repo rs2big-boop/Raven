@@ -282,9 +282,17 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
         } else if (method == "textDocument/formatting") {
             std::string uri = extract_json_field(req, "uri");
             std::string formatted = "";
+            std::string original = "";
             if (documents.find(uri) != documents.end()) {
-                formatted = Formatter::format(documents[uri]);
+                original = documents[uri];
+                formatted = Formatter::format(original);
             }
+
+            // Count lines in the original so the TextEdit range covers the entire document.
+            // VS Code replaces [start, end) so we use line=orig_line_count, char=0
+            // which is one past the last line — equivalent to "whole document".
+            int orig_line_count = 0;
+            for (char c : original) if (c == '\n') orig_line_count++;
 
             // Escape formatted string for JSON
             std::ostringstream esc;
@@ -300,7 +308,7 @@ void LanguageServer::run(std::istream& in, std::ostream& out) {
             std::string resp =
                 "{\"jsonrpc\":\"2.0\",\"id\":" + (id.empty() ? "1" : id) + ","
                 "\"result\":[{\"range\":{\"start\":{\"line\":0,\"character\":0},"
-                "\"end\":{\"line\":99999,\"character\":0}},\"newText\":\"" + esc.str() + "\"}]}";
+                "\"end\":{\"line\":" + std::to_string(orig_line_count + 1) + ",\"character\":0}},\"newText\":\"" + esc.str() + "\"}]}";
             send_rpc(out, resp);
         } else if (method == "textDocument/hover") {
             std::string uri = extract_json_field(req, "uri");

@@ -116,7 +116,7 @@ static int run_file(const std::string& path, bool use_vm = false, bool disasm = 
 }
 
 static void run_prompt() {
-    std::cout << "🐦 Raven 1.0.0 Interactive Shell\n";
+    std::cout << "🐦 Raven 1.4.0 Interactive Shell (AninextCrew)\n";
     std::cout << "   Type .help for commands, .quit to exit\n\n";
 
     Interpreter interpreter;
@@ -164,7 +164,7 @@ static void run_prompt() {
                 continue;
             }
             if (trimmed == ".version") {
-                std::cout << "Raven 1.0.0 (Corvus Engine & VM)\n";
+                std::cout << "Raven 1.4.0 (AninextCrew, Corvus Engine)\n";
                 continue;
             }
             if (trimmed.rfind(".load ", 0) == 0) {
@@ -467,7 +467,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (first_arg == "--version" || first_arg == "-v") {
-            std::cout << "Raven 1.2.0 (Corvus Engine, Dual AST/VM Toolchain)\n";
+            std::cout << "Raven 1.4.0 (AninextCrew, Corvus Engine, Dual AST/VM Toolchain)\n";
             return 0;
         }
 
