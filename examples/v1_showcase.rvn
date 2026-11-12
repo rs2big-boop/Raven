@@ -3,65 +3,65 @@ import "stdlib/event";
 import "stdlib/cache";
 import "stdlib/validate";
 
-print("🐦 === Raven v1.0.0 Modern Language Features Showcase === 🐦\n");
+println("🐦 === Raven v1.0.0 Modern Language Features Showcase === 🐦\n");
 
 // 1. Default Parameters
 fn greet(name = "World", role = "Explorer") {
     return "Hello, " + name + "! Welcome as " + role + ".";
 }
-print("1. Default Function Parameters:");
-print("   " + greet());
-print("   " + greet("Antigravity", "Architect"));
-print("");
+println("1. Default Function Parameters:");
+println("   " + greet());
+println("   " + greet("Antigravity", "Architect"));
+println("");
 
 // 2. Null Coalescing (??)
 let env_port = nil;
 let port = env_port ?? 8080;
-print("2. Null Coalescing Operator (??):");
-print("   Configured port: " + port);
-print("");
+println("2. Null Coalescing Operator (??):");
+println("   Configured port: " + port);
+println("");
 
 // 3. Optional Chaining (?.)
 let session = nil;
 let user_name = session?.user?.name ?? "Guest";
 let first_item = session?.cart?.[0] ?? "Empty cart";
-print("3. Optional Chaining (?.):");
-print("   User: " + user_name);
-print("   First item: " + first_item);
-print("");
+println("3. Optional Chaining (?.):");
+println("   User: " + user_name);
+println("   First item: " + first_item);
+println("");
 
 // 4. 'is' Type Checking Operator
-print("4. 'is' Type Introspection Operator:");
+println("4. 'is' Type Introspection Operator:");
 let val1 = 3.14159;
 let val2 = "Corvus Engine";
 let val3 = [1, 2, 3];
-if (val1 is Number) { print("   val1 is Number: true"); }
-if (val2 is String) { print("   val2 is String: true"); }
-if (val3 is Array)  { print("   val3 is Array: true"); }
-print("");
+if (val1 is Number) { println("   val1 is Number: true"); }
+if (val2 is String) { println("   val2 is String: true"); }
+if (val3 is Array)  { println("   val3 is Array: true"); }
+println("");
 
 // 5. Spread Operator (...)
 let base_arr = [1, 2, 3];
 let full_arr = [0, ...base_arr, 4, 5];
-print("5. Spread Operator (...):");
-print("   Full Array: " + str(full_arr));
+println("5. Spread Operator (...):");
+println("   Full Array: " + str(full_arr));
 
 let base_map = {"a": 1, "b": 2};
 let full_map = {...base_map, "c": 3, "b": 99};
-print("   Merged Map: b = " + full_map["b"] + ", c = " + full_map["c"]);
-print("");
+println("   Merged Map: b = " + full_map["b"] + ", c = " + full_map["c"]);
+println("");
 
 // 6. 'loop {}' Infinite Loop with break
-print("6. 'loop {}' Loop Construct:");
+println("6. 'loop {}' Loop Construct:");
 let count = 0;
 loop {
     count += 1;
     if (count >= 3) {
-        print("   Loop break at count = " + count);
+        println("   Loop break at count = " + count);
         break;
     }
 }
-print("");
+println("");
 
 // 7. Multi-line Strings
 let query = """
@@ -70,27 +70,27 @@ FROM users
 WHERE active = true
 ORDER BY created_at DESC;
 """;
-print("7. Multi-line Strings (\"\"\" ... \"\"\"):");
-print("   Query:\n" + query);
+println("7. Multi-line Strings (\"\"\" ... \"\"\"):");
+println("   Query:\n" + query);
 
 // 8. Event Emitter stdlib
-print("8. Event Emitter (stdlib/event):");
+println("8. Event Emitter (stdlib/event):");
 let emitter = create_emitter();
 emitter.on("ready", fn(data) {
-    print("   [Event] System is ready! Payload: " + str(data));
+    println("   [Event] System is ready! Payload: " + str(data));
 });
-emitter.emit("ready", {"status": "ok", "version": "1.0.0"});
-print("");
+emitter.emit("ready", {"status": "ok", "version": "1.4.0"});
+println("");
 
 // 9. LRU Cache stdlib
-print("9. LRU Cache (stdlib/cache):");
+println("9. LRU Cache (stdlib/cache):");
 let cache = create_lru_cache(2);
 cache.set("k1", 100);
 cache.set("k2", 200);
-print("   k1: " + cache.get("k1"));
+println("   k1: " + cache.get("k1"));
 cache.set("k3", 300); // Evicts k2
-print("   k2 after eviction: " + str(cache.get("k2")));
-print("   k3: " + cache.get("k3"));
-print("");
+println("   k2 after eviction: " + str(cache.get("k2")));
+println("   k3: " + cache.get("k3"));
+println("");
 
-print("✨ All Raven v1.0.0 features verified successfully! ✨");
+println("✨ All Raven v1.4.0 features verified successfully! ✨");
