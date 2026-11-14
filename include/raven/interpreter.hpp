@@ -137,6 +137,7 @@ private:
     std::ostream& out_;
     std::shared_ptr<Environment> globals_;
     std::shared_ptr<Environment> environment_;
+    bool owns_globals_ = true;  // false for thread-local interpreters that share globals
     std::unordered_set<std::string> imported_modules_;
     std::vector<StackFrame> call_stack_;
     std::vector<Value> this_stack_;

@@ -238,6 +238,21 @@ TEST(DifferentialTest, SpawnRegistryJoinTimeout) {
     EXPECT_LT(elapsed, 350);
 }
 
+TEST(DifferentialTest, SpawnRegistryQuickExitNoTerminateCrash) {
+    // Regression test for Critical Bug: thread finishes BEFORE timeout expires.
+    // In this case pthread_timedjoin_np succeeds, but std::thread still holds joinable() state
+    // unless detached. threads_.clear() must NOT invoke std::terminate().
+    auto& reg = raven::concurrency::SpawnRegistry::instance();
+    reg.add(std::thread([]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }));
+    // Timeout is generous (100ms), thread finishes in 5ms.
+    // Must successfully join and clear threads without aborting/terminating.
+    EXPECT_NO_THROW({
+        reg.join_all(100);
+    });
+}
+
 TEST(DifferentialTest, HigherOrderBuiltinsFilterMapReduce) {
     std::string source =
         "let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\n"

@@ -154,6 +154,12 @@ public:
         return best_match;
     }
 
+    void clear() {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        values_.clear();
+        enclosing_ = nullptr;
+    }
+
 private:
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::string, Value> values_;

@@ -7,11 +7,11 @@
 > **Raven** combines the expressiveness of **Python**, the functional pipelines of **Rust/Elixir**, and the dual-engine architecture of **Java/JVM**:
 > featuring both an **AST Tree-Walk Interpreter** and the **RVM (Raven Virtual Machine)** with the **Corvus** execution engine.
 >
-> [![Tests](https://img.shields.io/badge/tests-210%2F210%20passing-brightgreen)](#)
+> [![CI](https://github.com/rs2big-boop/Raven/actions/workflows/ci.yml/badge.svg)](https://github.com/rs2big-boop/Raven/actions/workflows/ci.yml)
 > [![Version](https://img.shields.io/badge/version-1.4.0-blue)](#)
 > [![Release](https://img.shields.io/badge/GitHub-Releases-blue?logo=github)](https://github.com/rs2big-boop/Raven/releases)
 > [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#)
-> [![Native](https://img.shields.io/badge/native%20build-standalone%20ELF-orange)](#)
+> [![Build](https://img.shields.io/badge/standalone%20build-self--contained%20binary-orange)](#)
 > [![IDE](https://img.shields.io/badge/IDE-VS%20Code%20%26%20Cursor-purple)](#)
 > [![License](https://img.shields.io/badge/license-MIT-green)](#)
 
@@ -23,11 +23,11 @@ Discover why Raven exists, the problems it solves, its unique design, and the 5-
 
 ---
 
-## What Makes Raven Unique (v1.0.0 Features)
+## What Makes Raven Unique (v1.4.0 Features)
 
 Raven was designed to provide a modern, ergonomic, and rock-solid scripting and systems language experience:
 
-- **Standalone Native Binary Compilation (`raven build`)**: Produce self-contained ELF 64-bit executables using Raven's own Corvus engine with **zero external compiler dependencies** (no GCC, Clang, or libc dev packages required).
+- **Standalone Self-Contained Binary (`raven build`)**: Package your Raven script into a single portable executable that includes the source/bytecode and an embedded Corvus runtime — **no GCC, Clang, or external dependencies required** at run time. Similar in spirit to `deno compile` or PyInstaller; produces a self-contained ELF on Linux.
 - **Native CSP Concurrency**: Real multi-threaded `spawn()` and native thread-safe channels (`chan_create()`, `chan_send()`, `chan_recv()`).
 - **Default Function Parameters**: `fn greet(name = "World") { ... }` supported in functions and closures.
 - **Null Coalescing Operator (`??`)**: Short-circuiting fallback operator (`let host = env("HOST") ?? "localhost"`).
@@ -50,7 +50,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 | Tool / Command | Analogous to | Description |
 |---|---|---|
-| **`raven build <file> [-o bin]`** | `go build` / `cargo build` | **Standalone Native Compilation**: Compile directly to a portable native ELF executable without GCC/Clang. |
+| **`raven build <file> [-o bin]`** | `go build` / `cargo build` | **Self-Contained Packaging**: Bundle source/bytecode and the embedded Corvus runtime into a single portable executable — no GCC/Clang needed at run time. |
 | **`raven run <file>`** | `go run` / `python` | Execute Raven script with automatic module resolution and instant startup. |
 | **`raven init [name]`** | `go mod init` / `cargo init` | Initialize a new structured Raven project with `raven.json` manifest and `src/main.rvn`. |
 | **`raven fmt [-w] <file>`** | `gofmt` | Canonical code formatter (aesthetically formats indentation, spacing, and braces). |
@@ -84,7 +84,7 @@ flowchart TD
         
         comp --> opt["Optimizer & Serializer\n(Constant Folding & Dead Code Elimination)"]
         opt --> rvc["Bytecode Chunk (.rvc)"]
-        opt --> elf["Standalone Native ELF Binary\n(Embedded Corvus VM)"]
+        opt --> elf["Self-Contained Standalone Binary\n(Bytecode + Embedded Corvus VM)"]
         
         rvc --> vm["Corvus Virtual Machine (RVM)\n(CallFrames, OpCodes, Value Stack)"]
         elf -->|"Direct OS Execution"| vm
@@ -93,7 +93,7 @@ flowchart TD
     subgraph RuntimeSubsystem ["3. Shared Runtime Services"]
         vm & interp --- mem["Memory Subsystem\n(Reference Counting + Cycle Collector)"]
         vm & interp --- csp["Concurrency Engine\n(POSIX Threads, Channels, WaitGroups)"]
-        vm & interp --- std["Standard Library\n(25+ Native & Raven Modules)"]
+        vm & interp --- std["Standard Library\n(134+ files across 40+ packages)"]
     end
 ```
 
@@ -103,7 +103,7 @@ flowchart TD
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (150/150 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (232/232 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -119,8 +119,8 @@ Standard Go-style root scripts are provided for fast development:
 
 ## Quickstart
 
-### 1. Compile to a Standalone Native Executable (Zero External Dependencies)
-Compile your Raven script directly into a standalone ELF 64-bit binary without needing GCC or Clang:
+### 1. Compile to a Self-Contained Portable Executable (Zero External Dependencies)
+Compile your Raven script into a single portable binary that bundles the bytecode and the embedded Corvus runtime — no GCC or Clang needed at run time:
 ```bash
 ./build/raven build examples/fibonacci.rvn -o fib_app
 ./fib_app
@@ -371,10 +371,10 @@ curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh |
 
 ## Building from Source and Testing
 
-Raven includes a comprehensive test suite (**158 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, and IR Optimization passes):
+Raven includes a comprehensive test suite (**232 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, and IR Optimization passes):
 
 ```bash
-# Fast build and test (Runs all 158 tests + stdlib tour)
+# Fast build and test (Runs all 232 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -456,7 +456,7 @@ Raven provides a strictly defined and documented language specification in [**do
 
 | Tier | Operating System & Architecture | Support Level | Capabilities |
 |---|---|---|---|
-| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Standalone Native ELF compilation (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (150/150 tests). |
+| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (232/232 tests). |
 | **Tier 2** | **macOS (Apple Silicon M-series & Intel x86_64)** | **Source-Compatible** | Full support for source builds via Clang/CMake. Tree-Walk Interpreter, Corvus VM, REPL, and tools. |
 | **Tier 2** | **Linux ARM64 (aarch64)** | **Source-Compatible** | Full support for Linux on ARM (Raspberry Pi, AWS Graviton). |
 | **Tier 3** | **Windows 10/11 (x86_64)** | **Roadmap (v1.1 - v2.0)** | Currently runnable via WSL2. Native Windows PE standalone `.exe` generator and Win32 thread scheduler planned. |

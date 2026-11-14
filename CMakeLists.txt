@@ -176,47 +176,47 @@ if(RAVEN_BUILD_TESTS)
 
     add_executable(lexer_tests tests/lexer_tests.cpp)
     target_link_libraries(lexer_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(lexer_tests)
+    gtest_discover_tests(lexer_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(parser_tests tests/parser_tests.cpp)
     target_link_libraries(parser_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(parser_tests)
+    gtest_discover_tests(parser_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(interpreter_tests tests/interpreter_tests.cpp)
     target_link_libraries(interpreter_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(interpreter_tests)
+    gtest_discover_tests(interpreter_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(memory_tests tests/memory/memory_tests.cpp)
     target_link_libraries(memory_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(memory_tests)
+    gtest_discover_tests(memory_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(semantic_tests tests/semantic/semantic_tests.cpp)
     target_link_libraries(semantic_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(semantic_tests)
+    gtest_discover_tests(semantic_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(package_tests tests/packages/package_tests.cpp)
     target_link_libraries(package_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(package_tests)
+    gtest_discover_tests(package_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(platform_tests tests/platform_tests.cpp)
     target_link_libraries(platform_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(platform_tests)
+    gtest_discover_tests(platform_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(ir_tests tests/ir/ir_tests.cpp)
     target_link_libraries(ir_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(ir_tests)
+    gtest_discover_tests(ir_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(differential_tests tests/differential/differential_tests.cpp)
     target_link_libraries(differential_tests PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(differential_tests)
+    gtest_discover_tests(differential_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(memory_benchmarks tests/benchmark/memory_benchmarks.cpp)
     target_link_libraries(memory_benchmarks PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(memory_benchmarks)
+    gtest_discover_tests(memory_benchmarks WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
     add_executable(http_integration_benchmark tests/benchmark/http_integration_benchmark.cpp)
     target_link_libraries(http_integration_benchmark PRIVATE raven_core GTest::gtest_main)
-    gtest_discover_tests(http_integration_benchmark)
+    gtest_discover_tests(http_integration_benchmark WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
 
 # Installation targets

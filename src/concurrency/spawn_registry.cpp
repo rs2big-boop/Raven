@@ -51,9 +51,11 @@ void SpawnRegistry::join_all(int64_t timeout_ms) {
             ts.tv_nsec -= 1000000000;
         }
         int rc = pthread_timedjoin_np(t.native_handle(), nullptr, &ts);
-        if (rc != 0) {
-            t.detach();
-        }
+        // CRITICAL FIX: Whether pthread_timedjoin_np succeeded (rc == 0) or timed out (rc != 0),
+        // std::thread still internally considers itself joinable because std::thread::join()
+        // was bypassed. Calling t.detach() clears the joinable state, preventing std::terminate()
+        // when threads_.clear() destroys the std::thread object.
+        t.detach();
 #else
         t.join();
 #endif

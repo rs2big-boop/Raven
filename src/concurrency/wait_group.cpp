@@ -1,4 +1,5 @@
 #include "raven/concurrency/wait_group.hpp"
+#include <stdexcept>
 
 namespace raven {
 namespace concurrency {
@@ -25,6 +26,12 @@ bool WaitGroupManager::add(int64_t id, int64_t delta) {
     if (!wg) return false;
     std::lock_guard<std::mutex> lk(wg->mtx);
     wg->counter += delta;
+    if (wg->counter < 0) {
+        throw std::runtime_error("sync: negative WaitGroup counter");
+    }
+    if (wg->counter == 0) {
+        wg->cv.notify_all();
+    }
     return true;
 }
 
@@ -33,8 +40,10 @@ bool WaitGroupManager::done(int64_t id) {
     if (!wg) return false;
     std::lock_guard<std::mutex> lk(wg->mtx);
     wg->counter--;
-    if (wg->counter <= 0) {
-        wg->counter = 0;
+    if (wg->counter < 0) {
+        throw std::runtime_error("sync: negative WaitGroup counter");
+    }
+    if (wg->counter == 0) {
         wg->cv.notify_all();
     }
     return true;

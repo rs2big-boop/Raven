@@ -41,6 +41,22 @@ public:
                     offset += 2;
                     break;
                 }
+                case OpCode::ConstantLong:
+                case OpCode::DefineGlobalLong:
+                case OpCode::GetGlobalLong:
+                case OpCode::SetGlobalLong: {
+                    if (offset + 3 >= code.size()) {
+                        return {false, "Truncated long constant operand at offset " + std::to_string(offset)};
+                    }
+                    uint32_t const_idx = (static_cast<uint32_t>(code[offset + 1]) << 16)
+                                       | (static_cast<uint32_t>(code[offset + 2]) << 8)
+                                       |  static_cast<uint32_t>(code[offset + 3]);
+                    if (const_idx >= constants.size()) {
+                        return {false, "Long constant index " + std::to_string(const_idx) + " out of bounds (pool size: " + std::to_string(constants.size()) + ") at offset " + std::to_string(offset)};
+                    }
+                    offset += 4;
+                    break;
+                }
                 case OpCode::GetLocal:
                 case OpCode::SetLocal:
                 case OpCode::BuildArray:

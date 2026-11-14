@@ -1,6 +1,7 @@
 #include "raven/vm.hpp"
 #include "raven/interpreter.hpp"
 #include "raven/runtime/safepoint_manager.hpp"
+#include "raven/runtime/memory/cycle_collector.hpp"
 
 namespace raven {
 
@@ -13,9 +14,22 @@ VM::VM(std::ostream& out) : out_(out) {
     for (const auto& [name, val] : builtins) {
         globals_[name] = val;
     }
+
+    // Register VM execution state as a dynamic GC root scanner
+    // Ensures globals and execution stack values are fully tracked during GC passes.
+    gc::GCRegistry::instance().register_root_scanner(this, [this](std::function<void(const Value&)> trace_fn) {
+        for (const auto& [name, val] : globals_) {
+            trace_fn(val);
+        }
+        for (const auto& val : stack_) {
+            trace_fn(val);
+        }
+    });
 }
 
-VM::~VM() = default;  // Needs to be here where Interpreter is fully defined
+VM::~VM() {
+    gc::GCRegistry::instance().unregister_root_scanner(this);
+}
 
 void VM::push(Value value) {
     stack_.push_back(std::move(value));

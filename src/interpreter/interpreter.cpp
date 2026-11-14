@@ -130,6 +130,16 @@ public:
           closure_(std::move(closure)), param_defaults_(std::move(param_defaults)),
           is_variadic_(is_variadic) {}
 
+    ~UserFunction() override {
+        // Break shared_ptr reference cycles: closures can hold Environments that
+        // hold more UserFunctions (lambdas), forming cycles that confuse
+        // LeakSanitizer at process exit. Explicitly null the closure here so
+        // the shared_ptr refcount drops and the cycle is resolved.
+        closure_ = nullptr;
+        body_.clear();
+        param_defaults_.clear();
+    }
+
     int arity() const override {
         if (is_variadic_) return -1;
         return static_cast<int>(params_.size());
@@ -592,7 +602,8 @@ private:
 Interpreter::Interpreter(std::ostream& out)
     : out_(out),
       globals_(std::make_shared<Environment>()),
-      environment_(globals_) {
+      environment_(globals_),
+      owns_globals_(true) {
     gc::GCRegistry::instance().register_root_scanner(this, [this](std::function<void(const Value&)> trace_fn) {
         if (environment_) {
             environment_->scan_values(trace_fn);
@@ -604,7 +615,8 @@ Interpreter::Interpreter(std::ostream& out)
 Interpreter::Interpreter(std::shared_ptr<Environment> globals, std::ostream& out)
     : out_(out),
       globals_(std::move(globals)),
-      environment_(globals_) {
+      environment_(globals_),
+      owns_globals_(false) {
     gc::GCRegistry::instance().register_root_scanner(this, [this](std::function<void(const Value&)> trace_fn) {
         if (environment_) {
             environment_->scan_values(trace_fn);
@@ -614,6 +626,18 @@ Interpreter::Interpreter(std::shared_ptr<Environment> globals, std::ostream& out
 
 Interpreter::~Interpreter() {
     gc::GCRegistry::instance().unregister_root_scanner(this);
+    // Only the owning interpreter clears globals — thread-local interpreters
+    // share the globals pointer and must NOT clear it.
+    if (owns_globals_) {
+        if (environment_) {
+            environment_->clear();
+            environment_ = nullptr;
+        }
+        if (globals_) {
+            globals_->clear();
+            globals_ = nullptr;
+        }
+    }
 }
 
 void Interpreter::register_builtins() {

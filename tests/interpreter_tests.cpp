@@ -822,6 +822,36 @@ TEST(InterpreterTest, BytecodeVerifierDetectsOutOfBoundsJump) {
     EXPECT_NE(res.error_message.find("exceeds code bounds"), std::string::npos);
 }
 
+TEST(InterpreterTest, BytecodeVerifierLongInstructionsBeyond256Constants) {
+    // Generate 300 variables to force emission of ConstantLong, DefineGlobalLong, GetGlobalLong
+    std::string source;
+    for (int i = 0; i < 300; ++i) {
+        source += "let v_" + std::to_string(i) + " = " + std::to_string(i) + ";\n";
+    }
+    source += "println(v_299);\n";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    Chunk chunk;
+    Compiler compiler(chunk);
+    ASSERT_TRUE(compiler.compile(stmts));
+
+    // BytecodeVerifier must properly handle ConstantLong/DefineGlobalLong/GetGlobalLong
+    // without misinterpreting 24-bit operand bytes as invalid opcodes or bad jumps.
+    auto res = BytecodeVerifier::verify(chunk);
+    EXPECT_TRUE(res.is_valid);
+    EXPECT_TRUE(res.error_message.empty());
+
+    // VM must also execute it correctly
+    std::ostringstream out;
+    VM vm(out);
+    auto run_res = vm.run(chunk);
+    EXPECT_EQ(run_res, InterpretResult::Ok);
+    EXPECT_EQ(out.str(), "299\n");
+}
+
 TEST(InterpreterTest, DualEngineDifferentialParityArithmetic) {
     std::string source =
         "let a = 12 * 8 + 4;\n"
@@ -1018,6 +1048,8 @@ TEST(InterpreterTest, ConcurrencyModularSubsystem) {
     EXPECT_TRUE(wgm.add(wg_id, 1));
     EXPECT_TRUE(wgm.done(wg_id));
     EXPECT_TRUE(wgm.wait(wg_id));
+    // Calling done() when counter is already 0 must throw negative counter exception
+    EXPECT_THROW(wgm.done(wg_id), std::runtime_error);
 
     auto& mm = concurrency::MutexManager::instance();
     int64_t m_id = mm.create();

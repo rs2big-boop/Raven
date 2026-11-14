@@ -18,14 +18,112 @@ std::string trim_str(const std::string& str) {
     return str.substr(first, (last - first + 1));
 }
 
+// Sanitizes a shell argument for Windows command line invocation,
+// preventing command injection and shell metacharacter execution.
+std::string win_escape_arg(const std::string& arg) {
+    std::string safe;
+    safe.reserve(arg.size() + 2);
+    safe.push_back('"');
+    for (char c : arg) {
+        // Disallow dangerous control characters that could break out of cmd.exe
+        if (c == '\0' || c == '\r' || c == '\n') continue;
+        if (c == '"') {
+            safe += "\\\"";
+        } else if (c == '%') {
+            // Prevent Windows environment variable expansion in cmd
+            safe += "%%";
+        } else {
+            safe.push_back(c);
+        }
+    }
+    safe.push_back('"');
+    return safe;
+}
+
+void parse_http_output(const std::string& output, HttpResponse& resp) {
+    // Parse HTTP response format: headers followed by \r\n\r\n (or \n\n) then body
+    size_t last_http_pos = 0;
+    size_t search_pos = 0;
+    while (true) {
+        size_t pos = output.find("HTTP/", search_pos);
+        if (pos == std::string::npos) break;
+        last_http_pos = pos;
+        search_pos = pos + 5;
+    }
+
+    size_t header_end = output.find("\r\n\r\n", last_http_pos);
+    size_t delim_len = 4;
+    if (header_end == std::string::npos) {
+        header_end = output.find("\n\n", last_http_pos);
+        delim_len = 2;
+    }
+
+    std::string header_block;
+    if (header_end != std::string::npos) {
+        header_block = output.substr(last_http_pos, header_end - last_http_pos);
+        resp.body = output.substr(header_end + delim_len);
+    } else {
+        header_block = output.substr(last_http_pos);
+        resp.body = "";
+    }
+
+    std::istringstream hstream(header_block);
+    std::string line;
+    if (std::getline(hstream, line)) {
+        line = trim_str(line);
+        std::istringstream lstream(line);
+        std::string proto;
+        int status_code = 0;
+        lstream >> proto >> status_code;
+        resp.status = status_code;
+        std::string text;
+        std::getline(lstream, text);
+        resp.status_text = trim_str(text);
+    }
+
+    while (std::getline(hstream, line)) {
+        line = trim_str(line);
+        if (line.empty()) continue;
+        size_t colon = line.find(':');
+        if (colon != std::string::npos) {
+            std::string key = trim_str(line.substr(0, colon));
+            std::string val = trim_str(line.substr(colon + 1));
+            resp.headers[key] = val;
+        }
+    }
+
+    resp.ok = (resp.status >= 200 && resp.status < 400);
+}
+
 } // namespace
 
 HttpResponse http_request(const HttpRequest& req) {
     HttpResponse resp;
-    std::string cmd = "curl.exe -s -i -X " + req.method + " \"" + req.url + "\"";
-    for (const auto& [k, v] : req.headers) {
-        cmd += " -H \"" + k + ": " + v + "\"";
+
+    // Validate method and URL
+    if (req.method.find_first_of(" \t\r\n\"") != std::string::npos ||
+        req.url.find_first_of("\r\n\0") != std::string::npos) {
+        resp.ok = false;
+        resp.status = 0;
+        resp.error = "Invalid characters in HTTP method or URL";
+        return resp;
     }
+
+    std::string cmd = "curl.exe -s -i -X " + req.method + " " + win_escape_arg(req.url);
+    if (req.timeout_ms > 0) {
+        cmd += " -m " + std::to_string(std::max(1, req.timeout_ms / 1000));
+    }
+    if (req.follow_redirects) {
+        cmd += " -L --max-redirs 10";
+    }
+
+    for (const auto& [k, v] : req.headers) {
+        if (k.find_first_of("\r\n:") != std::string::npos || v.find_first_of("\r\n") != std::string::npos) {
+            continue; // Skip invalid header with CRLF
+        }
+        cmd += " -H " + win_escape_arg(k + ": " + v);
+    }
+
     FILE* fp = _popen(cmd.c_str(), "rb");
     if (!fp) {
         resp.ok = false;
@@ -43,18 +141,11 @@ HttpResponse http_request(const HttpRequest& req) {
     if (output.empty()) {
         resp.ok = false;
         resp.status = 0;
-        resp.error = "Empty HTTP response";
+        resp.error = "Empty HTTP response or connection failed";
         return resp;
     }
 
-    size_t header_end = output.find("\r\n\r\n");
-    if (header_end != std::string::npos) {
-        resp.body = output.substr(header_end + 4);
-    } else {
-        resp.body = output;
-    }
-    resp.status = 200;
-    resp.ok = true;
+    parse_http_output(output, resp);
     return resp;
 }
 
