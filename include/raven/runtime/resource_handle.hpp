@@ -316,4 +316,61 @@ private:
     std::queue<std::shared_ptr<ResourceControlBlock>> queue_;
 };
 
+/**
+ * @brief Global table mapping active system descriptors (sockets, pipes, handles)
+ * to their governing ResourceControlBlocks. Enables thread-safe ResourceLease acquisition
+ * across concurrent networking and I/O operations.
+ */
+class ResourceTable {
+public:
+    static ResourceTable& instance() {
+        static ResourceTable inst;
+        return inst;
+    }
+
+    void register_resource(int fd, const std::string& name, std::function<void(int)> close_fn) {
+        if (fd < 0) return;
+        std::lock_guard<std::mutex> lk(mtx_);
+        table_[fd] = std::make_shared<ResourceControlBlock>(fd, name, std::move(close_fn));
+    }
+
+    std::shared_ptr<ResourceControlBlock> get(int fd) {
+        std::lock_guard<std::mutex> lk(mtx_);
+        auto it = table_.find(fd);
+        return it != table_.end() ? it->second : nullptr;
+    }
+
+    bool close_resource(int fd) {
+        std::shared_ptr<ResourceControlBlock> rcb;
+        {
+            std::lock_guard<std::mutex> lk(mtx_);
+            auto it = table_.find(fd);
+            if (it != table_.end()) {
+                rcb = it->second;
+                table_.erase(it);
+            }
+        }
+        if (rcb) {
+            return rcb->close();
+        }
+        return false;
+    }
+
+    void clear() {
+        std::unordered_map<int, std::shared_ptr<ResourceControlBlock>> old;
+        {
+            std::lock_guard<std::mutex> lk(mtx_);
+            old = std::move(table_);
+        }
+        for (auto& [_, rcb] : old) {
+            if (rcb) rcb->close();
+        }
+    }
+
+private:
+    ResourceTable() = default;
+    mutable std::mutex mtx_;
+    std::unordered_map<int, std::shared_ptr<ResourceControlBlock>> table_;
+};
+
 } // namespace raven

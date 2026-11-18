@@ -1,11 +1,8 @@
 #include "raven/concurrency/spawn_registry.hpp"
 
 #include <chrono>
-#include <ctime>
-
-#if defined(__linux__)
-#include <pthread.h>
-#endif
+#include <condition_variable>
+#include <mutex>
 
 namespace raven {
 namespace concurrency {
@@ -41,24 +38,41 @@ void SpawnRegistry::join_all(int64_t timeout_ms) {
             continue;
         }
 
-#if defined(__linux__)
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        ts.tv_sec += remaining_ms / 1000;
-        ts.tv_nsec += (remaining_ms % 1000) * 1000000;
-        if (ts.tv_nsec >= 1000000000) {
-            ts.tv_sec += 1;
-            ts.tv_nsec -= 1000000000;
+        // Portable, standard C++ timed join using a scoped joiner thread.
+        // Guarantees strict C++ thread lifecycle compliance, prevents double-join /
+        // double-detach issues under AddressSanitizer and ThreadSanitizer, and works
+        // uniformly across Linux, macOS, and Windows.
+        auto t_ptr = std::make_shared<std::thread>(std::move(t));
+        auto m = std::make_shared<std::mutex>();
+        auto cv = std::make_shared<std::condition_variable>();
+        auto joined = std::make_shared<bool>(false);
+
+        std::thread joiner([t_ptr, m, cv, joined]() {
+            if (t_ptr->joinable()) {
+                t_ptr->join();
+            }
+            {
+                std::lock_guard<std::mutex> lk(*m);
+                *joined = true;
+            }
+            cv->notify_one();
+        });
+
+        std::unique_lock<std::mutex> lk(*m);
+        bool ok = cv->wait_for(lk, std::chrono::milliseconds(remaining_ms), [&joined]() {
+            return *joined;
+        });
+
+        if (ok) {
+            if (joiner.joinable()) {
+                joiner.join();
+            }
+        } else {
+            // Timed out: detach joiner so it reaps t_ptr asynchronously without blocking or aborting
+            if (joiner.joinable()) {
+                joiner.detach();
+            }
         }
-        int rc = pthread_timedjoin_np(t.native_handle(), nullptr, &ts);
-        // CRITICAL FIX: Whether pthread_timedjoin_np succeeded (rc == 0) or timed out (rc != 0),
-        // std::thread still internally considers itself joinable because std::thread::join()
-        // was bypassed. Calling t.detach() clears the joinable state, preventing std::terminate()
-        // when threads_.clear() destroys the std::thread object.
-        t.detach();
-#else
-        t.join();
-#endif
     }
     threads_.clear();
 }

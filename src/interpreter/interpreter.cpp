@@ -39,6 +39,7 @@
 #include "raven/platform/sockets.hpp"
 #include "raven/platform/filesystem.hpp"
 #include "raven/runtime/resource_handle.hpp"
+#include "raven/runtime/safepoint_manager.hpp"
 #include "raven/platform/system_info.hpp"
 
 #include "raven/lexer.hpp"
@@ -1238,11 +1239,16 @@ void Interpreter::register_builtins() {
     });
 
     // Native Sockets & Networking Builtins
+    // All socket operations are tracked through ResourceTable for safe lifecycle management.
     def("net_tcp_connect", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
         std::string host = args[0].to_string();
         int port = static_cast<int>(args[1].as_number());
         int timeout_ms = static_cast<int>(args[2].as_number());
         int fd = platform::tcp_connect(host, port, timeout_ms);
+        if (fd >= 0) {
+            ResourceTable::instance().register_resource(fd, "tcp://" + host + ":" + std::to_string(port),
+                [](int f) { platform::tcp_close(f); });
+        }
         return Value(static_cast<double>(fd));
     });
 
@@ -1250,12 +1256,20 @@ void Interpreter::register_builtins() {
         std::string host = args[0].to_string();
         int port = static_cast<int>(args[1].as_number());
         int fd = platform::tcp_listen(host, port);
+        if (fd >= 0) {
+            ResourceTable::instance().register_resource(fd, "tcp-listen://" + host + ":" + std::to_string(port),
+                [](int f) { platform::tcp_close(f); });
+        }
         return Value(static_cast<double>(fd));
     });
 
     def("net_tcp_accept", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int server_fd = static_cast<int>(args[0].as_number());
         int client_fd = platform::tcp_accept(server_fd);
+        if (client_fd >= 0) {
+            ResourceTable::instance().register_resource(client_fd, "tcp-accepted",
+                [](int f) { platform::tcp_close(f); });
+        }
         return Value(static_cast<double>(client_fd));
     });
 
@@ -1282,7 +1296,10 @@ void Interpreter::register_builtins() {
 
     def("net_tcp_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int fd = static_cast<int>(args[0].as_number());
-        platform::tcp_close(fd);
+        // Use ResourceTable for safe close with lease draining; falls back to direct close
+        if (!ResourceTable::instance().close_resource(fd)) {
+            platform::tcp_close(fd);
+        }
         return Value(true);
     });
 
@@ -1290,6 +1307,10 @@ void Interpreter::register_builtins() {
         std::string host = args[0].to_string();
         int port = static_cast<int>(args[1].as_number());
         int fd = platform::udp_bind(host, port);
+        if (fd >= 0) {
+            ResourceTable::instance().register_resource(fd, "udp://" + host + ":" + std::to_string(port),
+                [](int f) { platform::udp_close(f); });
+        }
         return Value(static_cast<double>(fd));
     });
 
@@ -1315,7 +1336,9 @@ void Interpreter::register_builtins() {
 
     def("net_udp_close", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         int fd = static_cast<int>(args[0].as_number());
-        platform::udp_close(fd);
+        if (!ResourceTable::instance().close_resource(fd)) {
+            platform::udp_close(fd);
+        }
         return Value(true);
     });
 
@@ -1800,11 +1823,18 @@ void Interpreter::register_builtins() {
         auto callable = args[0].as_callable();
         auto globals = this->globals_;
         std::thread t([callable, globals]() {
+            SafepointManager::instance().register_thread();
             try {
                 Interpreter thread_interp(globals, std::cout);
                 callable->call(thread_interp, {});
+            } catch (const RuntimeError& e) {
+                std::cerr << "[spawn] Uncaught error in spawned thread: " << e.what() << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "[spawn] Uncaught exception in spawned thread: " << e.what() << std::endl;
             } catch (...) {
+                std::cerr << "[spawn] Unknown exception in spawned thread" << std::endl;
             }
+            SafepointManager::instance().unregister_thread();
         });
         SpawnRegistry::instance().add(std::move(t));
         return Value(true);
@@ -2953,6 +2983,7 @@ void Interpreter::visit(const FunctionStmt& stmt) {
                 // Spawn a thread that runs the function and sends the result
                 auto fn_copy = function;
                 std::thread t([fn_copy, globals, args, chan_id]() {
+                    SafepointManager::instance().register_thread();
                     try {
                         Interpreter thread_interp(globals, std::cout);
                         Value result = fn_copy->call(thread_interp, args);
@@ -2970,8 +3001,24 @@ void Interpreter::visit(const FunctionStmt& stmt) {
                             ch->queue.push_back(ret.value);
                             ch->cv_recv.notify_one();
                         }
+                    } catch (const RuntimeError& e) {
+                        std::cerr << "[async] Uncaught error in async function: " << e.what() << std::endl;
+                        auto ch = ChannelManager::instance().get_channel(chan_id);
+                        if (ch) {
+                            std::unique_lock<std::mutex> lk(ch->mtx);
+                            ch->queue.push_back(Value());
+                            ch->cv_recv.notify_one();
+                        }
+                    } catch (const std::exception& e) {
+                        std::cerr << "[async] Uncaught exception in async function: " << e.what() << std::endl;
+                        auto ch = ChannelManager::instance().get_channel(chan_id);
+                        if (ch) {
+                            std::unique_lock<std::mutex> lk(ch->mtx);
+                            ch->queue.push_back(Value());
+                            ch->cv_recv.notify_one();
+                        }
                     } catch (...) {
-                        // On error, send nil
+                        std::cerr << "[async] Unknown exception in async function" << std::endl;
                         auto ch = ChannelManager::instance().get_channel(chan_id);
                         if (ch) {
                             std::unique_lock<std::mutex> lk(ch->mtx);
@@ -2979,6 +3026,7 @@ void Interpreter::visit(const FunctionStmt& stmt) {
                             ch->cv_recv.notify_one();
                         }
                     }
+                    SafepointManager::instance().unregister_thread();
                 });
                 SpawnRegistry::instance().add(std::move(t));
 

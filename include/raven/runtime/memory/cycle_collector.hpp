@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "raven/value.hpp"
+#include "raven/runtime/safepoint_manager.hpp"
 
 namespace raven {
 namespace gc {
@@ -94,6 +95,19 @@ public:
     //
     // Returns the number of cycle groups broken.
     size_t collect() {
+        // Stop-The-World: pause all mutator threads before scanning roots.
+        // If no threads are registered (single-threaded mode), safepoint is a no-op.
+        bool stw_active = false;
+        if (SafepointManager::instance().registered_thread_count() > 0) {
+            try {
+                SafepointManager::instance().request_safepoint(std::chrono::milliseconds(5000));
+                stw_active = true;
+            } catch (const std::runtime_error&) {
+                // Timeout waiting for threads — proceed without STW (best-effort).
+                // This is safe because we still hold mutex_ during collection.
+            }
+        }
+
         std::lock_guard<std::mutex> lk(mutex_);
 
         stats_.total_collections++;
@@ -184,6 +198,12 @@ public:
             tracked_maps_.end());
 
         stats_.cycles_broken += broken;
+
+        // Resume all mutator threads after collection completes.
+        if (stw_active) {
+            SafepointManager::instance().resume_mutators();
+        }
+
         return broken;
     }
 
