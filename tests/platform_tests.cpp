@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "raven/platform/filesystem.hpp"
+#include "raven/platform/crypto.hpp"
 #include "raven/runtime/string_pool.hpp"
 #include "raven/runtime/nan_box.hpp"
 #include "raven/concurrency/scheduler.hpp"
@@ -122,4 +123,65 @@ TEST(TaskSchedulerTest, SchedulesAndExecutesMassiveBatch) {
 
     scheduler.wait_all();
     EXPECT_EQ(counter.load(), task_count);
+}
+
+TEST(PlatformCryptoTest, Sha1HexOutputMatchesStandard) {
+    // Standard test vector: SHA1("") = da39a3ee5e6b4b0d3255bfef95601890afd80709
+    EXPECT_EQ(raven::platform::sha1_hex(""), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
+    // Standard test vector: SHA1("The quick brown fox jumps over the lazy dog") = 2fd4e1c67a2d28fced849ee1bb76e7391b93eb12
+    EXPECT_EQ(raven::platform::sha1_hex("The quick brown fox jumps over the lazy dog"),
+              "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12");
+}
+
+TEST(PlatformCryptoTest, WebSocketAcceptKeyRfc6455) {
+    // Official RFC 6455 test vector (§1.3 / §4.2.2):
+    // Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+    // Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+    EXPECT_EQ(raven::platform::websocket_accept_key("dGhlIHNhbXBsZSBub25jZQ=="),
+              "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=");
+}
+
+TEST(PlatformWebSocketTest, FrameCreateAndParseUnmasked) {
+    std::string message = "{\"type\":\"chat\",\"room\":\"naruto_ep_12\",\"text\":\"Dattebayo!\"}";
+    std::string wire_frame = raven::platform::websocket_create_frame(1, message);
+
+    auto parsed = raven::platform::websocket_parse_frame(wire_frame);
+    EXPECT_TRUE(parsed.valid);
+    EXPECT_FALSE(parsed.need_more);
+    EXPECT_TRUE(parsed.fin);
+    EXPECT_EQ(parsed.opcode, 1);
+    EXPECT_EQ(parsed.payload, message);
+    EXPECT_EQ(parsed.consumed, wire_frame.size());
+}
+
+TEST(PlatformWebSocketTest, FrameMaskedBrowserPayload) {
+    // Browser masked frame: opcode=1 (text), payload="Hello"
+    std::string masked_frame;
+    masked_frame.push_back(static_cast<char>(0x81)); // FIN + text
+    masked_frame.push_back(static_cast<char>(0x85)); // MASK + len 5
+    masked_frame.push_back(static_cast<char>(0x37)); // Mask key [0]
+    masked_frame.push_back(static_cast<char>(0xfa)); // Mask key [1]
+    masked_frame.push_back(static_cast<char>(0x21)); // Mask key [2]
+    masked_frame.push_back(static_cast<char>(0x3d)); // Mask key [3]
+    // Masked 'Hello':
+    masked_frame.push_back(static_cast<char>('H' ^ 0x37));
+    masked_frame.push_back(static_cast<char>('e' ^ 0xfa));
+    masked_frame.push_back(static_cast<char>('l' ^ 0x21));
+    masked_frame.push_back(static_cast<char>('l' ^ 0x3d));
+    masked_frame.push_back(static_cast<char>('o' ^ 0x37));
+
+    auto parsed = raven::platform::websocket_parse_frame(masked_frame);
+    EXPECT_TRUE(parsed.valid);
+    EXPECT_FALSE(parsed.need_more);
+    EXPECT_TRUE(parsed.fin);
+    EXPECT_EQ(parsed.opcode, 1);
+    EXPECT_EQ(parsed.payload, "Hello");
+    EXPECT_EQ(parsed.consumed, masked_frame.size());
+}
+
+TEST(PlatformWebSocketTest, FramePartialBufferNeedsMore) {
+    std::string partial = "AB"; // Incomplete header
+    auto parsed = raven::platform::websocket_parse_frame(partial);
+    EXPECT_FALSE(parsed.valid);
+    EXPECT_TRUE(parsed.need_more);
 }

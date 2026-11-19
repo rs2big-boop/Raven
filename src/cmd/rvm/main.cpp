@@ -4,6 +4,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#ifndef _WIN32
+#include <csignal>
+#endif
 
 #include "raven/bytecode_serializer.hpp"
 #include "raven/bytecode_verifier.hpp"
@@ -101,6 +104,9 @@ void print_usage() {
 }
 
 int main(int argc, char* argv[]) {
+#ifndef _WIN32
+    std::signal(SIGPIPE, SIG_IGN);
+#endif
     check_and_run_embedded_native(argc, argv);
 
     if (argc < 2) {

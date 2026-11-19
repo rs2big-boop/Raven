@@ -103,7 +103,7 @@ flowchart TD
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (242/242 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (247/247 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -285,8 +285,8 @@ Raven ships with an extensive, batteries-included standard library:
 - **`stdlib/encoding/base64`** — `encode_to_string()` and `decode_string()`
 - **`stdlib/encoding/csv`** — `csv_read_all()` and `csv_write_all()`
 - **`stdlib/encoding/hex`** — `encode_to_hex()`
-- **`stdlib/crypto`** & **`stdlib/hash/fnv`** — `fnv_hash()`, `sha256_sum()`, `md5_sum()`
-- **`stdlib/net/http`** & **`stdlib/net/url`** — `http_get_url()`, `http_post()`, `http_post_json()`, `url_encode()`, `parse_query()`
+- **`stdlib/crypto`** & **`stdlib/hash/fnv`** — `fnv_hash()`, `sha256_sum()`, `sha1_hex()`, `md5_sum()`, `hmac()`
+- **`stdlib/net/http`**, **`stdlib/net/websocket`** & **`stdlib/net/url`** — `http_get_url()`, `http_post()`, `http_post_json()`, `create_websocket_server()`, `wrap_ws_socket()`, `url_encode()`, `parse_query()`
 - **`stdlib/time`** — `now_ms()`, `now_unix()`, `sleep_duration_ms()`, `since_ms()`, `format_duration()`
 - **`stdlib/path`** & **`stdlib/path/filepath`** — `path_join()`, `path_base()`, `path_dir()`, `path_ext()`, `path_is_abs()`
 - **`stdlib/io`** & **`stdlib/bufio`** — `read_all()`, `write_all()`, `append_all()`, `read_all_lines()`, `create_scanner()`, `create_word_scanner()`
@@ -371,10 +371,10 @@ curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh |
 
 ## Building from Source and Testing
 
-Raven includes a comprehensive test suite (**242 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, and IR Optimization passes):
+Raven includes a comprehensive test suite (**247 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, and RFC 6455 WebSockets):
 
 ```bash
-# Fast build and test (Runs all 242 tests + stdlib tour)
+# Fast build and test (Runs all 247 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -394,6 +394,7 @@ Production-pattern reference projects are included under `examples/projects/`:
 3. **[Key-Value Database Client](examples/projects/03_kv_database_client.rvn)**: Client Session Management, CRUD, Atomic Counters, and Batch Pipeline Execution.
 4. **[Concurrent Task Runner](examples/projects/04_concurrent_task_runner.rvn)**: Native POSIX Threads, WaitGroup Barrier Synchronization, and CSP Channel Queue.
 5. **[Official Full-Stack Website Server](examples/serve_website.rvn)**: Production HTTP server written in Raven serving the React 19 + TypeScript web application with routing and static assets.
+6. **[Live WebSocket Chat Server](examples/projects/05_live_chat_server.rvn)**: RFC 6455 WebSocket Handshake & Framing, HMAC-SHA256 JWT Authentication, Room Subscriptions, and Real-Time Broadcasting.
 
 ## VS Code & Cursor IDE Extension + Debugger
 
@@ -456,7 +457,7 @@ Raven provides a strictly defined and documented language specification in [**do
 
 | Tier | Operating System & Architecture | Support Level | Capabilities |
 |---|---|---|---|
-| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (242/242 tests). |
+| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (247/247 tests). |
 | **Tier 2** | **macOS (Apple Silicon M-series & Intel x86_64)** | **Source-Compatible** | Full support for source builds via Clang/CMake. Tree-Walk Interpreter, Corvus VM, REPL, and tools. |
 | **Tier 2** | **Linux ARM64 (aarch64)** | **Source-Compatible** | Full support for Linux on ARM (Raspberry Pi, AWS Graviton). |
 | **Tier 3** | **Windows 10/11 (x86_64)** | **Roadmap (v1.1 - v2.0)** | Currently runnable via WSL2. Native Windows PE standalone `.exe` generator and Win32 thread scheduler planned. |

@@ -758,6 +758,12 @@ void Interpreter::register_builtins() {
         return Value(ms);
     });
 
+    def("now", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        auto now = std::chrono::system_clock::now().time_since_epoch();
+        double ms = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+        return Value(ms);
+    });
+
     def("assert", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
         if (!args[0].is_truthy()) {
             throw RuntimeError(Token{TokenType::Identifier, "assert", 0, 0}, "Assertion failed: " + args[1].to_string());
@@ -766,6 +772,32 @@ void Interpreter::register_builtins() {
     });
 
     def("str", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (args[0].is_map()) {
+            auto m = args[0].as_map();
+            auto it = m->find("toString");
+            if (it == m->end()) it = m->find("to_string");
+            if (it != m->end() && it->second.is_callable()) {
+                BoundMethod bound(args[0], it->second.as_callable());
+                return bound.call(interp, {});
+            }
+        }
+        return Value(args[0].to_string());
+    });
+
+    def("to_string", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        if (args[0].is_map()) {
+            auto m = args[0].as_map();
+            auto it = m->find("toString");
+            if (it == m->end()) it = m->find("to_string");
+            if (it != m->end() && it->second.is_callable()) {
+                BoundMethod bound(args[0], it->second.as_callable());
+                return bound.call(interp, {});
+            }
+        }
+        return Value(args[0].to_string());
+    });
+
+    def("to_str", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
         if (args[0].is_map()) {
             auto m = args[0].as_map();
             auto it = m->find("toString");
@@ -1236,6 +1268,34 @@ void Interpreter::register_builtins() {
 
     def("native_md5", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         return Value(platform::md5_hex(args[0].to_string()));
+    });
+
+    def("native_sha1", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::sha1_hex(args[0].to_string()));
+    });
+
+    // WebSocket RFC 6455 Builtins
+    def("ws_accept_key", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::websocket_accept_key(args[0].to_string()));
+    });
+
+    def("ws_create_frame", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        int opcode = static_cast<int>(args[0].as_number());
+        std::string payload = args[1].to_string();
+        return Value(platform::websocket_create_frame(opcode, payload));
+    });
+
+    def("ws_parse_frame", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string buf = args[0].to_string();
+        auto frame = platform::websocket_parse_frame(buf);
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*map)["valid"] = Value(frame.valid);
+        (*map)["need_more"] = Value(frame.need_more);
+        (*map)["fin"] = Value(frame.fin);
+        (*map)["opcode"] = Value(static_cast<double>(frame.opcode));
+        (*map)["payload"] = Value(frame.payload);
+        (*map)["consumed"] = Value(static_cast<double>(frame.consumed));
+        return Value(map);
     });
 
     // Native Sockets & Networking Builtins

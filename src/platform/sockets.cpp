@@ -238,6 +238,10 @@ void udp_close(int fd) {
 #include <cstring>
 #include <vector>
 
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
 namespace raven::platform {
 
 int tcp_connect(const std::string& host, int port, int timeout_ms) {
@@ -328,7 +332,7 @@ int tcp_send(int fd, const std::string& data) {
     if (fd < 0) return -1;
     size_t total_sent = 0;
     while (total_sent < data.size()) {
-        ssize_t sent = send(fd, data.data() + total_sent, data.size() - total_sent, 0);
+        ssize_t sent = send(fd, data.data() + total_sent, data.size() - total_sent, MSG_NOSIGNAL);
         if (sent <= 0) {
             if (sent < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) {
                 continue;
@@ -391,7 +395,7 @@ int udp_send_to(int fd, const std::string& host, int port, const std::string& da
     addr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &addr.sin_addr);
 
-    ssize_t sent = sendto(fd, data.data(), data.size(), 0,
+    ssize_t sent = sendto(fd, data.data(), data.size(), MSG_NOSIGNAL,
                           reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     return static_cast<int>(sent);
 }

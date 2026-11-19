@@ -4,6 +4,9 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#ifndef _WIN32
+#include <csignal>
+#endif
 
 #include "raven/compiler.hpp"
 #include "raven/interpreter.hpp"
@@ -244,6 +247,9 @@ static void run_prompt() {
 } // namespace raven
 
 int main(int argc, char* argv[]) {
+#ifndef _WIN32
+    std::signal(SIGPIPE, SIG_IGN);
+#endif
     if (argc > 1) {
         std::string first_arg = argv[1];
 

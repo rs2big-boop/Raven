@@ -1,0 +1,175 @@
+// stdlib/net/websocket.rvn - Full RFC 6455 WebSocket Server & Client Protocol for Raven
+import "stdlib/strings";
+import "stdlib/encoding/json";
+
+let WS_OP_CONTINUATION = 0;
+let WS_OP_TEXT = 1;
+let WS_OP_BINARY = 2;
+let WS_OP_CLOSE = 8;
+let WS_OP_PING = 9;
+let WS_OP_PONG = 10;
+
+// Extract HTTP Header value (case-insensitive key)
+fn ws_extract_header(raw_request, header_name) {
+    let lower_target = to_lower(header_name) + ":";
+    let lines = split(raw_request, "\n");
+    for (let line in lines) {
+        let trimmed = trim(line);
+        let lower_line = to_lower(trimmed);
+        if (has_prefix(lower_line, lower_target)) {
+            let val = slice(trimmed, len(lower_target), len(trimmed));
+            return trim(val);
+        }
+    }
+    return nil;
+}
+
+// Generate RFC 6455 101 Switching Protocols handshake response
+fn ws_make_handshake_response(client_key) {
+    let accept_token = ws_accept_key(client_key);
+    let resp = "HTTP/1.1 101 Switching Protocols\r\n";
+    resp = resp + "Upgrade: websocket\r\n";
+    resp = resp + "Connection: Upgrade\r\n";
+    resp = resp + "Sec-WebSocket-Accept: " + accept_token + "\r\n\r\n";
+    return resp;
+}
+
+// WebSocket Connection wrapper around a TCP socket FD
+fn wrap_ws_socket(fd) {
+    let conn = {};
+    conn.fd = fd;
+    conn.is_open = true;
+    conn.buffer = "";
+
+    conn.send_text = fn(text) {
+        if (!conn.is_open) { return false; }
+        let frame = ws_create_frame(WS_OP_TEXT, text);
+        return net_tcp_send(conn.fd, frame) > 0;
+    };
+
+    conn.send_json = fn(data) {
+        return conn.send_text(marshal(data));
+    };
+
+    conn.send_ping = fn() {
+        if (!conn.is_open) { return false; }
+        let frame = ws_create_frame(WS_OP_PING, "");
+        return net_tcp_send(conn.fd, frame) > 0;
+    };
+
+    conn.send_pong = fn(payload) {
+        if (!conn.is_open) { return false; }
+        let frame = ws_create_frame(WS_OP_PONG, payload);
+        return net_tcp_send(conn.fd, frame) > 0;
+    };
+
+    conn.close = fn() {
+        if (!conn.is_open) { return true; }
+        conn.is_open = false;
+        let frame = ws_create_frame(WS_OP_CLOSE, "");
+        net_tcp_send(conn.fd, frame);
+        net_tcp_close(conn.fd);
+        return true;
+    };
+
+    // Reads from socket, accumulates buffer, and returns next complete frame or nil
+    conn.read_message = fn(timeout_ms = 100) {
+        if (!conn.is_open) { return nil; }
+
+        // Check if existing buffer already contains a complete frame
+        if (len(conn.buffer) > 0) {
+            let parsed = ws_parse_frame(conn.buffer);
+            if (parsed["valid"]) {
+                conn.buffer = slice(conn.buffer, parsed["consumed"], len(conn.buffer));
+                if (parsed["opcode"] == WS_OP_CLOSE) {
+                    conn.close();
+                    return nil;
+                }
+                if (parsed["opcode"] == WS_OP_PING) {
+                    conn.send_pong(parsed["payload"]);
+                    return conn.read_message(timeout_ms);
+                }
+                return parsed;
+            }
+        }
+
+        // Wait for incoming data if needed
+        let ready = net_tcp_poll_read(conn.fd, timeout_ms);
+        if (!ready) {
+            return nil;
+        }
+
+        let chunk = net_tcp_recv(conn.fd, 4096);
+        if (len(chunk) == 0) {
+            conn.close();
+            return nil;
+        }
+
+        conn.buffer = conn.buffer + chunk;
+        let parsed = ws_parse_frame(conn.buffer);
+        if (parsed["valid"]) {
+            conn.buffer = slice(conn.buffer, parsed["consumed"], len(conn.buffer));
+            if (parsed["opcode"] == WS_OP_CLOSE) {
+                conn.close();
+                return nil;
+            }
+            if (parsed["opcode"] == WS_OP_PING) {
+                conn.send_pong(parsed["payload"]);
+                return conn.read_message(timeout_ms);
+            }
+            return parsed;
+        }
+
+        return nil;
+    };
+
+    return conn;
+}
+
+// WebSocket Server helper
+fn create_websocket_server(host, port) {
+    let server_fd = net_tcp_listen(host, port);
+    if (server_fd < 0) {
+        return nil;
+    }
+
+    let server = {};
+    server.fd = server_fd;
+    server.host = host;
+    server.port = port;
+
+    server.accept = fn(handshake_timeout_ms = 2000) {
+        let client_fd = net_tcp_accept(server.fd);
+        if (client_fd < 0) {
+            return nil;
+        }
+
+        // Read HTTP Upgrade handshake
+        let ready = net_tcp_poll_read(client_fd, handshake_timeout_ms);
+        if (!ready) {
+            net_tcp_close(client_fd);
+            return nil;
+        }
+
+        let http_req = net_tcp_recv(client_fd, 4096);
+        let ws_key = ws_extract_header(http_req, "Sec-WebSocket-Key");
+        if (ws_key == nil) {
+            net_tcp_close(client_fd);
+            return nil;
+        }
+
+        let handshake_resp = ws_make_handshake_response(ws_key);
+        net_tcp_send(client_fd, handshake_resp);
+
+        return wrap_ws_socket(client_fd);
+    };
+
+    server.close = fn() {
+        if (server.fd >= 0) {
+            net_tcp_close(server.fd);
+            server.fd = -1;
+        }
+    };
+
+    return server;
+}

@@ -301,4 +301,200 @@ std::string md5_hex(const std::string& input) {
     return oss.str();
 }
 
+// --- SHA-1 Implementation (RFC 3174 / RFC 6455) ---
+inline uint32_t rol(uint32_t val, int shift) {
+    return (val << shift) | (val >> (32 - shift));
+}
+
+std::string sha1_raw(const std::string& input) {
+    uint32_t h0 = 0x67452301;
+    uint32_t h1 = 0xEFCDAB89;
+    uint32_t h2 = 0x98BADCFE;
+    uint32_t h3 = 0x10325476;
+    uint32_t h4 = 0xC3D2E1F0;
+
+    uint64_t msg_len = input.size();
+    uint64_t bit_len = msg_len * 8;
+
+    std::vector<uint8_t> padded(input.begin(), input.end());
+    padded.push_back(0x80);
+    while ((padded.size() % 64) != 56) {
+        padded.push_back(0x00);
+    }
+    for (int i = 7; i >= 0; --i) {
+        padded.push_back(static_cast<uint8_t>((bit_len >> (i * 8)) & 0xff));
+    }
+
+    for (size_t chunk = 0; chunk < padded.size(); chunk += 64) {
+        uint32_t w[80];
+        for (int i = 0; i < 16; ++i) {
+            w[i] = (static_cast<uint32_t>(padded[chunk + i * 4]) << 24) |
+                   (static_cast<uint32_t>(padded[chunk + i * 4 + 1]) << 16) |
+                   (static_cast<uint32_t>(padded[chunk + i * 4 + 2]) << 8) |
+                   (static_cast<uint32_t>(padded[chunk + i * 4 + 3]));
+        }
+        for (int i = 16; i < 80; ++i) {
+            w[i] = rol(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+        }
+
+        uint32_t a = h0, b = h1, c = h2, d = h3, e = h4;
+
+        for (int i = 0; i < 80; ++i) {
+            uint32_t f, k;
+            if (i < 20) {
+                f = (b & c) | ((~b) & d);
+                k = 0x5A827999;
+            } else if (i < 40) {
+                f = b ^ c ^ d;
+                k = 0x6ED9EBA1;
+            } else if (i < 60) {
+                f = (b & c) | (b & d) | (c & d);
+                k = 0x8F1BBCDC;
+            } else {
+                f = b ^ c ^ d;
+                k = 0xCA62C1D6;
+            }
+            uint32_t temp = rol(a, 5) + f + e + k + w[i];
+            e = d;
+            d = c;
+            c = rol(b, 30);
+            b = a;
+            a = temp;
+        }
+
+        h0 += a; h1 += b; h2 += c; h3 += d; h4 += e;
+    }
+
+    std::string out;
+    out.resize(20);
+    uint32_t hs[5] = {h0, h1, h2, h3, h4};
+    for (int i = 0; i < 5; ++i) {
+        out[i * 4]     = static_cast<char>((hs[i] >> 24) & 0xff);
+        out[i * 4 + 1] = static_cast<char>((hs[i] >> 16) & 0xff);
+        out[i * 4 + 2] = static_cast<char>((hs[i] >> 8) & 0xff);
+        out[i * 4 + 3] = static_cast<char>(hs[i] & 0xff);
+    }
+    return out;
+}
+
+std::string sha1_hex(const std::string& input) {
+    std::string raw = sha1_raw(input);
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    for (unsigned char c : raw) {
+        oss << std::setw(2) << static_cast<int>(c);
+    }
+    return oss.str();
+}
+
+static std::string base64_encode_internal(const std::string& in) {
+    static const std::string b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string out;
+    int val = 0, valb = -6;
+    for (unsigned char c : in) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            out.push_back(b64[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) out.push_back(b64[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (out.size() % 4) out.push_back('=');
+    return out;
+}
+
+std::string websocket_accept_key(const std::string& client_key) {
+    const std::string guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    std::string combined = client_key + guid;
+    std::string raw_sha = sha1_raw(combined);
+    return base64_encode_internal(raw_sha);
+}
+
+std::string websocket_create_frame(int opcode, const std::string& payload) {
+    std::string frame;
+    uint8_t byte0 = 0x80 | (opcode & 0x0F);
+    frame.push_back(static_cast<char>(byte0));
+
+    size_t len = payload.size();
+    if (len <= 125) {
+        frame.push_back(static_cast<char>(len));
+    } else if (len <= 65535) {
+        frame.push_back(static_cast<char>(126));
+        frame.push_back(static_cast<char>((len >> 8) & 0xFF));
+        frame.push_back(static_cast<char>(len & 0xFF));
+    } else {
+        frame.push_back(static_cast<char>(127));
+        for (int i = 7; i >= 0; --i) {
+            frame.push_back(static_cast<char>((len >> (i * 8)) & 0xFF));
+        }
+    }
+    frame.append(payload);
+    return frame;
+}
+
+WebSocketFrame websocket_parse_frame(const std::string& buffer) {
+    WebSocketFrame res;
+    if (buffer.size() < 2) {
+        res.need_more = true;
+        return res;
+    }
+
+    uint8_t b0 = static_cast<uint8_t>(buffer[0]);
+    uint8_t b1 = static_cast<uint8_t>(buffer[1]);
+
+    res.fin = (b0 & 0x80) != 0;
+    res.opcode = b0 & 0x0F;
+    bool masked = (b1 & 0x80) != 0;
+    uint64_t payload_len = b1 & 0x7F;
+
+    size_t header_len = 2;
+    if (payload_len == 126) {
+        if (buffer.size() < 4) {
+            res.need_more = true;
+            return res;
+        }
+        payload_len = (static_cast<uint64_t>(static_cast<uint8_t>(buffer[2])) << 8) |
+                      static_cast<uint64_t>(static_cast<uint8_t>(buffer[3]));
+        header_len = 4;
+    } else if (payload_len == 127) {
+        if (buffer.size() < 10) {
+            res.need_more = true;
+            return res;
+        }
+        payload_len = 0;
+        for (int i = 0; i < 8; ++i) {
+            payload_len = (payload_len << 8) | static_cast<uint8_t>(buffer[2 + i]);
+        }
+        header_len = 10;
+    }
+
+    size_t mask_len = masked ? 4 : 0;
+    if (buffer.size() < header_len + mask_len + payload_len) {
+        res.need_more = true;
+        return res;
+    }
+
+    uint8_t mask[4] = {0, 0, 0, 0};
+    if (masked) {
+        for (int i = 0; i < 4; ++i) {
+            mask[i] = static_cast<uint8_t>(buffer[header_len + i]);
+        }
+    }
+
+    res.payload.resize(payload_len);
+    size_t data_start = header_len + mask_len;
+    for (size_t i = 0; i < payload_len; ++i) {
+        uint8_t byte = static_cast<uint8_t>(buffer[data_start + i]);
+        if (masked) {
+            byte ^= mask[i % 4];
+        }
+        res.payload[i] = static_cast<char>(byte);
+    }
+
+    res.valid = true;
+    res.consumed = header_len + mask_len + payload_len;
+    return res;
+}
+
 } // namespace raven::platform

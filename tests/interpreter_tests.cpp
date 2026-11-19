@@ -343,10 +343,14 @@ TEST(InterpreterTest, NativeMathAndStringBuiltins) {
         "let words = split(\"alpha,beta,gamma\", \",\");\n"
         "let upper = to_upper(words[0]);\n"
         "let joined = join(words, \":\");\n"
+        "let s_num = to_string(123);\n"
+        "let t_now = now();\n"
         "println(s);\n"
         "println(r);\n"
         "println(upper);\n"
-        "println(joined);\n";
+        "println(joined);\n"
+        "println(s_num);\n"
+        "println(t_now > 0);\n";
 
     Lexer lexer(source);
     Parser parser(lexer.tokenize());
@@ -355,7 +359,7 @@ TEST(InterpreterTest, NativeMathAndStringBuiltins) {
     std::ostringstream out;
     Interpreter interpreter(out);
     interpreter.interpret(stmts);
-    EXPECT_EQ(out.str(), "7\n5\nALPHA\nalpha:beta:gamma\n");
+    EXPECT_EQ(out.str(), "7\n5\nALPHA\nalpha:beta:gamma\n123\ntrue\n");
 }
 
 TEST(InterpreterTest, NativeJsonSerializationAndParsing) {
