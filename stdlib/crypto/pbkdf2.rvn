@@ -1,0 +1,5 @@
+// stdlib/crypto/pbkdf2.rvn - PBKDF2 Key Derivation Function (RFC 2898 / RFC 8018)
+
+fn pbkdf2(password, salt, iterations = 100000, key_len = 32) {
+    return crypto_pbkdf2(password, salt, iterations, key_len);
+}

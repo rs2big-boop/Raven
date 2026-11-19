@@ -132,6 +132,9 @@ target_include_directories(raven_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+find_package(OpenSSL REQUIRED)
+target_link_libraries(raven_core PUBLIC OpenSSL::Crypto)
+
 # Windows: suppress min/max macros and enable Unicode
 if(WIN32)
     target_compile_definitions(raven_core PUBLIC

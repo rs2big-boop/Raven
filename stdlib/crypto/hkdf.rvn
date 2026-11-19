@@ -1,0 +1,5 @@
+// stdlib/crypto/hkdf.rvn - HKDF Key Derivation Function (RFC 5869)
+
+fn hkdf(ikm, salt, info, length = 32) {
+    return crypto_hkdf(ikm, salt, info, length);
+}

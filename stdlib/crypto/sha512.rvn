@@ -1,0 +1,9 @@
+// stdlib/crypto/sha512.rvn - SHA-512 & HMAC-SHA512
+
+fn sha512(s) {
+    return native_sha512(s);
+}
+
+fn hmac_sha512(key, data) {
+    return native_hmac_sha512(key, data);
+}

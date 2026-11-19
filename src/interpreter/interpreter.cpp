@@ -1274,6 +1274,87 @@ void Interpreter::register_builtins() {
         return Value(platform::sha1_hex(args[0].to_string()));
     });
 
+    def("native_sha512", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::sha512_hex(args[0].to_string()));
+    });
+
+    def("native_hmac_sha512", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::hmac_sha512_hex(args[0].to_string(), args[1].to_string()));
+    });
+
+    def("crypto_timing_safe_equal", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        return Value(platform::constant_time_compare(args[0].to_string(), args[1].to_string()));
+    });
+
+    def("crypto_random_hex", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        size_t count = static_cast<size_t>(args[0].as_number());
+        return Value(platform::crypto_random_hex(count));
+    });
+
+    def("crypto_random_bytes", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        size_t count = static_cast<size_t>(args[0].as_number());
+        auto raw = platform::crypto_random_bytes(count);
+        return Value(std::string(reinterpret_cast<const char*>(raw.data()), raw.size()));
+    });
+
+    def("crypto_pbkdf2", 4, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string password = args[0].to_string();
+        std::string salt = args[1].to_string();
+        int iterations = static_cast<int>(args[2].as_number());
+        size_t key_len = static_cast<size_t>(args[3].as_number());
+        return Value(platform::pbkdf2_hmac_sha256_hex(password, salt, iterations, key_len));
+    });
+
+    def("crypto_hkdf", 4, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string ikm = args[0].to_string();
+        std::string salt = args[1].to_string();
+        std::string info = args[2].to_string();
+        size_t length = static_cast<size_t>(args[3].as_number());
+        return Value(platform::hkdf_sha256_hex(ikm, salt, info, length));
+    });
+
+    def("crypto_aes_encrypt", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string key = args[0].to_string();
+        std::string iv = args[1].to_string();
+        std::string plaintext = args[2].to_string();
+        return Value(platform::aes256_ctr_encrypt(key, iv, plaintext));
+    });
+
+    def("crypto_aes_decrypt", 3, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        std::string key = args[0].to_string();
+        std::string iv = args[1].to_string();
+        std::string ciphertext = args[2].to_string();
+        return Value(platform::aes256_ctr_decrypt(key, iv, ciphertext));
+    });
+
+    def("crypto_aes_gcm_encrypt", -1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args.size() < 2) return Value();
+        std::string key = args[0].to_string();
+        std::string plaintext = args[1].to_string();
+        std::string aad = (args.size() > 2) ? args[2].to_string() : "";
+        auto gcm = platform::aes256_gcm_encrypt(key, plaintext, aad);
+        auto map = std::make_shared<std::unordered_map<std::string, Value>>();
+        (*map)["success"] = Value(gcm.success);
+        (*map)["iv"] = Value(gcm.iv_hex);
+        (*map)["ciphertext"] = Value(gcm.ciphertext_hex);
+        (*map)["tag"] = Value(gcm.tag_hex);
+        return Value(map);
+    });
+
+    def("crypto_aes_gcm_decrypt", -1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args.size() < 4) return Value();
+        std::string key = args[0].to_string();
+        std::string iv = args[1].to_string();
+        std::string ciphertext = args[2].to_string();
+        std::string tag = args[3].to_string();
+        std::string aad = (args.size() > 4) ? args[4].to_string() : "";
+        std::string pt = platform::aes256_gcm_decrypt(key, iv, ciphertext, tag, aad);
+        if (pt.empty()) {
+            return Value();
+        }
+        return Value(pt);
+    });
+
     // WebSocket RFC 6455 Builtins
     def("ws_accept_key", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
         return Value(platform::websocket_accept_key(args[0].to_string()));

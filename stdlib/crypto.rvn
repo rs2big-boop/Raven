@@ -1,17 +1,72 @@
-// stdlib/crypto.rvn - Cryptographic and hash functions
-
-fn fnv_hash(s) {
-    return hash(s);
-}
+// stdlib/crypto.rvn - Production-grade Cryptographic Suite (OpenSSL backed)
 
 fn sha256_sum(s) {
     return native_sha256(s);
 }
 
-fn md5_sum(s) {
-    return native_md5(s);
+fn sha512_sum(s) {
+    return native_sha512(s);
+}
+
+fn sha1_sum(s) {
+    return native_sha1(s);
 }
 
 fn hmac_sha256(key, data) {
     return native_hmac_sha256(key, data);
+}
+
+fn hmac_sha512(key, data) {
+    return native_hmac_sha512(key, data);
+}
+
+// Constant-Time Comparison to prevent side-channel timing attacks
+fn timing_safe_equal(a, b) {
+    return crypto_timing_safe_equal(a, b);
+}
+
+// Cryptographically Secure Pseudo-Random Number Generator (CSPRNG)
+fn random_hex(num_bytes) {
+    return crypto_random_hex(num_bytes);
+}
+
+fn random_bytes(num_bytes) {
+    return crypto_random_bytes(num_bytes);
+}
+
+// PBKDF2 Password Hashing & Key Derivation (RFC 2898 / RFC 8018)
+fn pbkdf2(password, salt, iterations = 100000, key_len = 32) {
+    return crypto_pbkdf2(password, salt, iterations, key_len);
+}
+
+// HKDF Key Derivation (RFC 5869)
+fn hkdf(ikm, salt, info, length = 32) {
+    return crypto_hkdf(ikm, salt, info, length);
+}
+
+// AES-256-GCM Authenticated Encryption (NIST SP 800-38D)
+fn aes_gcm_encrypt(key, plaintext, aad = "") {
+    return crypto_aes_gcm_encrypt(key, plaintext, aad);
+}
+
+fn aes_gcm_decrypt(key, iv, ciphertext, tag, aad = "") {
+    return crypto_aes_gcm_decrypt(key, iv, ciphertext, tag, aad);
+}
+
+// AES-256 CTR Stream Encryption
+fn aes_ctr_encrypt(key, iv, plaintext) {
+    return crypto_aes_encrypt(key, iv, plaintext);
+}
+
+fn aes_ctr_decrypt(key, iv, ciphertext) {
+    return crypto_aes_decrypt(key, iv, ciphertext);
+}
+
+// Legacy / non-cryptographic (use with caution)
+fn md5_sum(s) {
+    return native_md5(s);
+}
+
+fn fnv_hash(s) {
+    return hash(s);
 }

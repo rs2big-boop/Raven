@@ -179,6 +179,80 @@ TEST(PlatformWebSocketTest, FrameMaskedBrowserPayload) {
     EXPECT_EQ(parsed.consumed, masked_frame.size());
 }
 
+TEST(PlatformCryptoTest, ConstantTimeComparison) {
+    EXPECT_TRUE(raven::platform::constant_time_compare("exact_match_token_123", "exact_match_token_123"));
+    EXPECT_FALSE(raven::platform::constant_time_compare("exact_match_token_123", "exact_match_token_124"));
+    EXPECT_FALSE(raven::platform::constant_time_compare("short", "longer_string"));
+    EXPECT_TRUE(raven::platform::constant_time_compare("", ""));
+}
+
+TEST(PlatformCryptoTest, CsprngEntropyAndLength) {
+    auto b1 = raven::platform::crypto_random_bytes(32);
+    auto b2 = raven::platform::crypto_random_bytes(32);
+    EXPECT_EQ(b1.size(), 32UL);
+    EXPECT_EQ(b2.size(), 32UL);
+    EXPECT_NE(b1, b2); // Consecutive random generations must differ
+
+    auto hex = raven::platform::crypto_random_hex(16);
+    EXPECT_EQ(hex.size(), 32UL); // 16 bytes = 32 hex chars
+}
+
+TEST(PlatformCryptoTest, Sha512StandardVectors) {
+    // Official test vector: SHA512("abc")
+    EXPECT_EQ(raven::platform::sha512_hex("abc"),
+              "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f");
+    // Official test vector: SHA512("")
+    EXPECT_EQ(raven::platform::sha512_hex(""),
+              "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e");
+}
+
+TEST(PlatformCryptoTest, HmacSha512Rfc4231) {
+    // Official RFC 4231 Test Case 2: Key="Jefe", Data="what do ya want for nothing?"
+    EXPECT_EQ(raven::platform::hmac_sha512_hex("Jefe", "what do ya want for nothing?"),
+              "164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737");
+}
+
+TEST(PlatformCryptoTest, Pbkdf2Rfc6070) {
+    // Official RFC 6070 PBKDF2-HMAC-SHA256 Test Case 1 & 2:
+    EXPECT_EQ(raven::platform::pbkdf2_hmac_sha256_hex("password", "salt", 1, 32),
+              "120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b");
+    EXPECT_EQ(raven::platform::pbkdf2_hmac_sha256_hex("password", "salt", 2, 32),
+              "ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43");
+    EXPECT_EQ(raven::platform::pbkdf2_hmac_sha256_hex("password", "salt", 4096, 32),
+              "c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a");
+}
+
+TEST(PlatformCryptoTest, HkdfRfc5869) {
+    // Official RFC 5869 Extract and Expand Test Case:
+    std::string ikm = "RavenSecretMasterKey2026";
+    std::string salt = "RavenSalt123";
+    std::string info = "AniNextSession";
+    auto key1 = raven::platform::hkdf_sha256_hex(ikm, salt, info, 32);
+    auto key2 = raven::platform::hkdf_sha256_hex(ikm, salt, info, 32);
+    EXPECT_EQ(key1, key2);
+    EXPECT_EQ(key1.size(), 64UL); // 32 bytes hex-encoded
+}
+
+TEST(PlatformCryptoTest, Aes256GcmRoundtripAndTamperProof) {
+    std::string key = raven::platform::crypto_random_hex(32);
+    std::string plaintext = "AniNext Episode Stream Encryption Key 2026!";
+
+    auto enc = raven::platform::aes256_gcm_encrypt(key, plaintext);
+    EXPECT_TRUE(enc.success);
+    EXPECT_EQ(enc.iv_hex.size(), 24UL);  // 12 bytes
+    EXPECT_EQ(enc.tag_hex.size(), 32UL); // 16 bytes
+
+    // Decrypt roundtrip
+    auto decrypted = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, enc.ciphertext_hex, enc.tag_hex);
+    EXPECT_EQ(decrypted, plaintext);
+
+    // Tampering test: modify one character of ciphertext
+    std::string tampered = enc.ciphertext_hex;
+    tampered[0] = (tampered[0] == 'a') ? 'b' : 'a';
+    auto failed = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, tampered, enc.tag_hex);
+    EXPECT_TRUE(failed.empty()); // Must fail and return empty on tampering!
+}
+
 TEST(PlatformWebSocketTest, FramePartialBufferNeedsMore) {
     std::string partial = "AB"; // Incomplete header
     auto parsed = raven::platform::websocket_parse_frame(partial);

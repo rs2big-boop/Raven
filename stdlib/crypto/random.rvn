@@ -1,0 +1,9 @@
+// stdlib/crypto/random.rvn - Cryptographically Secure Random Number Generator (CSPRNG)
+
+fn random_hex(num_bytes) {
+    return crypto_random_hex(num_bytes);
+}
+
+fn random_bytes(num_bytes) {
+    return crypto_random_bytes(num_bytes);
+}

@@ -103,7 +103,7 @@ flowchart TD
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (247/247 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (254/254 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -285,7 +285,12 @@ Raven ships with an extensive, batteries-included standard library:
 - **`stdlib/encoding/base64`** — `encode_to_string()` and `decode_string()`
 - **`stdlib/encoding/csv`** — `csv_read_all()` and `csv_write_all()`
 - **`stdlib/encoding/hex`** — `encode_to_hex()`
-- **`stdlib/crypto`** & **`stdlib/hash/fnv`** — `fnv_hash()`, `sha256_sum()`, `sha1_hex()`, `md5_sum()`, `hmac()`
+- **`stdlib/crypto`** & **`stdlib/hash/fnv`** — `fnv_hash()`, `sha256_sum()`, `sha512_sum()`, `sha1_hex()`, `md5_sum()`, `hmac_sha256()`, `hmac_sha512()`, `timing_safe_equal()`, `random_hex()`, `random_bytes()`, `pbkdf2()`, `hkdf()`, `aes_gcm_encrypt()`, `aes_gcm_decrypt()`, `aes_ctr_encrypt()`, `aes_ctr_decrypt()`
+  - **`stdlib/crypto/sha512`** — SHA-512 & HMAC-SHA512
+  - **`stdlib/crypto/random`** — CSPRNG: `random_hex()`, `random_bytes()`
+  - **`stdlib/crypto/pbkdf2`** — PBKDF2-HMAC-SHA256 key derivation
+  - **`stdlib/crypto/hkdf`** — HKDF-SHA256 Extract-and-Expand key derivation
+  - **`stdlib/crypto/aes`** — AES-256-GCM authenticated encryption & AES-256-CTR
 - **`stdlib/net/http`**, **`stdlib/net/websocket`** & **`stdlib/net/url`** — `http_get_url()`, `http_post()`, `http_post_json()`, `create_websocket_server()`, `wrap_ws_socket()`, `url_encode()`, `parse_query()`
 - **`stdlib/time`** — `now_ms()`, `now_unix()`, `sleep_duration_ms()`, `since_ms()`, `format_duration()`
 - **`stdlib/path`** & **`stdlib/path/filepath`** — `path_join()`, `path_base()`, `path_dir()`, `path_ext()`, `path_is_abs()`
@@ -335,6 +340,13 @@ Raven ships with an extensive, batteries-included standard library:
 | `slice(seq, start, end)` | Slicing strings and arrays |
 | `regex_match(str, pat)` / `regex_replace(str, pat, rep)` | Regex engine |
 | `hash(str)` / `base64_encode(s)` / `base64_decode(s)` | Hashing & Base64 |
+| `native_sha512(data)` / `native_hmac_sha512(key, data)` | SHA-512 & HMAC-SHA512 |
+| `crypto_timing_safe_equal(a, b)` | Constant-time string comparison |
+| `crypto_random_hex(n)` / `crypto_random_bytes(n)` | CSPRNG random generation |
+| `crypto_pbkdf2(pwd, salt, iters, len)` | PBKDF2-HMAC-SHA256 key derivation |
+| `crypto_hkdf(ikm, salt, info, len)` | HKDF-SHA256 key derivation |
+| `crypto_aes_encrypt(key, iv, text)` / `crypto_aes_decrypt(key, iv, ct)` | AES-256-CTR encryption |
+| `crypto_aes_gcm_encrypt(key, text[, aad])` / `crypto_aes_gcm_decrypt(key, iv, ct, tag[, aad])` | AES-256-GCM authenticated encryption |
 | `http_get(url)` | Native HTTP client |
 | `contains(container, elem)` | Universal membership check |
 | `to_upper(s)` / `to_lower(s)` / `trim(s)` / `replace(s, from, to)` | String transforms |
@@ -371,10 +383,10 @@ curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh |
 
 ## Building from Source and Testing
 
-Raven includes a comprehensive test suite (**247 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, and RFC 6455 WebSockets):
+Raven includes a comprehensive test suite (**254 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, RFC 6455 WebSockets, and OpenSSL-backed Cryptography):
 
 ```bash
-# Fast build and test (Runs all 247 tests + stdlib tour)
+# Fast build and test (Runs all 254 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -457,7 +469,7 @@ Raven provides a strictly defined and documented language specification in [**do
 
 | Tier | Operating System & Architecture | Support Level | Capabilities |
 |---|---|---|---|
-| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (247/247 tests). |
+| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (254/254 tests). |
 | **Tier 2** | **macOS (Apple Silicon M-series & Intel x86_64)** | **Source-Compatible** | Full support for source builds via Clang/CMake. Tree-Walk Interpreter, Corvus VM, REPL, and tools. |
 | **Tier 2** | **Linux ARM64 (aarch64)** | **Source-Compatible** | Full support for Linux on ARM (Raspberry Pi, AWS Graviton). |
 | **Tier 3** | **Windows 10/11 (x86_64)** | **Roadmap (v1.1 - v2.0)** | Currently runnable via WSL2. Native Windows PE standalone `.exe` generator and Win32 thread scheduler planned. |

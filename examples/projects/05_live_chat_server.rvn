@@ -50,7 +50,7 @@ fn broadcast_to_room(room, message_obj, exclude_fd = -1) {
 fn verify_user_token(token, username) {
     let secret = "aninest_secure_jwt_secret_2026";
     let expected = native_hmac_sha256(secret, username);
-    if (token == expected || token == "bypass_test_token") {
+    if (crypto_timing_safe_equal(token, expected) || token == "bypass_test_token") {
         return "VIP Fansubber";
     }
     return "Viewer";
