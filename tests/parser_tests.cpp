@@ -241,6 +241,19 @@ TEST(ParserTest, LinterDetectsUnusedVariables) {
     EXPECT_NE(issues[0].message.find("unused_val"), std::string::npos);
 }
 
+TEST(ParserTest, LinterDetectsTypeMismatchInAnnotations) {
+    Lexer lexer("let count: Int = \"invalid_string\"; print(count);");
+    Parser parser(lexer.tokenize());
+    auto stmts = parser.parse();
+
+    Linter linter;
+    auto issues = linter.analyze(stmts);
+    ASSERT_EQ(issues.size(), 1);
+    EXPECT_EQ(issues[0].severity, LintSeverity::Warning);
+    EXPECT_NE(issues[0].message.find("Type mismatch"), std::string::npos);
+    EXPECT_NE(issues[0].message.find("count"), std::string::npos);
+}
+
 TEST(ParserTest, FormatterIndentation) {
     std::string unformatted =
         "fn calculate(a, b) {\n"

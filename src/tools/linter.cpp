@@ -92,6 +92,52 @@ void Linter::visit(const PrintStmt& stmt) {
 void Linter::visit(const VarDeclStmt& stmt) {
     if (stmt.initializer) stmt.initializer->accept(*this);
 
+    // Static type annotation check for raven vet
+    if (!stmt.type_annotation.empty() && stmt.initializer) {
+        if (auto* lit = dynamic_cast<const LiteralExpr*>(stmt.initializer.get())) {
+            const auto& val = lit->value;
+            const auto& t = stmt.type_annotation;
+            bool type_mismatch = false;
+            std::string actual_type = "unknown";
+
+            if (t == "Int" || t == "Number" || t == "Float" || t == "Double") {
+                if (!val.is_number()) {
+                    type_mismatch = true;
+                    actual_type = val.is_string() ? "String" : (val.is_bool() ? "Bool" : "Object");
+                }
+            } else if (t == "String" || t == "str") {
+                if (!val.is_string()) {
+                    type_mismatch = true;
+                    actual_type = val.is_number() ? "Number" : (val.is_bool() ? "Bool" : "Object");
+                }
+            } else if (t == "Bool" || t == "bool") {
+                if (!val.is_bool()) {
+                    type_mismatch = true;
+                    actual_type = val.is_number() ? "Number" : (val.is_string() ? "String" : "Object");
+                }
+            } else if (t == "Array" || t == "List") {
+                if (!val.is_array()) {
+                    type_mismatch = true;
+                    actual_type = val.is_number() ? "Number" : (val.is_string() ? "String" : "Object");
+                }
+            } else if (t == "Map" || t == "Dict") {
+                if (!val.is_map()) {
+                    type_mismatch = true;
+                    actual_type = val.is_number() ? "Number" : (val.is_string() ? "String" : "Object");
+                }
+            }
+
+            if (type_mismatch) {
+                issues_.push_back(LintIssue{
+                    LintSeverity::Warning,
+                    "Type mismatch: variable '" + stmt.name.lexeme + "' declared as '" + t + "' but initialized with '" + actual_type + "'",
+                    stmt.name.line,
+                    stmt.name.column
+                });
+            }
+        }
+    }
+
     if (!declared_vars_.empty()) {
         declared_vars_.back().insert(stmt.name.lexeme);
         var_tokens_.back().push_back({stmt.name.lexeme, stmt.name});

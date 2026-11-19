@@ -2708,6 +2708,7 @@ void Interpreter::visit(const IfStmt& stmt) {
 
 void Interpreter::visit(const WhileStmt& stmt) {
     while (evaluate(*stmt.condition).is_truthy()) {
+        SafepointManager::instance().poll_safepoint();
         try {
             execute(*stmt.body);
         } catch (const BreakException&) {
@@ -2724,6 +2725,7 @@ void Interpreter::visit(const ForInStmt& stmt) {
     if (iterable.is_array()) {
         const auto& arr = *iterable.as_array();
         for (const auto& item : arr) {
+            SafepointManager::instance().poll_safepoint();
             auto loop_env = std::make_shared<Environment>(environment_);
             loop_env->define(stmt.variable.lexeme, item);
             try {
@@ -2737,6 +2739,7 @@ void Interpreter::visit(const ForInStmt& stmt) {
     } else if (iterable.is_map()) {
         const auto& m = *iterable.as_map();
         for (const auto& [k, v] : m) {
+            SafepointManager::instance().poll_safepoint();
             auto loop_env = std::make_shared<Environment>(environment_);
             loop_env->define(stmt.variable.lexeme, Value(k));
             try {
