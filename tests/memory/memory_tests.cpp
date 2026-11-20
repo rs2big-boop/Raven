@@ -522,7 +522,14 @@ TEST(MemoryTest, SafepointNativeThreadParkingDoesNotBlockGC) {
     }
 
     // GC initiates STW: worker is in native, so GC must proceed immediately without blocking!
-    sp.request_safepoint();
+    try {
+        sp.request_safepoint(std::chrono::milliseconds(1000));
+    } catch (const std::runtime_error& error) {
+        release_worker.store(true, std::memory_order_release);
+        worker.join();
+        sp.reset();
+        FAIL() << "Safepoint request failed while worker was in native state: " << error.what();
+    }
 
     // request_safepoint() returned while worker is parked in native!
     EXPECT_EQ(sp.parked_thread_count(), 1u);
@@ -1411,5 +1418,4 @@ TEST(MemoryTest, SafepointManagerUnregisterDuringActiveSTWDoesNotHang) {
     mutator.join();
     sp_mgr.reset();
 }
-
 

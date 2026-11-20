@@ -275,11 +275,26 @@ int main(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--env") {
+        if ((arg == "-o" || arg == "-e" || arg == "-c" ||
+             arg == "--vm" || arg == "--disasm" ||
+             arg == "-b" || arg == "--break") &&
+            i + 1 < argc) {
+            filtered_argv.push_back(argv[i]);
+            filtered_argv.push_back(argv[++i]);
+        } else if (arg == "--env") {
             load_default_env = true;
         } else if (arg.rfind("--env-file=", 0) == 0) {
             env_file_path = arg.substr(11);
-        } else if (arg == "--env-file" && i + 1 < argc) {
+            if (env_file_path.empty()) {
+                std::cerr << "Error: --env-file requires a nonempty path.\n";
+                return 2;
+            }
+        } else if (arg == "--env-file") {
+            if (i + 1 >= argc || std::string(argv[i + 1]).empty() ||
+                std::string(argv[i + 1]).starts_with("-")) {
+                std::cerr << "Error: --env-file requires a nonempty path.\n";
+                return 2;
+            }
             env_file_path = argv[++i];
         } else {
             filtered_argv.push_back(argv[i]);
