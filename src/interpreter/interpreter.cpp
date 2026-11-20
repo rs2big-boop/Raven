@@ -2915,6 +2915,21 @@ void Interpreter::visit(const ThrowStmt& stmt) {
     throw UserException{val};
 }
 
+void Interpreter::push_source_file(const std::string& path) {
+    std::filesystem::path p(path);
+    if (p.is_relative()) {
+        std::error_code ec;
+        p = std::filesystem::current_path(ec) / p;
+    }
+    source_dir_stack_.push_back(p.parent_path().string());
+}
+
+void Interpreter::pop_source_file() {
+    if (!source_dir_stack_.empty()) {
+        source_dir_stack_.pop_back();
+    }
+}
+
 void Interpreter::visit(const ImportStmt& stmt) {
     std::string path = stmt.module_path;
     std::string base = path;
@@ -2928,17 +2943,23 @@ void Interpreter::visit(const ImportStmt& stmt) {
         rel_path = rel_path.substr(7);
     }
 
-    std::vector<std::string> candidates = {
-        path + ".rvn",
-        path + "/" + base + ".rvn",
-        "stdlib/" + rel_path + ".rvn",
-        "stdlib/" + rel_path + "/" + base + ".rvn",
-        "../stdlib/" + rel_path + ".rvn",
-        "../stdlib/" + rel_path + "/" + base + ".rvn",
-        "raven_modules/" + path + ".rvn",
-        path,
-        "stdlib/" + rel_path
-    };
+    std::vector<std::string> candidates;
+    if (!source_dir_stack_.empty()) {
+        std::filesystem::path cur_dir(source_dir_stack_.back());
+        candidates.push_back((cur_dir / (path + ".rvn")).string());
+        candidates.push_back((cur_dir / (path + "/" + base + ".rvn")).string());
+        candidates.push_back((cur_dir / path).string());
+    }
+
+    candidates.push_back(path + ".rvn");
+    candidates.push_back(path + "/" + base + ".rvn");
+    candidates.push_back("stdlib/" + rel_path + ".rvn");
+    candidates.push_back("stdlib/" + rel_path + "/" + base + ".rvn");
+    candidates.push_back("../stdlib/" + rel_path + ".rvn");
+    candidates.push_back("../stdlib/" + rel_path + "/" + base + ".rvn");
+    candidates.push_back("raven_modules/" + path + ".rvn");
+    candidates.push_back(path);
+    candidates.push_back("stdlib/" + rel_path);
 
     std::filesystem::path cwd = std::filesystem::current_path();
     candidates.push_back((cwd / "stdlib" / (rel_path + ".rvn")).string());
@@ -2995,12 +3016,15 @@ void Interpreter::visit(const ImportStmt& stmt) {
 
     auto previous = environment_;
     environment_ = globals_;
+    push_source_file(resolved);
     try {
         for (const auto& s : statements) {
             if (s) execute(*s);
         }
+        pop_source_file();
         environment_ = previous;
     } catch (...) {
+        pop_source_file();
         environment_ = previous;
         throw;
     }

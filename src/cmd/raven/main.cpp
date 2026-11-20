@@ -116,6 +116,7 @@ static int run_file(const std::string& path, bool use_vm = false, bool disasm = 
     }
 
     Interpreter interpreter;
+    interpreter.push_source_file(path);
     return run(ss.str(), interpreter);
 }
 

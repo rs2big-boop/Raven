@@ -68,6 +68,9 @@ public:
         }
     }
 
+    void push_source_file(const std::string& path);
+    void pop_source_file();
+
     void push_this(const Value& receiver) { this_stack_.push_back(receiver); }
     void pop_this() {
         if (!this_stack_.empty()) {
@@ -139,6 +142,7 @@ private:
     std::shared_ptr<Environment> environment_;
     bool owns_globals_ = true;  // false for thread-local interpreters that share globals
     std::unordered_set<std::string> imported_modules_;
+    std::vector<std::string> source_dir_stack_;
     std::vector<StackFrame> call_stack_;
     std::vector<Value> this_stack_;
     std::vector<Value> super_stack_;
