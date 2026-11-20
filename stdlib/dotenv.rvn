@@ -1,0 +1,92 @@
+// stdlib/dotenv.rvn - Modern .env file management for Raven
+// Provides loading, parsing, writing, and typed reading of environment variables.
+
+// Loads a .env file and populates the process environment variables.
+// Returns a map of key-value pairs loaded.
+fn dotenv_load(path = ".env", overwrite = true) {
+    return native_load_env(path, overwrite);
+}
+
+// Reads and parses a .env file without modifying the process environment.
+// Returns a map of key-value pairs.
+fn dotenv_read(path = ".env") {
+    if (!file_exists(path)) {
+        return {};
+    }
+    let content = read_file(path);
+    return native_parse_env(content);
+}
+
+// Parses a string containing .env formatted lines into a key-value map.
+fn dotenv_parse(content) {
+    return native_parse_env(content);
+}
+
+// Formats a map into a valid .env format string.
+fn dotenv_format(vars_map) {
+    return format_env(vars_map);
+}
+
+// Writes a map of variables to a .env file.
+fn dotenv_write(path, vars_map) {
+    let content = format_env(vars_map);
+    return write_file(path, content);
+}
+
+// Gets an environment variable with a fallback default.
+fn dotenv_get(name, default_val = nil) {
+    let val = env(name);
+    if (val == nil) {
+        return default_val;
+    }
+    return val;
+}
+
+// Gets an environment variable parsed as an integer.
+fn dotenv_get_int(name, default_val = 0) {
+    let val = env(name);
+    if (val == nil) {
+        return default_val;
+    }
+    let n = num(val);
+    if (n == nil) {
+        return default_val;
+    }
+    return int(n);
+}
+
+// Gets an environment variable parsed as a boolean.
+fn dotenv_get_bool(name, default_val = false) {
+    let val = env(name);
+    if (val == nil) {
+        return default_val;
+    }
+    let lower = to_lower(trim(val));
+    if (lower == "true" || lower == "1" || lower == "yes" || lower == "on") {
+        return true;
+    }
+    if (lower == "false" || lower == "0" || lower == "no" || lower == "off") {
+        return false;
+    }
+    return default_val;
+}
+
+// Sets an environment variable in the current process.
+fn dotenv_set(name, value) {
+    return native_set_env(name, str(value));
+}
+
+// Unsets an environment variable in the current process.
+fn dotenv_unset(name) {
+    return native_unset_env(name);
+}
+
+// Checks if an environment variable exists.
+fn dotenv_has(name) {
+    return native_has_env(name);
+}
+
+// Returns a map of all environment variables in the current process.
+fn dotenv_all() {
+    return all_env();
+}

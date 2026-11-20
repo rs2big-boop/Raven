@@ -213,7 +213,7 @@ TEST(BenchmarkSuite, ResourceLeaseAcquireReleaseLatency) {
         auto t0 = std::chrono::high_resolution_clock::now();
         {
             raven::ResourceLease lease(rcb);
-            EXPECT_TRUE(lease.is_valid());
+            EXPECT_EQ(lease.native_fd(), 10);
         }
         auto t1 = std::chrono::high_resolution_clock::now();
         double duration_ns = std::chrono::duration<double, std::nano>(t1 - t0).count();

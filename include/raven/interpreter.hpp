@@ -70,6 +70,8 @@ public:
 
     void push_source_file(const std::string& path);
     void pop_source_file();
+    bool has_source_dir() const { return !source_dir_stack_.empty(); }
+    std::string current_source_dir() const { return source_dir_stack_.empty() ? "." : source_dir_stack_.back(); }
 
     void push_this(const Value& receiver) { this_stack_.push_back(receiver); }
     void pop_this() {

@@ -118,6 +118,7 @@ add_library(raven_core
     src/platform/http_client.cpp
     src/platform/filesystem.cpp
     src/platform/system_info.cpp
+    src/platform/env.cpp
 
     # Developer Tooling (Linter/Vet, Formatter, Documentation Generator, Language Server, Debugger)
     src/tools/linter.cpp

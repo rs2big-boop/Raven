@@ -21,6 +21,7 @@
 #include "raven/debugger.hpp"
 #include "raven/packages/package_manager.hpp"
 #include "raven/platform/filesystem.hpp"
+#include "raven/platform/env.hpp"
 
 namespace raven {
 
@@ -153,6 +154,7 @@ static void run_prompt() {
                           << "  .help              Show this help\n"
                           << "  .quit / .exit      Exit the REPL\n"
                           << "  .load <file>       Load and execute a .rvn file\n"
+                          << "  .env [file]        Load environment variables from .env file\n"
                           << "  .clear             Clear the screen\n"
                           << "  .version           Show Raven version\n\n"
                           << "Keyboard shortcuts:\n"
@@ -182,6 +184,21 @@ static void run_prompt() {
                     std::ostringstream ss;
                     ss << f.rdbuf();
                     run(ss.str(), interpreter);
+                }
+                continue;
+            }
+            if (trimmed == ".env" || trimmed.rfind(".env ", 0) == 0) {
+                std::string path = ".env";
+                if (trimmed.size() > 4) {
+                    path = trimmed.substr(5);
+                    while (!path.empty() && path.front() == ' ') path.erase(0, 1);
+                    if (path.empty()) path = ".env";
+                }
+                auto loaded = raven::platform::load_env_file(path, true);
+                if (loaded.empty()) {
+                    std::cout << "⚠ No environment variables loaded from '" << path << "'\n";
+                } else {
+                    std::cout << "✓ Loaded " << loaded.size() << " environment variables from " << path << "\n";
                 }
                 continue;
             }
@@ -251,6 +268,36 @@ int main(int argc, char* argv[]) {
 #ifndef _WIN32
     std::signal(SIGPIPE, SIG_IGN);
 #endif
+    std::string env_file_path;
+    bool load_default_env = false;
+    std::vector<char*> filtered_argv;
+    filtered_argv.push_back(argv[0]);
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--env") {
+            load_default_env = true;
+        } else if (arg.rfind("--env-file=", 0) == 0) {
+            env_file_path = arg.substr(11);
+        } else if (arg == "--env-file" && i + 1 < argc) {
+            env_file_path = argv[++i];
+        } else {
+            filtered_argv.push_back(argv[i]);
+        }
+    }
+
+    if (!env_file_path.empty()) {
+        raven::platform::load_env_file(env_file_path, true);
+    } else if (load_default_env) {
+        auto found = raven::platform::find_env_file(std::filesystem::current_path().string());
+        if (found) {
+            raven::platform::load_env_file(*found, true);
+        }
+    }
+
+    argc = static_cast<int>(filtered_argv.size());
+    argv = filtered_argv.data();
+
     if (argc > 1) {
         std::string first_arg = argv[1];
 
@@ -273,6 +320,8 @@ int main(int argc, char* argv[]) {
                       << "  -e, -c <code>           Execute inline Raven code\n"
                       << "  --vm <file.rvn>         Execute using the Raven Bytecode Virtual Machine (Corvus)\n"
                       << "  --disasm <file.rvn>     Compile and display the Bytecode disassembly\n"
+                      << "  --env                   Automatically load .env from current directory or parent\n"
+                      << "  --env-file <path>       Load environment variables from specified file\n"
                       << "  --version, -v           Print Raven version\n"
                       << "  --help, -h              Show this help message\n";
             return 0;

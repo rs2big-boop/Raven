@@ -14,6 +14,9 @@ class Socket {
     }
 
     fn connect(address) {
+        if (this.sock_type != SOCK_STREAM) {
+            throw "Unsupported socket type: only SOCK_STREAM is supported"
+        }
         // address is [host, port]
         let host = address[0]
         let port = address[1]
@@ -40,6 +43,9 @@ class Socket {
     }
 
     fn bind(address) {
+        if (this.sock_type != SOCK_STREAM) {
+            throw "Unsupported socket type: only SOCK_STREAM is supported"
+        }
         let host = address[0]
         let port = address[1]
         this.server = tcp_listen(host, port)

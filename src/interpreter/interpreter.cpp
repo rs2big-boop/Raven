@@ -38,6 +38,7 @@
 #include "raven/platform/http_client.hpp"
 #include "raven/platform/sockets.hpp"
 #include "raven/platform/filesystem.hpp"
+#include "raven/platform/env.hpp"
 #include "raven/runtime/resource_handle.hpp"
 #include "raven/runtime/safepoint_manager.hpp"
 #include "raven/platform/system_info.hpp"
@@ -1059,11 +1060,99 @@ void Interpreter::register_builtins() {
         std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int64_t>(args[0].as_number())));
         return Value();
     });
-    def("env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
-        if (!args[0].is_string()) return Value();
-        const char* val = std::getenv(args[0].as_string().c_str());
-        if (!val) return Value();
-        return Value(std::string(val));
+    auto env_fn = [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_string()) return Value();
+        auto val = platform::get_env_var(args[0].as_string());
+        if (!val) {
+            if (args.size() > 1) return args[1];
+            return Value();
+        }
+        return Value(*val);
+    };
+    def("env", -1, env_fn);
+    def("get_env", -1, env_fn);
+
+    def("set_env", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string() || !args[1].is_string()) return Value(false);
+        return Value(platform::set_env_var(args[0].as_string(), args[1].as_string(), true));
+    });
+    def("native_set_env", 2, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string() || !args[1].is_string()) return Value(false);
+        return Value(platform::set_env_var(args[0].as_string(), args[1].as_string(), true));
+    });
+
+    def("unset_env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) return Value(false);
+        return Value(platform::unset_env_var(args[0].as_string()));
+    });
+    def("native_unset_env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) return Value(false);
+        return Value(platform::unset_env_var(args[0].as_string()));
+    });
+
+    def("has_env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) return Value(false);
+        return Value(platform::has_env_var(args[0].as_string()));
+    });
+    def("native_has_env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_string()) return Value(false);
+        return Value(platform::has_env_var(args[0].as_string()));
+    });
+
+    def("all_env", 0, [](Interpreter&, const std::vector<Value>&) -> Value {
+        auto all = platform::get_all_env_vars();
+        auto map_ptr = std::make_shared<std::unordered_map<std::string, Value>>();
+        for (const auto& [k, v] : all) {
+            (*map_ptr)[k] = Value(v);
+        }
+        return Value(map_ptr);
+    });
+
+    auto load_env_fn = [](Interpreter& interp, const std::vector<Value>& args) -> Value {
+        std::string path = ".env";
+        bool overwrite = true;
+        if (!args.empty() && args[0].is_string()) {
+            path = args[0].as_string();
+        } else if (interp.has_source_dir()) {
+            auto found = platform::find_env_file(interp.current_source_dir());
+            if (found) path = *found;
+        } else {
+            auto found = platform::find_env_file(std::filesystem::current_path().string());
+            if (found) path = *found;
+        }
+        if (args.size() > 1 && args[1].is_bool()) {
+            overwrite = args[1].as_bool();
+        }
+        auto loaded = platform::load_env_file(path, overwrite);
+        auto map_ptr = std::make_shared<std::unordered_map<std::string, Value>>();
+        for (const auto& [k, v] : loaded) {
+            (*map_ptr)[k] = Value(v);
+        }
+        return Value(map_ptr);
+    };
+    def("load_env", -1, load_env_fn);
+    def("native_load_env", -1, load_env_fn);
+
+    auto parse_env_fn = [](Interpreter&, const std::vector<Value>& args) -> Value {
+        auto map_ptr = std::make_shared<std::unordered_map<std::string, Value>>();
+        if (!args[0].is_string()) return Value(map_ptr);
+        auto parsed = platform::parse_env_string(args[0].as_string(), platform::get_all_env_vars());
+        for (const auto& [k, v] : parsed) {
+            (*map_ptr)[k] = Value(v);
+        }
+        return Value(map_ptr);
+    };
+    def("parse_env", 1, parse_env_fn);
+    def("native_parse_env", 1, parse_env_fn);
+
+    def("format_env", 1, [](Interpreter&, const std::vector<Value>& args) -> Value {
+        if (!args[0].is_map()) return Value(std::string(""));
+        const auto& map_val = *(args[0].as_map());
+        std::unordered_map<std::string, std::string> str_map;
+        for (const auto& [k, v] : map_val) {
+            str_map[k] = v.to_string();
+        }
+        return Value(platform::format_env_string(str_map));
     });
     def("exec", 1, [](Interpreter& interp, const std::vector<Value>& args) -> Value {
         if (interp.sandbox().enabled && !interp.sandbox().allow_shell) {

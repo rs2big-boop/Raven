@@ -3,6 +3,7 @@
 
 #include "raven/platform/filesystem.hpp"
 #include "raven/platform/crypto.hpp"
+#include "raven/platform/env.hpp"
 #include "raven/runtime/string_pool.hpp"
 #include "raven/runtime/nan_box.hpp"
 #include "raven/concurrency/scheduler.hpp"

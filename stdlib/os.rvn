@@ -1,7 +1,31 @@
 // stdlib/os.rvn - Operating system functionality (inspired by Go's os package)
 
-fn get_env(name) {
-    return env(name);
+fn get_env(name, default_val = nil) {
+    let val = env(name);
+    if (val == nil) {
+        return default_val;
+    }
+    return val;
+}
+
+fn set_env(name, value) {
+    return native_set_env(name, value);
+}
+
+fn unset_env(name) {
+    return native_unset_env(name);
+}
+
+fn has_env(name) {
+    return native_has_env(name);
+}
+
+fn load_env(path = ".env", overwrite = true) {
+    return native_load_env(path, overwrite);
+}
+
+fn environ() {
+    return all_env();
 }
 
 fn path_exists(path) {

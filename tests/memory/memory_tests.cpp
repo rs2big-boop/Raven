@@ -500,6 +500,7 @@ TEST(MemoryTest, SafepointNativeThreadParkingDoesNotBlockGC) {
     sp.reset();
 
     std::atomic<bool> worker_in_native{false};
+    std::atomic<bool> release_worker{false};
     std::atomic<bool> worker_done{false};
 
     std::thread worker([&]() {
@@ -507,8 +508,9 @@ TEST(MemoryTest, SafepointNativeThreadParkingDoesNotBlockGC) {
         sp.enter_native();
         worker_in_native.store(true, std::memory_order_release);
 
-        // Simulate blocking syscall / I/O
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        while (!release_worker.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
 
         sp.exit_native();
         sp.unregister_thread();
@@ -520,18 +522,13 @@ TEST(MemoryTest, SafepointNativeThreadParkingDoesNotBlockGC) {
     }
 
     // GC initiates STW: worker is in native, so GC must proceed immediately without blocking!
-    auto start_time = std::chrono::steady_clock::now();
     sp.request_safepoint();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - start_time
-    ).count();
 
     // request_safepoint() returned while worker is parked in native!
     EXPECT_EQ(sp.parked_thread_count(), 1u);
     EXPECT_EQ(sp.get_thread_state(worker.get_id()), raven::MutatorState::InNativeBlocked);
-    // STW request took minimal time (< 30ms) instead of waiting for worker sleep
-    EXPECT_LT(elapsed, 45);
 
+    release_worker.store(true, std::memory_order_release);
     sp.resume_mutators();
     worker.join();
     EXPECT_TRUE(worker_done.load());
