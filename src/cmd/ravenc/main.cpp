@@ -70,11 +70,42 @@ void print_usage() {
               << "Usage: ravenc [options] <input.rvn>\n\n"
               << "Options:\n"
               << "  -o <file>       Output compiled file (default: <input>.rvc or executable)\n"
-              << "  --native        Compile directly to a standalone native ELF executable (AOT)\n"
+              << "  --native        Compile directly to a standalone executable with Raven's own engine (zero dependencies, no GCC)\n"
+              << "  --c-backend     (Optional) Compile using host C++ compiler\n"
               << "  --emit-c, --cpp Emit generated C++ native source code\n"
-              << "  -O, --optimize  Enable optimizations (pass -O3 to native compiler)\n"
+              << "  -O, --optimize  Enable optimizations\n"
               << "  -d, --disasm    Print bytecode disassembly to stdout\n"
               << "  -h, --help      Display this help message\n";
+}
+
+static std::string find_rvm_runtime() {
+    std::vector<fs::path> candidates = {
+        fs::current_path() / "rvm",
+        fs::current_path() / "build" / "rvm",
+        fs::current_path() / "build" / "Release" / "rvm",
+        fs::current_path() / "bin" / "rvm"
+    };
+
+    std::string exe_dir = raven::platform::fs_executable_dir();
+    if (!exe_dir.empty()) {
+        fs::path exe_root(exe_dir);
+        candidates.push_back(exe_root / "rvm");
+        candidates.push_back(exe_root / "build" / "rvm");
+        candidates.push_back(exe_root / "build" / "Release" / "rvm");
+        candidates.push_back(exe_root / ".." / "bin" / "rvm");
+    }
+
+    if (const char* home = std::getenv("HOME")) {
+        candidates.push_back(fs::path(home) / ".local" / "bin" / "rvm");
+    }
+    candidates.push_back(fs::path("/usr/local/bin/rvm"));
+
+    for (const auto& path : candidates) {
+        if (fs::exists(path) && !fs::is_directory(path)) {
+            return path.string();
+        }
+    }
+    return "";
 }
 
 int main(int argc, char* argv[]) {
@@ -89,6 +120,7 @@ int main(int argc, char* argv[]) {
     bool disasm = false;
     bool native = false;
     bool emit_c = false;
+    bool c_backend = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -100,6 +132,9 @@ int main(int argc, char* argv[]) {
         } else if (arg == "-d" || arg == "--disasm") {
             disasm = true;
         } else if (arg == "--native" || arg == "--standalone") {
+            native = true;
+        } else if (arg == "--c-backend") {
+            c_backend = true;
             native = true;
         } else if (arg == "--emit-c" || arg == "--emit-cpp" || arg == "--cpp") {
             emit_c = true;
@@ -172,7 +207,69 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (native) {
+    if (native && !c_backend) {
+        std::string rvm_path = find_rvm_runtime();
+        if (rvm_path.empty()) {
+            std::cerr << "Error: Could not locate Raven runtime engine template ('rvm').\n";
+            return 1;
+        }
+
+        std::ifstream rvm_in(rvm_path, std::ios::binary);
+        if (!rvm_in.is_open()) {
+            std::cerr << "Error: Failed to read runtime template '" << rvm_path << "'\n";
+            return 1;
+        }
+
+        std::string payload;
+        const char* magic = RAVEN_NATIVE_MAGIC;
+
+        if (detector.needs_full_runtime) {
+            payload = ss.str();
+            magic = RAVEN_NATIVE_SRC_MAGIC;
+        } else {
+            Chunk chunk;
+            Compiler compiler(chunk);
+            if (!compiler.compile(statements)) {
+                std::cerr << "Compilation failed.\n";
+                return 1;
+            }
+            if (disasm) {
+                chunk.disassemble(std::cout, input_path);
+            }
+            std::ostringstream payload_stream(std::ios::binary);
+            if (!BytecodeSerializer::serialize(chunk, payload_stream)) {
+                std::cerr << "Error: Failed to serialize bytecode payload.\n";
+                return 1;
+            }
+            payload = payload_stream.str();
+        }
+
+        uint64_t payload_size = static_cast<uint64_t>(payload.size());
+
+        std::ofstream out(output_path, std::ios::binary);
+        if (!out.is_open()) {
+            std::cerr << "Error: Cannot open output executable '" << output_path << "' for writing.\n";
+            return 1;
+        }
+
+        out << rvm_in.rdbuf();
+        out.write(payload.data(), payload.size());
+        out.write(magic, 16);
+        out.write(reinterpret_cast<const char*>(&payload_size), sizeof(payload_size));
+        out.close();
+
+#if !defined(_WIN32) && !defined(_WIN64)
+        chmod(output_path.c_str(), 0755);
+#endif
+
+        std::cout << "⚡ Successfully compiled standalone executable with Raven engine: '" << output_path << "'\n"
+                  << "   Binary size: " << fs::file_size(output_path) << " bytes\n"
+                  << "   Zero external dependencies (No GCC or Clang required)\n"
+                  << "   Direct execution: ./" << output_path << "\n";
+        return 0;
+    }
+
+    if (native && c_backend) {
         raven::native::NativeCompilerOptions opts;
         opts.optimize = optimize;
         opts.output_path = output_path;
@@ -180,7 +277,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        std::cout << "⚡ Successfully compiled standalone native binary: '" << output_path << "'\n"
+        std::cout << "⚡ Successfully compiled standalone native binary (C++ backend): '" << output_path << "'\n"
                   << "   Binary size: " << fs::file_size(output_path) << " bytes\n"
                   << "   Direct execution: ./" << output_path << "\n";
         return 0;

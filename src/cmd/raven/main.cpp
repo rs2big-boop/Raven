@@ -814,7 +814,7 @@ int main(int argc, char* argv[]) {
 
         if (first_arg == "upgrade" || first_arg == "self-update") {
             std::cout << "🐦 Checking for Raven updates from GitHub...\n";
-            std::cout << "Current version: Raven v1.3.0 (Corvus Engine)\n";
+            std::cout << "Current version: Raven v1.4.0 (Corvus Engine)\n";
             std::string cmd = "curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh | bash";
             int ret = std::system(cmd.c_str());
             if (ret == 0) {
