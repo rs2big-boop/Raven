@@ -103,7 +103,7 @@ flowchart TD
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (254/254 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (259/259 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -295,7 +295,7 @@ Raven ships with an extensive, batteries-included standard library:
 - **`stdlib/time`** — `now_ms()`, `now_unix()`, `sleep_duration_ms()`, `since_ms()`, `format_duration()`
 - **`stdlib/path`** & **`stdlib/path/filepath`** — `path_join()`, `path_base()`, `path_dir()`, `path_ext()`, `path_is_abs()`
 - **`stdlib/io`** & **`stdlib/bufio`** — `read_all()`, `write_all()`, `append_all()`, `read_all_lines()`, `create_scanner()`, `create_word_scanner()`
-- **`stdlib/os`** — `get_env()`, `path_exists()`, `run_command()`, `current_dir()`, `make_dir()`, `remove()`, `read_dir()`, `is_directory()`
+- **`stdlib/os`** & **`stdlib/dotenv`** — `get_env()`, `set_env()`, `unset_env()`, `has_env()`, `load_env()`, `environ()`, `dotenv_load()`, `dotenv_read()`, `dotenv_parse()`, `dotenv_write()`, `dotenv_get_int()`, `dotenv_get_bool()`, `path_exists()`, `run_command()`, `current_dir()`, `make_dir()`, `remove()`, `read_dir()`, `is_directory()`
 - **`stdlib/log`** — Leveled structured logger (`log_debug`, `log_info`, `log_warn`, `log_error`, `log_fatal`)
 - **`stdlib/context`** — Cancellation context (`create_context()`, `cancel()`, `is_done()`, `set_deadline_ms()`)
 - **`stdlib/sync`** — Concurrency primitives (`create_mutex()`, `create_once()`, `create_wait_group()`)
@@ -356,7 +356,9 @@ Raven ships with an extensive, batteries-included standard library:
 | `read_lines(path)` / `file_exists(path)` / `is_dir(path)` / `list_dir(path)` | Filesystem inspection |
 | `mkdir(path)` / `remove_file(path)` / `get_cwd()` | Directory & process utilities |
 | `time()` / `sleep(ms)` | Epoch clock & thread sleep |
-| `env(var)` / `exec(cmd)` | Environment variables & shell execution |
+| `env(var[, def])` / `set_env(k, v)` / `unset_env(k)` / `has_env(k)` | Environment variables manipulation |
+| `all_env()` / `load_env([path])` / `parse_env(str)` / `format_env(map)` | Dotenv (.env) loading, parsing & formatting |
+| `exec(cmd)` | Shell execution |
 | `assert(cond, msg)` / `panic(msg)` | Runtime assertions & panics |
 
 ---
@@ -383,10 +385,10 @@ curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh |
 
 ## Building from Source and Testing
 
-Raven includes a comprehensive test suite (**254 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, RFC 6455 WebSockets, and OpenSSL-backed Cryptography):
+Raven includes a comprehensive test suite (**259 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, RFC 6455 WebSockets, OpenSSL-backed Cryptography, and Platform Environment/.env support):
 
 ```bash
-# Fast build and test (Runs all 254 tests + stdlib tour)
+# Fast build and test (Runs all 259 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -469,7 +471,7 @@ Raven provides a strictly defined and documented language specification in [**do
 
 | Tier | Operating System & Architecture | Support Level | Capabilities |
 |---|---|---|---|
-| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (254/254 tests). |
+| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (259/259 tests). |
 | **Tier 2** | **macOS (Apple Silicon M-series & Intel x86_64)** | **Source-Compatible** | Full support for source builds via Clang/CMake. Tree-Walk Interpreter, Corvus VM, REPL, and tools. |
 | **Tier 2** | **Linux ARM64 (aarch64)** | **Source-Compatible** | Full support for Linux on ARM (Raspberry Pi, AWS Graviton). |
 | **Tier 3** | **Windows 10/11 (x86_64)** | **Roadmap (v1.1 - v2.0)** | Currently runnable via WSL2. Native Windows PE standalone `.exe` generator and Win32 thread scheduler planned. |

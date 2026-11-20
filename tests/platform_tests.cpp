@@ -260,3 +260,86 @@ TEST(PlatformWebSocketTest, FramePartialBufferNeedsMore) {
     EXPECT_FALSE(parsed.valid);
     EXPECT_TRUE(parsed.need_more);
 }
+
+TEST(PlatformEnvTest, GetSetUnsetHasAll) {
+    EXPECT_TRUE(raven::platform::set_env_var("RAVEN_TEST_PORT", "9999", true));
+    EXPECT_TRUE(raven::platform::has_env_var("RAVEN_TEST_PORT"));
+    auto val = raven::platform::get_env_var("RAVEN_TEST_PORT");
+    ASSERT_TRUE(val.has_value());
+    EXPECT_EQ(*val, "9999");
+
+    auto all = raven::platform::get_all_env_vars();
+    EXPECT_TRUE(all.find("RAVEN_TEST_PORT") != all.end());
+    EXPECT_EQ(all["RAVEN_TEST_PORT"], "9999");
+
+    EXPECT_TRUE(raven::platform::unset_env_var("RAVEN_TEST_PORT"));
+    EXPECT_FALSE(raven::platform::has_env_var("RAVEN_TEST_PORT"));
+    EXPECT_FALSE(raven::platform::get_env_var("RAVEN_TEST_PORT").has_value());
+}
+
+TEST(PlatformEnvTest, ParseBasicAndQuotes) {
+    std::string env_data = 
+        "# This is a comment\n"
+        "APP_NAME=RavenApp\n"
+        "PORT=8080 # inline comment\n"
+        "export SECRET=\"my#super#secret\"\n"
+        "SINGLE_QUOTED='literal $PORT string'\n"
+        "EMPTY_VAL=\n";
+
+    auto parsed = raven::platform::parse_env_string(env_data);
+    EXPECT_EQ(parsed["APP_NAME"], "RavenApp");
+    EXPECT_EQ(parsed["PORT"], "8080");
+    EXPECT_EQ(parsed["SECRET"], "my#super#secret");
+    EXPECT_EQ(parsed["SINGLE_QUOTED"], "literal $PORT string");
+    EXPECT_EQ(parsed["EMPTY_VAL"], "");
+}
+
+TEST(PlatformEnvTest, ParseMultilineAndEscapes) {
+    std::string env_data = 
+        "ESCAPED=\"line1\\nline2\\ttab\"\n"
+        "MULTILINE=\"first\nsecond\nthird\"\n";
+
+    auto parsed = raven::platform::parse_env_string(env_data);
+    EXPECT_EQ(parsed["ESCAPED"], "line1\nline2\ttab");
+    EXPECT_EQ(parsed["MULTILINE"], "first\nsecond\nthird");
+}
+
+TEST(PlatformEnvTest, VariableInterpolationAndDefaults) {
+    std::string env_data = 
+        "HOST=127.0.0.1\n"
+        "PORT=5000\n"
+        "BASE_URL=http://${HOST}:${PORT}/api\n"
+        "WITH_DEFAULT=${MISSING_KEY:-default_value}\n"
+        "ESCAPED_DOLLAR=\\$NOT_EXPANDED\n";
+
+    auto parsed = raven::platform::parse_env_string(env_data);
+    EXPECT_EQ(parsed["HOST"], "127.0.0.1");
+    EXPECT_EQ(parsed["PORT"], "5000");
+    EXPECT_EQ(parsed["BASE_URL"], "http://127.0.0.1:5000/api");
+    EXPECT_EQ(parsed["WITH_DEFAULT"], "default_value");
+    EXPECT_EQ(parsed["ESCAPED_DOLLAR"], "$NOT_EXPANDED");
+}
+
+TEST(PlatformEnvTest, LoadEnvFileAndFind) {
+    std::string temp_env = "/tmp/raven_test_find.env";
+    std::unordered_map<std::string, std::string> vars = {
+        {"ANINEXT_MODULE", "core_worker"},
+        {"ANINEXT_SHARD", "shard_01"}
+    };
+    EXPECT_TRUE(raven::platform::write_env_file(temp_env, vars));
+
+    auto loaded = raven::platform::load_env_file(temp_env, true);
+    EXPECT_EQ(loaded["ANINEXT_MODULE"], "core_worker");
+    EXPECT_EQ(loaded["ANINEXT_SHARD"], "shard_01");
+
+    auto sys_val = raven::platform::get_env_var("ANINEXT_MODULE");
+    ASSERT_TRUE(sys_val.has_value());
+    EXPECT_EQ(*sys_val, "core_worker");
+
+    auto found = raven::platform::find_env_file("/tmp", "raven_test_find.env");
+    ASSERT_TRUE(found.has_value());
+
+    std::filesystem::remove(temp_env);
+    raven::platform::unset_env_var("ANINEXT_MODULE");
+    raven::platform::unset_env_var("ANINEXT_SHARD");
+}
