@@ -2949,6 +2949,14 @@ void Interpreter::visit(const ImportStmt& stmt) {
         candidates.push_back((cur_dir / (path + ".rvn")).string());
         candidates.push_back((cur_dir / (path + "/" + base + ".rvn")).string());
         candidates.push_back((cur_dir / path).string());
+
+        // Also check project root (entrypoint script directory)
+        std::filesystem::path root_dir(source_dir_stack_.front());
+        if (root_dir != cur_dir) {
+            candidates.push_back((root_dir / (path + ".rvn")).string());
+            candidates.push_back((root_dir / (path + "/" + base + ".rvn")).string());
+            candidates.push_back((root_dir / path).string());
+        }
     }
 
     candidates.push_back(path + ".rvn");
