@@ -428,12 +428,13 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
         });
     }
 
+    std::thread replacement_worker;
     // Supervisor: detects crash via poll, spawns replacement
     std::thread supervisor([&]() {
         while (!stop.load(std::memory_order_relaxed)) {
             if (crash_occurred.load() && !recovery_confirmed.load()) {
                 // Replacement worker spawned immediately
-                std::thread replacement([&]() {
+                replacement_worker = std::thread([&]() {
                     raven::Interpreter interp;
                     bool first = true;
                     while (!stop.load(std::memory_order_relaxed)) {
@@ -451,7 +452,6 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
                     active_workers.fetch_sub(1);
                 });
                 active_workers.fetch_add(1);
-                replacement.detach();
                 return;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -464,6 +464,7 @@ TEST(HttpBenchmark, WorkerCrashRecovery) {
     crash_worker.join();
     for (auto& w : workers) w.join();
     supervisor.join();
+    if (replacement_worker.joinable()) replacement_worker.join();
 
     std::cout << "\n========================================================\n";
     std::cout << "BENCHMARK 4: Worker Crash Recovery\n";

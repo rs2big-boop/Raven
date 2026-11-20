@@ -16,7 +16,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake g++ libgtest-dev
+        sudo apt-get install -y cmake g++ libgtest-dev libssl-dev
 
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -24,7 +24,7 @@ jobs:
     - name: Build Raven Toolchain (raven, ravenc, rvm)
       run: cmake --build build --config Release
 
-    - name: Run Full Test Suite (259 Tests)
+    - name: Run Full Test Suite (264 Tests)
       run: ctest --test-dir build --output-on-failure
 
     - name: Run Real-World Projects

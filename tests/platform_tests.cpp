@@ -245,13 +245,109 @@ TEST(PlatformCryptoTest, Aes256GcmRoundtripAndTamperProof) {
 
     // Decrypt roundtrip
     auto decrypted = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, enc.ciphertext_hex, enc.tag_hex);
-    EXPECT_EQ(decrypted, plaintext);
+    EXPECT_TRUE(decrypted.success);
+    EXPECT_EQ(decrypted.plaintext, plaintext);
 
     // Tampering test: modify one character of ciphertext
     std::string tampered = enc.ciphertext_hex;
     tampered[0] = (tampered[0] == 'a') ? 'b' : 'a';
     auto failed = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, tampered, enc.tag_hex);
-    EXPECT_TRUE(failed.empty()); // Must fail and return empty on tampering!
+    EXPECT_FALSE(failed.success); // Must fail and return success=false on tampering!
+}
+
+TEST(PlatformCryptoTest, HkdfRfc5869Limits) {
+    std::string ikm = "RavenSecureIkmKey2026";
+    std::string salt = "RavenSalt2026";
+    std::string info = "AniNextInfo";
+
+    // Max allowed output length is 255 * 32 = 8160 bytes
+    auto max_allowed = raven::platform::hkdf_sha256_raw(ikm, salt, info, 8160);
+    EXPECT_EQ(max_allowed.size(), 8160UL);
+
+    // Exceeding 255 * 32 must be rejected immediately per RFC 5869 Section 2.3
+    auto exceeded = raven::platform::hkdf_sha256_raw(ikm, salt, info, 8161);
+    EXPECT_TRUE(exceeded.empty());
+
+    // Zero length must return empty
+    auto zero_len = raven::platform::hkdf_sha256_raw(ikm, salt, info, 0);
+    EXPECT_TRUE(zero_len.empty());
+}
+
+TEST(PlatformCryptoTest, Aes256GcmInvalidKeysAndAad) {
+    // 31-byte key (too short)
+    std::string short_key(31, 'k');
+    auto enc_short = raven::platform::aes256_gcm_encrypt(short_key, "hello");
+    EXPECT_FALSE(enc_short.success);
+
+    // 33-byte key (too long)
+    std::string long_key(33, 'k');
+    auto enc_long = raven::platform::aes256_gcm_encrypt(long_key, "hello");
+    EXPECT_FALSE(enc_long.success);
+
+    // Non-hex 64-char key
+    std::string non_hex_key(62, 'a');
+    non_hex_key += "ZZ";
+    auto enc_non_hex = raven::platform::aes256_gcm_encrypt(non_hex_key, "hello");
+    EXPECT_FALSE(enc_non_hex.success);
+
+    // Valid encryption with AAD
+    std::string key = raven::platform::crypto_random_hex(32);
+    auto enc = raven::platform::aes256_gcm_encrypt(key, "classified_data", "role=admin");
+    EXPECT_TRUE(enc.success);
+
+    // Decrypt with wrong AAD must fail authentication
+    auto wrong_aad = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, enc.ciphertext_hex, enc.tag_hex, "role=user");
+    EXPECT_FALSE(wrong_aad.success);
+
+    // Decrypt with correct AAD must succeed
+    auto correct_aad = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, enc.ciphertext_hex, enc.tag_hex, "role=admin");
+    EXPECT_TRUE(correct_aad.success);
+    EXPECT_EQ(correct_aad.plaintext, "classified_data");
+}
+
+TEST(PlatformCryptoTest, Aes256GcmEmptyPlaintextRoundtrip) {
+    std::string key = raven::platform::crypto_random_hex(32);
+    auto enc = raven::platform::aes256_gcm_encrypt(key, "");
+    EXPECT_TRUE(enc.success);
+    EXPECT_TRUE(enc.ciphertext_hex.empty()); // 0 bytes ciphertext
+    EXPECT_EQ(enc.tag_hex.size(), 32UL);    // 16 bytes tag hex
+
+    auto dec = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, enc.ciphertext_hex, enc.tag_hex);
+    EXPECT_TRUE(dec.success);
+    EXPECT_EQ(dec.plaintext, "");
+
+    // Tampered tag on empty plaintext must fail
+    std::string bad_tag = enc.tag_hex;
+    bad_tag[0] = (bad_tag[0] == '0') ? '1' : '0';
+    auto bad_dec = raven::platform::aes256_gcm_decrypt(key, enc.iv_hex, enc.ciphertext_hex, bad_tag);
+    EXPECT_FALSE(bad_dec.success);
+}
+
+TEST(PlatformCryptoTest, Pbkdf2EmbeddedNulAndNegativeIterations) {
+    std::string pass_with_nul = std::string("pass\0word", 9);
+    std::string pass_plain = "pass";
+    std::string salt = "salt123";
+
+    auto key_nul = raven::platform::pbkdf2_hmac_sha256_hex(pass_with_nul, salt, 1000, 32);
+    auto key_plain = raven::platform::pbkdf2_hmac_sha256_hex(pass_plain, salt, 1000, 32);
+    EXPECT_FALSE(key_nul.empty());
+    EXPECT_FALSE(key_plain.empty());
+    EXPECT_NE(key_nul, key_plain); // Embedded NUL must not truncate password!
+
+    // Negative or zero iterations must return empty
+    auto bad_iter = raven::platform::pbkdf2_hmac_sha256_hex("pass", "salt", 0, 32);
+    EXPECT_TRUE(bad_iter.empty());
+}
+
+TEST(PlatformCryptoTest, CsprngFailureAndLengthZero) {
+    auto b0 = raven::platform::crypto_random_bytes(0);
+    EXPECT_TRUE(b0.empty());
+
+    auto h0 = raven::platform::crypto_random_hex(0);
+    EXPECT_TRUE(h0.empty());
+
+    auto b16 = raven::platform::crypto_random_bytes(16);
+    EXPECT_EQ(b16.size(), 16UL);
 }
 
 TEST(PlatformWebSocketTest, FramePartialBufferNeedsMore) {

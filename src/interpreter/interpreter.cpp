@@ -1437,11 +1437,11 @@ void Interpreter::register_builtins() {
         std::string ciphertext = args[2].to_string();
         std::string tag = args[3].to_string();
         std::string aad = (args.size() > 4) ? args[4].to_string() : "";
-        std::string pt = platform::aes256_gcm_decrypt(key, iv, ciphertext, tag, aad);
-        if (pt.empty()) {
+        auto dec = platform::aes256_gcm_decrypt(key, iv, ciphertext, tag, aad);
+        if (!dec.success) {
             return Value();
         }
-        return Value(pt);
+        return Value(dec.plaintext);
     });
 
     // WebSocket RFC 6455 Builtins

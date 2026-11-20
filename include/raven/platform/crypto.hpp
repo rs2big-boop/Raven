@@ -52,10 +52,15 @@ struct GcmResult {
     std::string tag_hex;
 };
 
-GcmResult aes256_gcm_encrypt(const std::string& key, const std::string& plaintext, const std::string& aad = "");
-std::string aes256_gcm_decrypt(const std::string& key, const std::string& iv, const std::string& ciphertext, const std::string& tag, const std::string& aad = "");
+struct GcmDecryptResult {
+    bool success = false;
+    std::string plaintext;
+};
 
-// --- Authenticated AES-256 (CTR + HMAC-SHA256 Encrypt-then-MAC with Constant-Time Tag Verification) ---
+GcmResult aes256_gcm_encrypt(const std::string& key, const std::string& plaintext, const std::string& aad = "");
+GcmDecryptResult aes256_gcm_decrypt(const std::string& key, const std::string& iv, const std::string& ciphertext, const std::string& tag, const std::string& aad = "");
+
+// --- Authenticated AES-256 (GCM Authenticated Wrapper) ---
 struct AuthCipherResult {
     bool success = false;
     std::string iv_hex;
@@ -64,7 +69,7 @@ struct AuthCipherResult {
 };
 
 AuthCipherResult aes256_authenticated_encrypt(const std::string& key_hex, const std::string& plaintext);
-std::string aes256_authenticated_decrypt(const std::string& key_hex, const std::string& iv_hex, const std::string& ciphertext_hex, const std::string& tag_hex);
+GcmDecryptResult aes256_authenticated_decrypt(const std::string& key_hex, const std::string& iv_hex, const std::string& ciphertext_hex, const std::string& tag_hex);
 
 // --- WebSocket RFC 6455 Frame Framing & Parsing ---
 struct WebSocketFrame {
