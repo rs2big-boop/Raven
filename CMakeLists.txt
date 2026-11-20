@@ -59,6 +59,9 @@ add_library(raven_core
     src/compiler/optimizer.cpp
     src/compiler/bytecode_serializer.cpp
 
+    # Native Ahead-of-Time (AOT) Compiler
+    src/native/native_compiler.cpp
+
     # Intermediate Representation (IR) Subsystem & Passes
     src/ir/ir_node.cpp
     src/ir/ir_builder.cpp
@@ -221,6 +224,10 @@ if(RAVEN_BUILD_TESTS)
     add_executable(http_integration_benchmark tests/benchmark/http_integration_benchmark.cpp)
     target_link_libraries(http_integration_benchmark PRIVATE raven_core GTest::gtest_main)
     gtest_discover_tests(http_integration_benchmark WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    add_executable(native_compiler_tests tests/native/native_compiler_tests.cpp)
+    target_link_libraries(native_compiler_tests PRIVATE raven_core GTest::gtest_main)
+    gtest_discover_tests(native_compiler_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endif()
 
 # Installation targets

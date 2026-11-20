@@ -346,6 +346,7 @@ int main(int argc, char* argv[]) {
             std::string input_file;
             std::string output_file;
             bool native = true;
+            bool emit_c = false;
 
             for (int i = 2; i < argc; ++i) {
                 std::string arg = argv[i];
@@ -353,6 +354,8 @@ int main(int argc, char* argv[]) {
                     output_file = argv[++i];
                 } else if (arg == "--bytecode") {
                     native = false;
+                } else if (arg == "--emit-c" || arg == "--emit-cpp") {
+                    emit_c = true;
                 } else if (arg == "--native" || arg == "--standalone") {
                     native = true;
                 } else if (arg[0] != '-') {
@@ -367,7 +370,11 @@ int main(int argc, char* argv[]) {
 
             if (output_file.empty()) {
                 auto dot = input_file.find_last_of('.');
-                output_file = (dot != std::string::npos) ? input_file.substr(0, dot) : (input_file + (native ? "" : ".rvc"));
+                if (emit_c) {
+                    output_file = (dot != std::string::npos) ? input_file.substr(0, dot) + ".cpp" : (input_file + ".cpp");
+                } else {
+                    output_file = (dot != std::string::npos) ? input_file.substr(0, dot) : (input_file + (native ? "" : ".rvc"));
+                }
             }
 
             std::string ravenc_bin = "ravenc";
@@ -391,7 +398,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            std::string cmd = "\"" + ravenc_bin + "\" " + (native ? "--native " : "") + input_file + " -o " + output_file;
+            std::string mode_flag = emit_c ? "--emit-c " : (native ? "--native " : "");
+            std::string cmd = "\"" + ravenc_bin + "\" " + mode_flag + input_file + " -o " + output_file;
             return std::system(cmd.c_str()) == 0 ? 0 : 1;
         }
 

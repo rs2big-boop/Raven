@@ -11,6 +11,7 @@
 #include "raven/bytecode_serializer.hpp"
 #include "raven/compiler.hpp"
 #include "raven/lexer.hpp"
+#include "raven/native/native_compiler.hpp"
 #include "raven/optimizer.hpp"
 #include "raven/parser.hpp"
 #include "raven/platform/filesystem.hpp"
@@ -69,34 +70,11 @@ void print_usage() {
               << "Usage: ravenc [options] <input.rvn>\n\n"
               << "Options:\n"
               << "  -o <file>       Output compiled file (default: <input>.rvc or executable)\n"
-              << "  --native        Compile directly to a standalone native executable\n"
-              << "  -O, --optimize  Enable compile-time constant folding & dead code elimination\n"
+              << "  --native        Compile directly to a standalone native ELF executable (AOT)\n"
+              << "  --emit-c, --cpp Emit generated C++ native source code\n"
+              << "  -O, --optimize  Enable optimizations (pass -O3 to native compiler)\n"
               << "  -d, --disasm    Print bytecode disassembly to stdout\n"
               << "  -h, --help      Display this help message\n";
-}
-
-static std::string find_rvm_runtime() {
-    std::vector<fs::path> candidates = {
-        fs::current_path() / "rvm",
-        fs::current_path() / "build" / "rvm",
-        fs::current_path() / "build" / "Release" / "rvm",
-        fs::current_path() / "bin" / "rvm"
-    };
-
-    std::string exe_dir = raven::platform::fs_executable_dir();
-    if (!exe_dir.empty()) {
-        fs::path exe_root(exe_dir);
-        candidates.push_back(exe_root / "rvm");
-        candidates.push_back(exe_root / "build" / "rvm");
-        candidates.push_back(exe_root / "build" / "Release" / "rvm");
-    }
-
-    for (const auto& path : candidates) {
-        if (fs::exists(path) && !fs::is_directory(path)) {
-            return path.string();
-        }
-    }
-    return "";
 }
 
 int main(int argc, char* argv[]) {
@@ -110,6 +88,7 @@ int main(int argc, char* argv[]) {
     bool optimize = false;
     bool disasm = false;
     bool native = false;
+    bool emit_c = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -122,6 +101,8 @@ int main(int argc, char* argv[]) {
             disasm = true;
         } else if (arg == "--native" || arg == "--standalone") {
             native = true;
+        } else if (arg == "--emit-c" || arg == "--emit-cpp" || arg == "--cpp") {
+            emit_c = true;
         } else if (arg == "-o" && i + 1 < argc) {
             output_path = argv[++i];
         } else if (arg == "-o") {
@@ -141,7 +122,9 @@ int main(int argc, char* argv[]) {
 
     if (output_path.empty()) {
         auto dot = input_path.find_last_of('.');
-        if (native) {
+        if (emit_c) {
+            output_path = (dot != std::string::npos) ? input_path.substr(0, dot) + ".cpp" : (input_path + ".cpp");
+        } else if (native) {
             output_path = (dot != std::string::npos) ? input_path.substr(0, dot) : (input_path + ".bin");
         } else {
             output_path = (dot != std::string::npos) ? input_path.substr(0, dot) + ".rvc" : (input_path + ".rvc");
@@ -177,65 +160,25 @@ int main(int argc, char* argv[]) {
     RuntimeFeatureDetector detector;
     detector.inspect(statements);
 
+    if (emit_c) {
+        raven::native::NativeCompilerOptions opts;
+        opts.optimize = optimize;
+        opts.emit_c = true;
+        opts.c_output_path = output_path;
+        if (!raven::native::NativeCompiler::compile_to_file(input_path, output_path, opts)) {
+            return 1;
+        }
+        std::cout << "Successfully emitted C++ native source to '" << output_path << "'\n";
+        return 0;
+    }
+
     if (native) {
-        std::string rvm_path = find_rvm_runtime();
-        if (rvm_path.empty()) {
-            std::cerr << "Error: Could not locate native runtime engine template ('rvm').\n";
+        raven::native::NativeCompilerOptions opts;
+        opts.optimize = optimize;
+        opts.output_path = output_path;
+        if (!raven::native::NativeCompiler::compile_to_file(input_path, output_path, opts)) {
             return 1;
         }
-
-        std::ifstream rvm_in(rvm_path, std::ios::binary);
-        if (!rvm_in.is_open()) {
-            std::cerr << "Error: Failed to read runtime template '" << rvm_path << "'\n";
-            return 1;
-        }
-
-        std::string payload;
-        const char* magic = RAVEN_NATIVE_MAGIC;
-
-        if (detector.needs_full_runtime) {
-            payload = ss.str();
-            magic = RAVEN_NATIVE_SRC_MAGIC;
-        } else {
-            Chunk chunk;
-            Compiler compiler(chunk);
-            if (!compiler.compile(statements)) {
-                std::cerr << "Compilation failed.\n";
-                return 1;
-            }
-            if (disasm) {
-                chunk.disassemble(std::cout, input_path);
-            }
-            std::ostringstream payload_stream(std::ios::binary);
-            if (!BytecodeSerializer::serialize(chunk, payload_stream)) {
-                std::cerr << "Error: Failed to serialize bytecode payload.\n";
-                return 1;
-            }
-            payload = payload_stream.str();
-        }
-
-        uint64_t payload_size = static_cast<uint64_t>(payload.size());
-
-        std::ofstream out(output_path, std::ios::binary);
-        if (!out.is_open()) {
-            std::cerr << "Error: Cannot open output executable '" << output_path << "' for writing.\n";
-            return 1;
-        }
-
-        // 1. Copy entire RVM engine
-        out << rvm_in.rdbuf();
-        // 2. Append serialized payload
-        out.write(payload.data(), payload.size());
-        // 3. Append magic trailer
-        out.write(magic, 16);
-        // 4. Append uint64 payload size
-        out.write(reinterpret_cast<const char*>(&payload_size), sizeof(payload_size));
-        out.close();
-
-        // 5. Set executable permissions (chmod +x, POSIX only)
-#if !defined(_WIN32) && !defined(_WIN64)
-        chmod(output_path.c_str(), 0755);
-#endif
 
         std::cout << "⚡ Successfully compiled standalone native binary: '" << output_path << "'\n"
                   << "   Binary size: " << fs::file_size(output_path) << " bytes\n"

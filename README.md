@@ -27,7 +27,8 @@ Discover why Raven exists, the problems it solves, its unique design, and the 5-
 
 Raven was designed to provide a modern, ergonomic, and rock-solid scripting and systems language experience:
 
-- **Standalone Self-Contained Binary (`raven build`)**: Package your Raven script into a single portable executable that includes the source/bytecode and an embedded Corvus runtime — **no GCC, Clang, or external dependencies required** at run time. Similar in spirit to `deno compile` or PyInstaller; produces a self-contained ELF on Linux.
+- **True AOT Native Machine Code Compilation (`raven build` / `ravenc --native`)**: Compile your Raven script directly into a standalone native executable (ELF on Linux) via an Ahead-of-Time (AOT) backend with host GCC/Clang (`-O3`), auto-vectorization, and zero interpreter overhead. Supports `--emit-c` to inspect generated native C++ source.
+- **Self-Contained Bytecode Binary Packaging (`raven build --bytecode`)**: Alternative packaging bundling bytecode and the embedded Corvus runtime into a single portable binary.
 - **Native CSP Concurrency**: Real multi-threaded `spawn()` and native thread-safe channels (`chan_create()`, `chan_send()`, `chan_recv()`).
 - **Default Function Parameters**: `fn greet(name = "World") { ... }` supported in functions and closures.
 - **Null Coalescing Operator (`??`)**: Short-circuiting fallback operator (`let host = env("HOST") ?? "localhost"`).
@@ -50,7 +51,7 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 
 | Tool / Command | Analogous to | Description |
 |---|---|---|
-| **`raven build <file> [-o bin]`** | `go build` / `cargo build` | **Self-Contained Packaging**: Bundle source/bytecode and the embedded Corvus runtime into a single portable executable — no GCC/Clang needed at run time. |
+| **`raven build <file> [-o bin]`** | `go build` / `cargo build` | **Native AOT Compilation**: Compile directly into a standalone native machine code binary (ELF on Linux) with host GCC/Clang `-O3` optimizations. |
 | **`raven run <file>`** | `go run` / `python` | Execute Raven script with automatic module resolution and instant startup. |
 | **`raven init [name]`** | `go mod init` / `cargo init` | Initialize a new structured Raven project with `raven.json` manifest and `src/main.rvn`. |
 | **`raven fmt [-w] <file>`** | `gofmt` | Canonical code formatter (aesthetically formats indentation, spacing, and braces). |
@@ -59,8 +60,8 @@ Raven provides a complete Go-like developer ecosystem and dual-engine runtime:
 | **`raven bench <file>`** | `go test -bench` | Microsecond-accurate benchmark runner for scripts and modules. |
 | **`raven debug <file>`** | `dlv` / `gdb` / `pdb` | Interactive step-through debugger (`rvndb`) with breakpoints, stack inspection, variable inspection, and step over/into. |
 | **`raven lsp`** | `gopls` | Official Language Server Protocol (LSP) server providing diagnostics, completions, formatting, and hover. |
-| **`ravenc`** | `javac` | Dedicated compiler: Compiles `.rvn` source code into optimized `.rvc` binary bytecode or native binaries (`--native`). |
-| **`rvm`** | `java` (JVM) | High-speed Corvus Virtual Machine executing pre-compiled `.rvc` bytecode or embedded native binaries. |
+| **`ravenc`** | `gcc` / `javac` | Dedicated compiler: Compiles `.rvn` source code into standalone native machine code (`--native`), emitted C++ (`--emit-c`), or optimized `.rvc` bytecode. |
+| **`rvm`** | `java` (JVM) | High-speed Corvus Virtual Machine executing pre-compiled `.rvc` bytecode. |
 
 ---
 
@@ -103,7 +104,7 @@ flowchart TD
 
 Standard Go-style root scripts are provided for fast development:
 - `./make.bash` — Fast compile and link
-- `./all.bash` — Full rebuild, test execution (264/264 tests), and stdlib tour run
+- `./all.bash` — Full rebuild, test execution (272/272 tests), and stdlib tour run
 - `./run.bash <file>` — Quick-run any Raven script
 - `./clean.bash` — Clean build artifacts
 - `./dist.bash` — Package full standalone distribution tarball with SHA-256 checksum
@@ -385,10 +386,10 @@ curl -fsSL https://raw.githubusercontent.com/rs2big-boop/Raven/main/install.sh |
 
 ## Building from Source and Testing
 
-Raven includes a comprehensive test suite (**264 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, RFC 6455 WebSockets, OpenSSL-backed Cryptography, and Platform Environment/.env support):
+Raven includes a comprehensive test suite (**272 automated tests** across Lexer, Parser, AST, Interpreter, Corvus VM, Differential Testing, Higher-Order Parity, Concurrency, Packages, IR Optimization passes, Platform Networking, RFC 6455 WebSockets, OpenSSL-backed Cryptography, Platform Environment/.env support, and AOT Native Compiler):
 
 ```bash
-# Fast build and test (Runs all 264 tests + stdlib tour)
+# Fast build and test (Runs all 272 tests + stdlib tour)
 ./all.bash
 
 # Or standard CMake:
@@ -408,7 +409,6 @@ Production-pattern reference projects are included under `examples/projects/`:
 3. **[Key-Value Database Client](examples/projects/03_kv_database_client.rvn)**: Client Session Management, CRUD, Atomic Counters, and Batch Pipeline Execution.
 4. **[Concurrent Task Runner](examples/projects/04_concurrent_task_runner.rvn)**: Native POSIX Threads, WaitGroup Barrier Synchronization, and CSP Channel Queue.
 5. **[Official Full-Stack Website Server](examples/serve_website.rvn)**: Production HTTP server written in Raven serving the React 19 + TypeScript web application with routing and static assets.
-6. **[Live WebSocket Chat Server](examples/projects/05_live_chat_server.rvn)**: RFC 6455 WebSocket Handshake & Framing, HMAC-SHA256 JWT Authentication, Room Subscriptions, and Real-Time Broadcasting.
 
 ## VS Code & Cursor IDE Extension + Debugger
 
@@ -471,7 +471,7 @@ Raven provides a strictly defined and documented language specification in [**do
 
 | Tier | Operating System & Architecture | Support Level | Capabilities |
 |---|---|---|---|
-| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: Self-contained binary packaging (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (264/264 tests). |
+| **Tier 1** | **Linux x86_64** | **Official Production Target** | Full support: AOT Native Compiler (`raven build`), Corvus VM, Tree-Walk, LSP, VS Code extension, and `rvndb` debugger. Tested in CI (272/272 tests). |
 | **Tier 2** | **macOS (Apple Silicon M-series & Intel x86_64)** | **Source-Compatible** | Full support for source builds via Clang/CMake. Tree-Walk Interpreter, Corvus VM, REPL, and tools. |
 | **Tier 2** | **Linux ARM64 (aarch64)** | **Source-Compatible** | Full support for Linux on ARM (Raspberry Pi, AWS Graviton). |
 | **Tier 3** | **Windows 10/11 (x86_64)** | **Roadmap (v1.1 - v2.0)** | Currently runnable via WSL2. Native Windows PE standalone `.exe` generator and Win32 thread scheduler planned. |
